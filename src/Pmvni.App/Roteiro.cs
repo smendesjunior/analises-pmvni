@@ -5662,29 +5662,31 @@ internal static class Roteiro
                 await Esperar(800);
                 var grade = pag.PainelModelosAnalise.Children.OfType<Grid>().FirstOrDefault();
                 var caixas = grade?.Children.OfType<Grid>().SelectMany(s => s.Children.OfType<ComboBox>()).ToList() ?? [];
-                // A auditoria Codex tem perfil fixo. Só análise e autocorreção oferecem seletores.
+                // A análise informa a seleção por tarefa. A auditoria oferece modelo e nível.
                 var gradeOk = grade is not null && caixas.Count == 4
-                    && grade.Children.OfType<TextBlock>().Any(b => b.Text.Contains("Sol 6.2 · esforço médio"))
-                    && !caixas.Any(c => AutomationProperties.GetName(c).Contains("Auditoria", StringComparison.OrdinalIgnoreCase));
+                    && grade.Children.OfType<TextBlock>().Any(b => b.Text.Contains("Automático por tarefa"))
+                    && caixas.Count(c => AutomationProperties.GetName(c).Contains("Auditoria técnica", StringComparison.OrdinalIgnoreCase)) == 2
+                    && !caixas.Any(c => AutomationProperties.GetName(c).Contains("de Análise em", StringComparison.OrdinalIgnoreCase));
                 pag.PainelModelosAnalise.StartBringIntoView();
                 await Esperar(300);
                 await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "modelos-da-analise-xaml.png"));
 
-                // Troca o modelo da Análise no ChatGPT pela caixa: o ajuste local guarda só essa célula.
-                var caixa = caixas.FirstOrDefault(c => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(c) == "Modelo de Análise em ChatGPT");
+                // Troca o modelo da Auditoria técnica no ChatGPT pela caixa: o ajuste local guarda só essa célula.
+                var caixa = caixas.FirstOrDefault(c => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(c) == "Modelo de Auditoria técnica em ChatGPT");
                 var outro = caixa?.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == "gpt-6.1-terra");
                 if (caixa is not null && outro is not null) caixa.SelectedItem = outro;
                 await Esperar(800);
                 var ajuste = File.Exists(local) ? ModelosDaAnalise.LerAjuste(await File.ReadAllTextAsync(local)) : new AjusteModelos();
-                var trocou = ajuste.Celulas.Count == 1 && ajuste.Celulas.GetValueOrDefault(("codex", "padrao", "analyze"))?.Modelo == "gpt-6.1-terra";
+                var trocou = ajuste.Celulas.Count == 1 && ajuste.Celulas.GetValueOrDefault(("codex", "padrao", "technical_audit"))?.Modelo == "gpt-6.1-terra";
                 // O nível da Auditoria técnica abaixo de médio: aviso, sem bloquear.
                 var avisoAntes = pag.AvisoModelosAnalise.IsOpen;
 
                 perguntas.RespostaPorTitulo["Restaurar o padrão do kit?"] = true;
                 ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoRestaurarModelos).GetPattern(PatternInterface.Invoke)).Invoke();
                 await Esperar(800);
-                var restaurou = !File.Exists(local) && pag.TextoModelosAnalise.Text.StartsWith("Padrão do kit restaurado", StringComparison.Ordinal);
+                var restaurou = !File.Exists(local) && pag.TextoModelosAnalise.Text == "As rotas ativas voltaram ao padrão do kit.";
                 var rotas = new JsonObject();
+                var gradesPorRota = new JsonObject();
                 var rotaOk = true;
                 for (var indice = 0; indice < pag.CartoesRotas.Children.Count; indice++)
                 {
@@ -5699,6 +5701,19 @@ internal static class Roteiro
                     var modelo = seletores.Single(c => AutomationProperties.GetName(c).StartsWith("Modelo de Autocorreção em "));
                     var nivel = seletores.Single(c => AutomationProperties.GetName(c).StartsWith("Nível de Autocorreção em "));
                     var titulo = pag.TituloRota.Text;
+                    var codigoRota = indice == 0 ? "codex" : "claude";
+                    var automatico = novaGrade.Children.OfType<TextBlock>().Any(b => b.Text.Contains("Automático por tarefa"));
+                    var seletoresAuditoria = seletores.Where(c => AutomationProperties.GetName(c)
+                        .Contains("de Auditoria técnica em ", StringComparison.OrdinalIgnoreCase)).ToArray();
+                    var campos = new JsonObject();
+                    foreach (var seletor in seletoresAuditoria)
+                        campos[AutomationProperties.GetName(seletor)] = (seletor.SelectedItem as ComboBoxItem)?.Tag as string;
+                    gradesPorRota[codigoRota] = new JsonObject { ["titulo"] = titulo, ["analise_automatica_por_tarefa"] = automatico,
+                        ["auditoria"] = campos, ["total_seletores"] = seletores.Count };
+                    rotaOk &= automatico && campos.Count == 2 && seletores.Count == 4;
+                    pag.PainelModelosAnalise.StartBringIntoView();
+                    await Esperar(300);
+                    await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, $"grade-de-modelos-{codigoRota}.png"));
                     var padraoEsperado = indice == 0 ? "gpt-6.1-terra" : "claude-sonnet-5-5";
                     var padraoOk = (modelo.SelectedItem as ComboBoxItem)?.Tag as string == padraoEsperado
                         && (nivel.SelectedItem as ComboBoxItem)?.Tag as string == "medio";
@@ -5713,6 +5728,7 @@ internal static class Roteiro
                     rotaOk &= rotas[titulo]!.GetValue<bool>();
                 }
                 p["autocorrecao_por_rota"] = rotas;
+                p["grades_por_rota"] = gradesPorRota;
                 rotaOk &= rotas.Count == 2;
                 p["texto"] = pag.TextoModelosAnalise.Text;
                 p["conferencias"] = new JsonObject
@@ -5731,6 +5747,14 @@ internal static class Roteiro
                     var raciocinio = gradeCodex.Children.OfType<Grid>().SelectMany(g => g.Children.OfType<ComboBox>())
                         .Single(c => AutomationProperties.GetName(c).StartsWith("Nível de Autocorreção em "));
                     raciocinio.SelectedItem = raciocinio.Items.OfType<ComboBoxItem>().Single(i => (string)i.Tag == "alto");
+                    ComboBox CampoAuditoria(string campo) => pag.PainelModelosAnalise.Children.OfType<Grid>().Single()
+                        .Children.OfType<Grid>().SelectMany(g => g.Children.OfType<ComboBox>())
+                        .Single(c => AutomationProperties.GetName(c).StartsWith(campo + " de Auditoria técnica em ", StringComparison.OrdinalIgnoreCase));
+                    var modeloAuditoria = CampoAuditoria("Modelo");
+                    modeloAuditoria.SelectedItem = modeloAuditoria.Items.OfType<ComboBoxItem>().Single(i => (string)i.Tag == "gpt-6.1-terra");
+                    await Esperar(300);
+                    var nivelAuditoria = CampoAuditoria("Nível");
+                    nivelAuditoria.SelectedItem = nivelAuditoria.Items.OfType<ComboBoxItem>().Single(i => (string)i.Tag == "alto");
                     await Esperar(400);
                     await PrepararNovoRelatorioAsync();
 
@@ -5775,9 +5799,10 @@ internal static class Roteiro
                     var auditoria = etapasCodex["technical_audit"];
                     var tabelaRecebida = string.Equals(arq, recebido, StringComparison.OrdinalIgnoreCase);
                     var perfisConferem = (string?)autocorrecao?["modelo"] == "gpt-6.1-terra" && (string?)autocorrecao?["nivel"] == "alto"
-                        && (string?)auditoria?["modelo"] == "gpt-6.2-sol" && (string?)auditoria?["nivel"] == "medio";
+                        && (string?)auditoria?["modelo"] == "gpt-6.1-terra" && (string?)auditoria?["nivel"] == "alto";
                     p["conferencia_antes_de_partir"] = prevoo;
                     p["tabela_da_execucao"] = arq;
+                    p["auditoria_recebida_no_prevoo"] = auditoria?.DeepClone();
                     p["executor_recebeu_tabela_do_registro_de_trabalho"] = tabelaRecebida;
                     p["perfis_de_autocorrecao_e_auditoria"] = perfisConferem;
                     p["ok"] = p["ok"]!.GetValue<bool>() && prevoo && tabelaRecebida && perfisConferem;

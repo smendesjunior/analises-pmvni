@@ -227,7 +227,7 @@ public sealed partial class MainWindow
             p.TituloRota.Text = selecionada.Titulo;
             p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a, selecionada));
             p.OrigemModelos.Text = UsaCatalogoIndicativoDoCodex(selecionada.Rota)
-                ? "Codex-LB usa o modelo e o nível escolhidos para cada etapa. A lista de sugestões vem do catálogo local do Codex."
+                ? "A lista de modelos sugeridos para o Codex-LB vem do catálogo local do Codex."
                 : $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise.";
             p.RodapeModelos.Visibility = Visibility.Visible;
 
@@ -236,7 +236,7 @@ public sealed partial class MainWindow
             var i = Array.FindIndex(OpcoesCotaBaixa, o => Igual(o.Valor, desce));
             p.CaixaCotaBaixa.SelectedIndex = i >= 0 ? i : -1;
             p.TextoRegraObjecao.Text = "Na rota ChatGPT, uma nova tentativa após objeção técnica registrada sobe um nível de raciocínio, até alto. "
-                + "Durante a autocorreção, o Editor usa o modelo e o raciocínio da linha Autocorreção.";
+                + "A auditoria técnica mantém o modelo e o esforço escolhidos para ela, inclusive quando precisa repetir uma conferência.";
             p.TextoRegrasDasRotas.Text = string.Join(" ", kit.NotasDasRotas.Values)
                 + (kit.NotasDasRotas.Count > 0 ? " " : "") + "Padrão do kit: objeção técnica " + (kit.SobePorObjecao ? "sobe" : "não sobe") + " um nível; cota baixa "
                 + (kit.DescePorCota is { } d ? "com " + (d * 100).ToString("0", CultureInfo.InvariantCulture) + "% ou menos restantes" : "não desce o nível") + ".";
@@ -369,8 +369,8 @@ public sealed partial class MainWindow
     }
     FrameworkElement CelulaDaGrade(TabelaModelosKit kit, ColunaModelos col, EtapaModelos etapa, CelulaModelos padrao, AjusteModelos a, ListaDaRota lista)
     {
-        if (ModelosDaAnalise.AuditoriaFixa(col.Rota, etapa.Id))
-            return new TextBlock { Text = "Sol 6.2 · esforço médio, inclusive nos reparos e retomadas", TextWrapping = TextWrapping.Wrap };
+        if (ModelosDaAnalise.PorTarefa(col.Rota, etapa.Id))
+            return new TextBlock { Text = "Automático por tarefa. O Monitor mostra o modelo em atividade.", TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         var atual = a.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id));
         var vale = atual ?? padrao;
         var painel = new Grid { ColumnSpacing = 16, RowSpacing = 4, VerticalAlignment = VerticalAlignment.Center };
@@ -394,7 +394,7 @@ public sealed partial class MainWindow
         void Niveis(string modelo, string nivel)
         {
             caixaNivel.Items.Clear();
-            foreach (var n in ModelosDaAnalise.NiveisDoModelo(kit, lista, modelo))
+            foreach (var n in ModelosDaAnalise.NiveisDoModelo(kit, lista, modelo, col.Rota, etapa.Id))
             {
                 var nome = ModelosDaAnalise.NomeDoNivel(n);
                 var dica = nome + (n == padrao.Nivel && modelo == padrao.Modelo ? " (padrão)" : "");
@@ -409,7 +409,13 @@ public sealed partial class MainWindow
         void Aplicar()
         {
             if (montandoModelosAnalise || caixaModelo.SelectedItem is not ComboBoxItem { Tag: string modelo } || caixaNivel.SelectedItem is not ComboBoxItem { Tag: string nivel }) return;
-            var aceitos = ModelosDaAnalise.NiveisDoModelo(kit, lista, modelo);
+            var aceitos = ModelosDaAnalise.NiveisDoModelo(kit, lista, modelo, col.Rota, etapa.Id);
+            if (aceitos.Count == 0)
+            {
+                PaginaDeAjustes.TextoModelosAnalise.Text = "O catálogo não informa um esforço compatível para esse modelo.";
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, MostrarModelosDaAnalise);
+                return;
+            }
             if (!aceitos.Contains(nivel)) nivel = aceitos.Contains(padrao.Nivel) ? padrao.Nivel : aceitos[^1];
             var recusa = ModelosDaAnalise.Ajustar(AjusteDosModelos, kit, col, etapa, modelo, nivel, lista);
             if (recusa is not null)

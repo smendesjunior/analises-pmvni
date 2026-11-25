@@ -11,7 +11,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 - O formulário organiza os anexos em Projetos, BCI, ART/RRT, Escritura ou certidão de inteiro teor e Outros documentos. Cada categoria é opcional. O kit procura na pasta as peças das categorias que ficaram vazias.
 - Um clique no protocolo da capa permite editar o valor. A edição acompanha o relatório salvo e o PDF exportado.
 - Na verificação técnica, Claude e Codex recebem a orientação de escrever para quem não trabalha com projetos. A auditoria confere se as medidas, a conclusão e as dúvidas estão claras.
-- A grade de modelos fixa a auditoria Codex em Sol 6.2 médio. O monitor mostra as declarações usadas nos cálculos quando o kit fornece o registro da fonte.
+- Na auditoria técnica, você pode escolher o modelo e o esforço para Codex e Claude. A análise mostra a seleção automática por tarefa. O monitor mostra as declarações usadas nos cálculos quando o kit fornece o registro da fonte.
 
 ## 4.6.0
 

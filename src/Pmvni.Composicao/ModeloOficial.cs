@@ -35,9 +35,9 @@ public static class ModeloOficial
     public static IReadOnlyDictionary<string, string> HashesDoRegistro { get; } =
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["gerar_relatorio.py"] = "54614fd99c430a06def203a495da58707ff5e5343688791069091881369869bf",
-            ["modelo_relatorio.html"] = "69f84d59427a4f93316347b89d39ef71a61b1b0747c0e306bf09931dcfa8897f",
-            ["relatorio.css"] = "0d73ebede2773d501e465197316109d03f8a80277ce0f7e57d746213ce7c0bfd",
+            ["gerar_relatorio.py"] = "00c2d8114902091267e5acc850327d8709268a71ae40faa0c6d24ab43200f392",
+            ["modelo_relatorio.html"] = "3b46985668f0002aede4b51758729c58e5b6a862d9177aae455e2caeecdac9f7",
+            ["relatorio.css"] = "6893c6e94b17f0e473fe33f07f447a09c1eb129bf351782b98934140942b6038",
             ["brasao.png"] = "93f35890bd35ddd405ee407f05e5cea059301c7e62634415f19d5c4d9b4092cd",
             ["dados_modelo.json"] = "c56df9e6aec479887b028ce86e8f2962937a244cefabf5b8a308aca93f1ff816",
             ["exemplo_figura.png"] = "cbbf837e4eb816a42b642bf7e139090364ea98d6e9f603edcfc8e42a65a2244e",

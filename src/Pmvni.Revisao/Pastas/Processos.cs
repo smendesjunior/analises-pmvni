@@ -322,6 +322,42 @@ public static class Processos
             }, int.MaxValue);
     }
 
+    /// <summary>Despacho ou relatório anterior que a reanálise precisa consultar como referência.
+    /// Segue os critérios de ultimo_emitido do kit e só examina a raiz e as pastas de documentos emitidos.</summary>
+    public static string? UltimoEmitido(string raiz, CancellationToken ct)
+    {
+        var candidatos = new List<(DateOnly Data, bool Despacho, bool Pdf, DateTime Alterado, string Caminho)>();
+        var pastas = Directory.EnumerateDirectories(raiz, "DESPACH*").Concat(Directory.EnumerateDirectories(raiz, "RELAT*"))
+            .Where(p => Regex.IsMatch(Normalizar(Path.GetFileName(p)), @"^(despachos?|relatorios?)(\b|_)") && !EhLink(p));
+        foreach (var pasta in pastas.Prepend(raiz))
+        {
+            ct.ThrowIfCancellationRequested();
+            var dataPasta = Regex.Match(Path.GetFileName(pasta), @"\b20\d{2}-\d{2}-\d{2}\b").Value;
+            var arquivos = pasta == raiz
+                ? new[] { "DESPACH*", "RELAT*", "PARECER*" }.SelectMany(prefixo => Directory.EnumerateFiles(pasta, prefixo))
+                : Directory.EnumerateFiles(pasta);
+            foreach (var p in arquivos)
+            {
+                var ext = Path.GetExtension(p).ToLowerInvariant();
+                if (ext is not (".pdf" or ".docx")) continue;
+                var stem = Normalizar(Path.GetFileNameWithoutExtension(p));
+                var nome = stem.Replace('_', ' ');
+                if (nome.StartsWith('.') || nome.StartsWith('~') || Regex.IsMatch(nome, @"\b(minuta|rascunho|modelo)\b")) continue;
+                if (!Regex.IsMatch(nome, @"^(despacho|relatorio|parecer tecnico)\b")
+                    && (pasta == raiz || stem != Normalizar(Path.GetFileName(raiz)))) continue;
+                if (EhLink(p)) continue;
+                var alterado = File.GetLastWriteTimeUtc(p);
+                if (!DateOnly.TryParseExact(dataPasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var data))
+                    data = DateOnly.FromDateTime(alterado.ToLocalTime());
+                candidatos.Add((data, nome.StartsWith("despacho", StringComparison.Ordinal), ext == ".pdf", alterado, p));
+            }
+        }
+        return candidatos.OrderByDescending(c => c.Data).ThenByDescending(c => c.Despacho)
+            .ThenByDescending(c => c.Pdf).ThenByDescending(c => c.Alterado)
+            .ThenByDescending(c => Path.GetFileName(c.Caminho), StringComparer.OrdinalIgnoreCase)
+            .Select(c => c.Caminho).FirstOrDefault();
+    }
+
     static string? CategoriaDaPasta(string relativo)
     {
         string anterior = "";

@@ -437,7 +437,7 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
             "sha256_pdf", "folhas", "gerado_em", "pagina_mm" }, j.EnumerateObject().Select(p => p.Name));
         Assert.True(j.GetProperty("rascunho").GetBoolean()); // ExportarAsync sem dizer o contrário: rascunho
         Assert.Equal(1, j.GetProperty("recibo_versao").GetInt32());
-        Assert.Equal(16, j.GetProperty("modelo_revisao").GetInt32());
+        Assert.Equal(ModeloOficial.Revisao, j.GetProperty("modelo_revisao").GetRawText());
         var modelo = j.GetProperty("sha256_modelo").Deserialize<Dictionary<string, string>>()!;
         Assert.Equal(Modelo.Sha256.OrderBy(p => p.Key, StringComparer.Ordinal), modelo.OrderBy(p => p.Key, StringComparer.Ordinal));
         Assert.Equal(Sha(File.ReadAllBytes(CaminhoCorpus("curto"))), j.GetProperty("sha256_dados").GetString());

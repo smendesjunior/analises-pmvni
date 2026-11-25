@@ -622,7 +622,7 @@
 
           <!-- ===== 6.1 Inteligência artificial › Modelos da análise ===== -->
           <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
-            <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="O kit escolhe o modelo e o nível de esforço conforme a tarefa. Durante a análise, o Monitor mostra o modelo em atividade. Os ajustes desta tabela valem para este computador."/>
+            <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="Na análise, o kit escolhe o modelo conforme a tarefa. O Monitor mostra qual está em atividade. Na auditoria técnica, você escolhe o modelo e o esforço que este computador usará nas novas análises."/>
             <TextBlock Text="ROTAS DE EXECUÇÃO" Style="{StaticResource PmvniAjusteTitulo}"/>
             <InfoBar x:Name="AvisoModelosAnalise" x:FieldModifier="internal" Severity="Warning" IsClosable="False" IsOpen="False" Title="Confira os modelos da análise"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
@@ -642,7 +642,7 @@
                 <Grid x:Name="RodapeModelos" x:FieldModifier="internal" ColumnSpacing="12">
                   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="OrigemModelos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap"/>
-                  <TextBlock Grid.Column="1" Text="Aplicação imediata" Style="{StaticResource PmvniAjusteAjuda}"/>
+                  <TextBlock Grid.Column="1" Text="Vale para novas análises" Style="{StaticResource PmvniAjusteAjuda}"/>
                 </Grid>
               </StackPanel>
             </Border>

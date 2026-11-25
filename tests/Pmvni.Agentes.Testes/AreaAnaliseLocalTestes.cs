@@ -55,6 +55,9 @@ public sealed class AreaAnaliseLocalTestes
         var anexo = c.Gravar(@"PROJETO\INICIAL\P01.pdf", "prancha anexada");
         var automatico = c.Gravar(@"DOCUMENTOS\BCI\ficha.pdf", "cadastro selecionado");
         var ignorado = c.Gravar(@"PROJETO\REVISÃO 01\P01.pdf", "ignorar");
+        var despacho = c.Gravar(@"DESPACHO 02 - 2099-02-02\Despacho de correção.pdf", "pendências da análise anterior");
+        var antigo = c.Gravar(@"DESPACHO 01 - 2099-01-01\Despacho de correção.pdf", "versão antiga");
+        var minuta = c.Gravar(@"DESPACHO 03 - 2099-03-03\Despacho minuta.docx", "ainda não emitido");
         var bytes = File.ReadAllBytes(anexo);
         var item = new ArquivoArquivado(anexo, Path.GetRelativePath(c.Origem, anexo),
             Convert.ToHexString(SHA256.HashData(bytes)), bytes.Length, false) { Categoria = "projetos" };
@@ -67,6 +70,9 @@ public sealed class AreaAnaliseLocalTestes
         var a = AreaAnaliseLocal.Preparar(pedido, [anexo, automatico], default, c.Estacao.Caminho);
         c.Associar(a);
         Assert.False(File.Exists(NaArea(a, ignorado)));
+        Assert.True(File.Exists(NaArea(a, despacho)));
+        Assert.False(File.Exists(NaArea(a, antigo)));
+        Assert.False(File.Exists(NaArea(a, minuta)));
         Assert.Equal(File.ReadAllBytes(automatico), File.ReadAllBytes(NaArea(a, automatico)));
         Assert.Equal(bytes, File.ReadAllBytes(NaArea(a, anexo)));
         Assert.Equal(File.ReadAllBytes(Path.Combine(pedido.Registro.Pasta, "anexos.json")),
@@ -81,6 +87,7 @@ public sealed class AreaAnaliseLocalTestes
         Assert.Equal(a.Identificador, b.Identificador);
         Assert.Equal(File.ReadAllBytes(NaArea(a, anexo)), File.ReadAllBytes(NaArea(b, anexo)));
         Assert.True(File.Exists(NaArea(b, automatico)));
+        Assert.Equal(File.ReadAllBytes(despacho), File.ReadAllBytes(NaArea(b, despacho)));
         Assert.False(File.Exists(NaArea(b, novo)));
         Assert.False(File.Exists(NaArea(b, ignorado)));
         b.ConfirmarTransporte();

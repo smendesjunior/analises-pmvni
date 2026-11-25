@@ -116,11 +116,11 @@ public class ModelosDaAnaliseTestes
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
         var comFable = Lista(M("claude-opus-5-5"), M("claude-sonnet-5-5"), M("claude-fable-5-2"));
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "analyze"), "claude-fable-5-2", "alto", comFable));
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "technical_audit"), "claude-fable-5-2", "alto", comFable));
         var nunca = new TaskCompletionSource();   // o provedor que não responde (o agy podia levar 60 s)
         var chamadas = 0;
         Task Atualizar() { chamadas++; return nunca.Task; }
-        static string Analise(TabelaDeModelos t) => JsonNode.Parse(t.Json)!["rotas"]!["claude"]!["perfis"]!["padrao"]!["etapas"]!["analyze"]!["modelo"]!.GetValue<string>();
+        static string Analise(TabelaDeModelos t) => JsonNode.Parse(t.Json)!["rotas"]!["claude"]!["perfis"]!["padrao"]!["etapas"]!["technical_audit"]!["modelo"]!.GetValue<string>();
 
         // A lista ainda não foi lida (não conferida): o ajuste vale, sem aviso, e a partida volta na hora, com a atualização já disparada.
         var naoLida = ModelosDaAnalise.ParaPartida(k, a, etapas,
@@ -149,6 +149,47 @@ public class ModelosDaAnaliseTestes
         Assert.Collection(erros, e => Assert.IsType<IOException>(e), e => Assert.IsType<TimeoutException>(e));
         // Sem atualização (fonte indisponível): só monta a tabela.
         Assert.Equal("claude-fable-5-2", Analise(ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", null)));
+    }
+
+    [Theory]
+    [InlineData("codex")]
+    [InlineData("claude")]
+    public void opcao_antiga_de_analise_nao_substitui_o_perfil_por_tarefa(string rota)
+    {
+        var kit = Kit();
+        var coluna = Coluna(kit, rota);
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), kit);
+        var ajuste = new AjusteModelos();
+        ajuste.Celulas[(rota, "padrao", "analyze")] = new("modelo-anterior", "alto");
+        var partida = ModelosDaAnalise.ParaPartida(kit, ajuste, etapas, Listas(), rota, null);
+        var json = JsonNode.Parse(partida.Json)!.AsObject();
+        Assert.Equal(kit.Celula(coluna, "analyze")!.Modelo, CelulaJson(json, rota, "padrao", "analyze")["modelo"]!.GetValue<string>());
+        Assert.DoesNotContain("modelo-anterior", ModelosDaAnalise.TabelaParaPublicar(kit, ajuste));
+    }
+
+    [Theory]
+    [InlineData("codex", "ultra")]
+    [InlineData("claude", "max")]
+    public void esforco_da_auditoria_respeita_rota_e_catalogo_e_sobrevive_ao_salvamento(string rota, string esforco)
+    {
+        var bruto = JsonNode.Parse(TabelaDoKit())!.AsObject();
+        bruto["niveis_auditoria_por_rota"] = JsonNode.Parse("""{"codex":["baixo","medio","alto","xhigh","max","ultra"],"claude":["baixo","medio","alto","xhigh","max"]}""");
+        var kit = ModelosDaAnalise.LerTabela(bruto.ToJsonString())!;
+        var col = Coluna(kit, rota);
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), kit);
+        var audit = etapas.Single(e => e.Id == "technical_audit");
+        var modelo = kit.Celula(col, audit.Id)!.Modelo;
+        var lista = Lista(M(modelo, "medium", esforco));
+        var ajuste = new AjusteModelos();
+        Assert.Null(ModelosDaAnalise.Ajustar(ajuste, kit, col, audit, modelo, esforco, lista));
+        Assert.NotNull(ModelosDaAnalise.Ajustar(ajuste, kit, col, audit, modelo, "xhigh", lista));
+        using var pasta = new PastaTemporaria();
+        ModelosDaAnalise.GravarAjuste(pasta.Caminho, ajuste);
+        var salvo = ModelosDaAnalise.LerAjuste(File.ReadAllText(ModelosDaAnalise.ArquivoLocal(pasta.Caminho)));
+        var efetiva = ModelosDaAnalise.Efetiva(kit, salvo, etapas, _ => lista);
+        Assert.Equal(esforco, CelulaJson(efetiva.Json, rota, col.Perfil, audit.Id)["nivel"]!.GetValue<string>());
+        var publicado = ModelosDaAnalise.LerTabela(ModelosDaAnalise.TabelaParaPublicar(kit, salvo))!;
+        Assert.Equal(esforco, publicado.Celula(col, audit.Id)!.Nivel);
     }
 
     [Fact]
@@ -195,23 +236,23 @@ public class ModelosDaAnaliseTestes
         // O catálogo do app ChatGPT ganhou um modelo que nem o Editor nem o kit conhecem.
         var lido = CatalogoIa.LerCodex("""{"models":[{"slug":"gpt-6.2-sol","display_name":"GPT-6.2 Sol","visibility":"list","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"high"}]},{"slug":"gpt-7-orion","display_name":"GPT-7 Orion","visibility":"list","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]}]}""");
         var lista = new ListaDaRota(lido, Conferida: true, "do app ChatGPT");
-        var padrao = k.Celula(Coluna(k, "codex"), "analyze")!;
+        var padrao = k.Celula(Coluna(k, "codex"), "technical_audit")!;
         var opcoes = ModelosDaAnalise.OpcoesDeModelo(lista, padrao, null);
         Assert.Contains(opcoes, o => o.Id == "gpt-7-orion" && o.Texto.Contains("GPT-7 Orion", StringComparison.Ordinal));
         Assert.Contains(opcoes, o => o.Id == padrao.Modelo && o.Texto.Contains("padrão do kit", StringComparison.Ordinal));   // o padrão fica, marcado
         // Os níveis do modelo novo vêm da própria lista: sem "baixo".
         Assert.Equal(["medio", "alto"], ModelosDaAnalise.NiveisDoModelo(k, lista, "gpt-7-orion"));
-        var etapa = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k).Single(e => e.Id == "analyze");
+        var etapa = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k).Single(e => e.Id == "technical_audit");
         var a = new AjusteModelos();
         Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapa, "gpt-7-orion", "alto", lista));
-        Assert.Equal(new CelulaModelos("gpt-7-orion", "alto"), a.Celulas[("codex", "padrao", "analyze")]);
+        Assert.Equal(new CelulaModelos("gpt-7-orion", "alto"), a.Celulas[("codex", "padrao", "technical_audit")]);
     }
 
     [Fact]
     public void modelo_inexistente_na_lista_do_provedor_e_recusado_com_mensagem()
     {
         var k = Kit();
-        var etapa = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k).Single(e => e.Id == "analyze");
+        var etapa = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k).Single(e => e.Id == "technical_audit");
         var a = new AjusteModelos();
         var recusa = ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapa, "claude-inexistente-9", "alto", Lista(M("claude-opus-5-5")));
         Assert.Equal("O modelo claude-inexistente-9 não está na lista do app (teste) (Claude). Atualize a lista ou escolha um modelo oferecido.", recusa);
@@ -232,15 +273,15 @@ public class ModelosDaAnaliseTestes
         var k = Kit();
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "analyze"), "claude-fable-5-2", "alto",
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "technical_audit"), "claude-fable-5-2", "alto",
             Lista(M("claude-opus-5-5"), M("claude-sonnet-5-5"), M("claude-fable-5-2"))));
         // Depois, a conta deixou de oferecer o Fable 5.2: a lista atualizada não tem mais o modelo.
         var efetiva = ModelosDaAnalise.Efetiva(k, a, etapas, Listas());
         var aviso = Assert.Single(efetiva.Avisos);
         Assert.Equal("claude", aviso.Rota);
-        Assert.Equal("Claude, Análise: o modelo claude-fable-5-2 não aparece mais na lista do app (teste). Se a conta recusar, escolha o substituto nesta execução.", aviso.Texto);
-        Assert.Equal("claude-fable-5-2", CelulaJson(efetiva.Json, "claude", "padrao", "analyze")["modelo"]!.GetValue<string>());
-        Assert.Equal("alto", CelulaJson(efetiva.Json, "claude", "padrao", "analyze")["nivel"]!.GetValue<string>());
+        Assert.Equal("Claude, Auditoria técnica: o modelo claude-fable-5-2 não aparece mais na lista do app (teste). Se a conta recusar, escolha o substituto nesta execução.", aviso.Texto);
+        Assert.Equal("claude-fable-5-2", CelulaJson(efetiva.Json, "claude", "padrao", "technical_audit")["modelo"]!.GetValue<string>());
+        Assert.Equal("alto", CelulaJson(efetiva.Json, "claude", "padrao", "technical_audit")["nivel"]!.GetValue<string>());
         // O aviso vai junto da tabela para o histórico da execução (só os da rota que roda).
         var execucao = efetiva.ParaExecucao("claude");
         Assert.Equal([aviso.Texto], execucao.Avisos);
@@ -251,7 +292,7 @@ public class ModelosDaAnaliseTestes
         // Com a lista ainda oferecendo o modelo, ele vale e não há aviso.
         var comFable = ModelosDaAnalise.Efetiva(k, a, etapas, Listas(claude: Lista(M("claude-opus-5-5"), M("claude-sonnet-5-5"), M("claude-fable-5-2"))));
         Assert.Empty(comFable.Avisos);
-        Assert.Equal("claude-fable-5-2", CelulaJson(comFable.Json, "claude", "padrao", "analyze")["modelo"]!.GetValue<string>());
+        Assert.Equal("claude-fable-5-2", CelulaJson(comFable.Json, "claude", "padrao", "technical_audit")["modelo"]!.GetValue<string>());
     }
 
     [Fact]
@@ -261,7 +302,7 @@ public class ModelosDaAnaliseTestes
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
         Assert.Empty(ModelosDaAnalise.AvisosDaAba(k, a, etapas, Listas()));
-        var analise = etapas.Single(e => e.Id == "analyze");
+        var analise = etapas.Single(e => e.Id == "technical_audit");
         Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), analise, "gpt-6.2-astra", "baixo", ListaDe(k, "codex")));
         var aviso = Assert.Single(ModelosDaAnalise.AvisosDaAba(k, a, etapas, Listas()));
         Assert.Equal($"ChatGPT, {analise.Nome}: nível baixo numa etapa técnica (que decide mérito). É permitido, mas o recomendado é médio ou alto.", aviso.Texto);
@@ -273,9 +314,9 @@ public class ModelosDaAnaliseTestes
         var k = Kit();
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
-        var analyze = etapas.Single(e => e.Id == "analyze");
-        var padrao = k.Celula(Coluna(k, "codex"), "analyze")!;
-        var outra = Outra(k, "codex", "analyze");
+        var analyze = etapas.Single(e => e.Id == "technical_audit");
+        var padrao = k.Celula(Coluna(k, "codex"), "technical_audit")!;
+        var outra = Outra(k, "codex", "technical_audit");
         Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), analyze, outra.Modelo, outra.Nivel, ListaDe(k, "codex")));
         ModelosDaAnalise.Ligar(a, etapas.Single(e => e.Id == "audit"), "claude", false);
         using var pasta = new PastaTemporaria();
@@ -290,10 +331,10 @@ public class ModelosDaAnaliseTestes
         var arquivo = Path.Combine(pasta.Caminho, TabelaDeModelos.NomeDoArquivo);
         File.WriteAllText(arquivo, efetiva.Json, new UTF8Encoding(false));
         // O Editor manda a célula ajustada no arquivo da execução...
-        Assert.Equal(outra.Modelo, CelulaJson(JsonNode.Parse(efetiva.Json)!.AsObject(), "codex", "padrao", "analyze")["modelo"]!.GetValue<string>());
-        // ...e o controlador do kit usa a célula ajustada (a tela Modelos da análise tem efeito); a auditoria técnica, sem ajuste, fica no padrão.
-        Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "analyze"));
-        Assert.Equal(("gpt-6.2-sol", "medio"), ModeloQueOControladorUsa(arquivo, "technical_audit"));
+        Assert.Equal(outra.Modelo, CelulaJson(JsonNode.Parse(efetiva.Json)!.AsObject(), "codex", "padrao", "technical_audit")["modelo"]!.GetValue<string>());
+        // ...e o controlador do kit usa a célula ajustada (a tela Modelos da análise tem efeito); a análise continua com os padrões por tarefa.
+        Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
+        Assert.Equal(("gpt-6.2-sol", "medio"), ModeloQueOControladorUsa(arquivo, "analyze"));
         Assert.Equal(["analyze", "technical_audit", "autocorrecao"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
         Assert.Equal("False", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
         Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('codex'))"));
@@ -303,7 +344,7 @@ public class ModelosDaAnaliseTestes
         ModelosDaAnalise.GravarAjuste(pasta.Caminho, restaurado);
         Assert.False(File.Exists(ModelosDaAnalise.ArquivoLocal(pasta.Caminho)));
         File.WriteAllText(arquivo, ModelosDaAnalise.Efetiva(k, restaurado, etapas, Listas()).ParaExecucao("codex").Json, new UTF8Encoding(false));
-        Assert.Equal((padrao.Modelo, padrao.Nivel), ModeloQueOControladorUsa(arquivo, "analyze"));
+        Assert.Equal((padrao.Modelo, padrao.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
         Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
     }
 
@@ -421,7 +462,7 @@ public class ModelosDaAnaliseTestes
         var lancados = new List<(string Exe, string Arquivo)>();
 
         // Um ajuste antigo, gravado quando o provedor ainda oferecia o modelo (o arquivo local é lido como está).
-        var antigo = ModelosDaAnalise.LerAjuste("""{"versao":1,"rotas":{"codex":{"perfis":{"padrao":{"etapas":{"analyze":{"modelo":"gpt-5-aposentado","nivel":"alto"}}}}},"gemini":{"perfis":{"perfil_que_saiu":{"etapas":{"analyze":{"modelo":"gemini-3.8-flash","nivel":"alto"}}}}}}}""");
+        var antigo = ModelosDaAnalise.LerAjuste("""{"versao":1,"rotas":{"codex":{"perfis":{"padrao":{"etapas":{"technical_audit":{"modelo":"gpt-5-aposentado","nivel":"alto"}}}}},"gemini":{"perfis":{"perfil_que_saiu":{"etapas":{"technical_audit":{"modelo":"gemini-3.8-flash","nivel":"alto"}}}}}}}""");
         var r = ModelosDaAnalise.Publicar(mestre, antigo, etapas, Listas(), [], scripts, ConferirNoKit, (e, f) => lancados.Add((e, f)));
         Assert.False(r.Publicada);
         Assert.Contains("gpt-5-aposentado não aparece mais na lista", r.Texto);
@@ -430,12 +471,12 @@ public class ModelosDaAnaliseTestes
 
         // A tabela final que a conferência do próprio kit recusa (aqui, o kit mestre tem um erro): nada é trocado.
         var quebrada = JsonNode.Parse(TabelaDoKit())!.AsObject();
-        quebrada["etapas_tecnicas"] = "analyze";
+        quebrada["etapas_tecnicas"] = "technical_audit";
         File.WriteAllText(destino, quebrada.ToJsonString(), new UTF8Encoding(false));
         antes = File.ReadAllText(destino, Encoding.UTF8);
         var a = new AjusteModelos();
-        var tecnica = Outra(k, "codex", "analyze");
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "analyze"), tecnica.Modelo, tecnica.Nivel, ListaDe(k, "codex")));
+        var tecnica = Outra(k, "codex", "technical_audit");
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "technical_audit"), tecnica.Modelo, tecnica.Nivel, ListaDe(k, "codex")));
         r = ModelosDaAnalise.Publicar(mestre, a, etapas, Listas(), [], scripts, ConferirNoKit, (e, f) => lancados.Add((e, f)));
         Assert.False(r.Publicada);
         Assert.Contains("a conferência do kit recusou a tabela (etapas_tecnicas deve ser uma lista", r.Texto);

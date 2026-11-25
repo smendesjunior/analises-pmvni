@@ -107,7 +107,12 @@ public static class RelatorioRenderer
             var apresentacao = Dados.Obter(linhas[i], "apresentacao");
             if (!PythonTexto.Verdadeiro(apresentacao)) continue;
             var linha = new Dictionary<string, object?>(Dados.Dict(linhas[i]));
-            if (Dados.Obter(apresentacao, "situacao") is string { Length: > 0 } situacao) linha["situacao"] = situacao;
+            var situacao = Dados.Obter(apresentacao, "situacao") as string;
+            if (grupo == "iluminacao" && Equals(Dados.Obter(linha, "situacao"), "DIVERGENCIA") &&
+                (situacao == "DECISAO_DO_ANALISTA" || Equals(Dados.Obter(apresentacao, "situacao_adicional"), "DECISAO_DO_ANALISTA")))
+                linha["situacao_adicional"] = "DECISAO_DO_ANALISTA";
+            else if (!string.IsNullOrEmpty(situacao))
+                linha["situacao"] = situacao;
             if (Dados.Obter(apresentacao, "nota") is string { Length: > 0 } nota)
             {
                 if (grupo == "indices")

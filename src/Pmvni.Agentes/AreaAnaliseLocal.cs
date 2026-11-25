@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Pmvni.Revisao;
 
 namespace Pmvni.Agentes;
 
@@ -163,9 +164,12 @@ internal sealed class AreaAnaliseLocal
             var restrita = anteriorInventario?.SomenteSelecionados ?? pedido.Anexos.Any(a => !string.IsNullOrWhiteSpace(a.Categoria));
             var diretorios = new List<string>();
             // Na retomada, o inventário do checkpoint fixa as peças desta execução inclusive para categorias automáticas.
+            var selecionados = entradas.Concat(pedido.Anexos.Select(a => Path.Combine(origem, a.Relativo)));
+            if (restrita && anteriorInventario is null && Processos.UltimoEmitido(origem, ct) is { } referencia)
+                selecionados = selecionados.Append(referencia);
             var lista = restrita
                 ? anteriorInventario is null
-                    ? ListarSelecionadas(origem, entradas.Concat(pedido.Anexos.Select(a => Path.Combine(origem, a.Relativo))), ct)
+                    ? ListarSelecionadas(origem, selecionados, ct)
                     : new HashSet<string>(anteriorInventario.Arquivos.Keys, Comparador)
                 : Listar(origem, ct, diretorios);
             if (!restrita) ValidarEntradas(origem, entradas, lista);

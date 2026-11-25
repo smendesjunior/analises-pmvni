@@ -93,8 +93,7 @@ public static class ModelosDaAnalise
     public const string CmdPublicar = "publicar-modelos-no-kit.cmd";
     public static IReadOnlyList<string> RotasAtivas { get; } = Provedores.Ativos.Select(RotaDoProvedor).ToArray();
     public static readonly string[] Rotas = ["codex", "claude", "gemini"];
-    internal static readonly CelulaModelos AuditoriaCodex = new("gpt-6.2-sol", "medio");
-    internal static bool AuditoriaFixa(string rota, string etapa) => rota == "codex" && etapa == "technical_audit";
+    internal static bool PorTarefa(string rota, string etapa) => etapa == "analyze" && RotasAtivas.Contains(rota);
 
     public static string ArquivoLocal(string raizDados) => Path.Combine(raizDados, NomeArquivoLocal);
 
@@ -104,10 +103,17 @@ public static class ModelosDaAnalise
 
     public static string RotaDoProvedor(Provedor p) => p switch { Provedor.Claude => "claude", Provedor.Gemini => "gemini", _ => "codex" };
 
-    public static string NomeDoNivel(string nivel) => nivel switch { "baixo" => "Baixo", "medio" => "Médio", "alto" => "Alto", _ => nivel };
+    public static string NomeDoNivel(string nivel) => nivel switch { "baixo" => "Baixo", "medio" => "Médio", "alto" => "Alto", _ => CatalogoIa.NomeNivel(nivel) };
 
     static readonly string[] NiveisDoKit = ["baixo", "medio", "alto"];
     static readonly Dictionary<string, string> EquivalenciaPadrao = new() { ["baixo"] = "low", ["medio"] = "medium", ["alto"] = "high" };
+
+    static IReadOnlyList<string> NiveisDaEtapa(JsonObject tabela, IReadOnlyList<string> padrao, string rota, string etapa)
+    {
+        if (etapa == "technical_audit" && tabela["niveis_auditoria_por_rota"]?[rota] is JsonArray niveis)
+            return niveis.Select(Texto).OfType<string>().Distinct().ToList();
+        return padrao;
+    }
 
     // ---------- leitura ----------
 
@@ -132,7 +138,7 @@ public static class ModelosDaAnalise
                     if (pNo is not JsonObject p || p["etapas"] is not JsonObject etapas) return null;
                     colunas.Add(new ColunaModelos(rota, perfil, perfis.Count > 1 ? nomeRota + " · " + (Texto(p["nome"]) ?? perfil) : nomeRota));
                     foreach (var (etapa, cNo) in etapas)
-                        if (cNo is JsonObject c && Texto(c["modelo"]) is { } modelo && Texto(c["nivel"]) is { } nivel && niveis.Contains(nivel))
+                        if (cNo is JsonObject c && Texto(c["modelo"]) is { } modelo && Texto(c["nivel"]) is { } nivel && NiveisDaEtapa(raiz, niveis, rota, etapa).Contains(nivel))
                             celulas[(rota, perfil, etapa)] = new CelulaModelos(modelo, nivel);
                         else return null;
                 }
@@ -213,7 +219,7 @@ public static class ModelosDaAnalise
                     {
                         var celula = Objeto(c, etapa);
                         if (Texto(celula["modelo"]) is not { } m || !CatalogoIa.ModeloValido(m) ||
-                            Texto(celula["nivel"]) is not { } n || !NiveisDoKit.Contains(n))
+                            Texto(celula["nivel"]) is not { } n || !(NiveisDoKit.Contains(n) || etapa == "technical_audit" && (rota == "codex" && n is ("xhigh" or "max" or "ultra") || rota == "claude" && n is ("xhigh" or "max"))))
                             throw new InvalidDataException($"Modelo ou nível inválido em {rota} / {perfil} / {etapa}.");
                         a.Celulas[(rota, perfil, etapa)] = new CelulaModelos(m, n);
                     }
@@ -334,13 +340,13 @@ public static class ModelosDaAnalise
         return opcoes.Select(o => o.Id == padrao.Modelo ? (o.Id, o.Texto + " — padrão do kit") : o).ToList();
     }
 
-    /// <summary>Os níveis do kit (baixo, médio, alto) que o modelo aceita; sem a informação, os três.</summary>
-    public static IReadOnlyList<string> NiveisDoModelo(TabelaModelosKit kit, ListaDaRota lista, string modelo)
+    /// <summary>Esforços permitidos para a etapa e oferecidos pelo modelo no catálogo disponível.</summary>
+    public static IReadOnlyList<string> NiveisDoModelo(TabelaModelosKit kit, ListaDaRota lista, string modelo, string rota = "", string etapa = "")
     {
-        var m = lista.Modelos.FirstOrDefault(x => x.Id == modelo);
-        if (m is null || m.Niveis.Count == 0) return kit.Niveis;
-        var aceitos = kit.Niveis.Where(n => m.Niveis.Contains(kit.Equivalencia.GetValueOrDefault(n, n))).ToList();
-        return aceitos.Count > 0 ? aceitos : kit.Niveis;
+        var permitidos = NiveisDaEtapa(kit.Bruto, kit.Niveis, rota, etapa);
+        var catalogo = lista.Modelos.FirstOrDefault(x => x.Id == modelo);
+        if (catalogo is null || catalogo.Niveis.Count == 0) return permitidos;
+        return permitidos.Where(n => catalogo.Niveis.Contains(kit.Equivalencia.GetValueOrDefault(n, n))).ToList();
     }
 
     // ---------- mudar o ajuste ----------
@@ -350,16 +356,15 @@ public static class ModelosDaAnalise
     public static string? Ajustar(AjusteModelos a, TabelaModelosKit kit, ColunaModelos coluna, EtapaModelos etapa, string modelo, string nivel, ListaDaRota lista)
     {
         if (etapa.Programa) return $"A etapa {etapa.Nome} roda por programa, sem IA: não tem modelo.";
-        if (AuditoriaFixa(coluna.Rota, etapa.Id) && new CelulaModelos(modelo, nivel) != AuditoriaCodex)
-            return "A auditoria Codex exige Sol 6.2 com esforço médio.";
+        if (PorTarefa(coluna.Rota, etapa.Id)) return "Na análise, o kit escolhe o modelo conforme a tarefa.";
         if (kit.Celula(coluna, etapa.Id) is not { } padrao) return $"A tabela do kit não tem a etapa {etapa.Nome} em {coluna.Titulo}.";
         modelo = (modelo ?? "").Trim();
         if (!CatalogoIa.ModeloValido(modelo)) return "Modelo inválido: " + modelo + ".";
         var naLista = lista.Modelos.Any(m => m.Id == modelo);
         if (!naLista && modelo != padrao.Modelo && lista.Conferida)
             return $"O modelo {modelo} não está na lista {lista.Fonte} ({coluna.Titulo}). Atualize a lista ou escolha um modelo oferecido.";
-        if (!kit.Niveis.Contains(nivel)) return "Nível inválido: " + nivel + ".";
-        if (!NiveisDoModelo(kit, lista, modelo).Contains(nivel))
+        if (!NiveisDaEtapa(kit.Bruto, kit.Niveis, coluna.Rota, etapa.Id).Contains(nivel)) return "Nível inválido: " + nivel + ".";
+        if (!NiveisDoModelo(kit, lista, modelo, coluna.Rota, etapa.Id).Contains(nivel))
             return $"O modelo {modelo} não aceita o nível {NomeDoNivel(nivel).ToLowerInvariant()} ({coluna.Titulo}).";
         var celula = new CelulaModelos(modelo, nivel);
         if (celula == padrao) a.Celulas.Remove((coluna.Rota, coluna.Perfil, etapa.Id));
@@ -418,16 +423,15 @@ public static class ModelosDaAnalise
             {
                 if (kit.Celula(col, etapa.Id) is not { } padrao) continue;
                 var celula = ajuste.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id)) ?? padrao;
-                if (AuditoriaFixa(col.Rota, etapa.Id))
+                if (PorTarefa(col.Rota, etapa.Id))
                 {
-                    celulas[(col.Rota, col.Perfil, etapa.Id)] = AuditoriaCodex;
-                    if (Falta(lista, AuditoriaCodex.Modelo))
-                        avisos.Add(new(col.Rota, "O catálogo da conta ainda não confirma o Sol 6.2 exigido pela auditoria."));
+                    // O kit utiliza a célula padrão para o julgamento e escolhe as leituras por tarefa.
+                    celulas[(col.Rota, col.Perfil, etapa.Id)] = padrao;
                     continue;
                 }
                 if (Falta(lista, celula.Modelo))
                     avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o modelo {celula.Modelo} não aparece mais na lista {lista!.Fonte}. Se a conta recusar, escolha o substituto nesta execução."));
-                else if (lista is { Conferida: true } && celula != padrao && !NiveisDoModelo(kit, lista, celula.Modelo).Contains(celula.Nivel))
+                else if (lista is { Conferida: true } && celula != padrao && !NiveisDoModelo(kit, lista, celula.Modelo, col.Rota, etapa.Id).Contains(celula.Nivel))
                     avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: a lista {lista.Fonte} não confirma o esforço {NomeDoNivel(celula.Nivel)} para {celula.Modelo}. A escolha é mantida até a resposta da conta."));
                 celulas[(col.Rota, col.Perfil, etapa.Id)] = celula;
             }
@@ -473,7 +477,7 @@ public static class ModelosDaAnalise
         foreach (var col in kit.Colunas)
             foreach (var etapa in etapas.Where(e => kit.EtapasTecnicas.Contains(e.Id) && !e.Programa))
             {
-                if (AuditoriaFixa(col.Rota, etapa.Id)) continue;
+                if (PorTarefa(col.Rota, etapa.Id)) continue;
                 var c = ajuste.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id)) ?? kit.Celula(col, etapa.Id);
                 if (c is not null && medio >= 0 && kit.Niveis.ToList().IndexOf(c.Nivel) < medio)
                     avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: nível {NomeDoNivel(c.Nivel).ToLowerInvariant()} numa etapa técnica (que decide mérito). É permitido, mas o recomendado é médio ou alto."));
@@ -503,7 +507,7 @@ public static class ModelosDaAnalise
     {
         var t = (JsonObject)mestre.Bruto.DeepClone();
         foreach (var ((rota, perfil, etapa), c) in a.Celulas)
-            if (t["rotas"]?[rota]?["perfis"]?[perfil]?["etapas"]?[etapa] is JsonObject cel)
+            if (!PorTarefa(rota, etapa) && t["rotas"]?[rota]?["perfis"]?[perfil]?["etapas"]?[etapa] is JsonObject cel)
             {
                 cel["modelo"] = c.Modelo;
                 cel["nivel"] = c.Nivel;
@@ -532,16 +536,16 @@ public static class ModelosDaAnalise
         {
             var col = mestre.Colunas.FirstOrDefault(x => x.Rota == rota && x.Perfil == perfil);
             var nome = etapas.FirstOrDefault(e => e.Id == etapaId)?.Nome ?? etapaId;
-            if (etapas.FirstOrDefault(e => e.Id == etapaId) is { Programa: true }) continue;   // etapa de programa: o ajuste antigo é ignorado (aviso na aba), não publicado nem bloqueia
+            if (PorTarefa(rota, etapaId) || etapas.FirstOrDefault(e => e.Id == etapaId) is { Programa: true }) continue;   // etapa de programa: o ajuste antigo é ignorado (aviso na aba), não publicado nem bloqueia
             if (col is null || mestre.Celula(col, etapaId) is null)
             {
                 problemas.Add($"a tabela do kit mestre não tem {nome} em {rota}/{perfil}");
                 continue;
             }
-            if (!CatalogoIa.ModeloValido(c.Modelo) || !mestre.Niveis.Contains(c.Nivel)) { problemas.Add($"{col.Titulo}, {nome}: modelo ou nível inválido ({c.Modelo}, {c.Nivel})"); continue; }
+            if (!CatalogoIa.ModeloValido(c.Modelo) || !NiveisDaEtapa(mestre.Bruto, mestre.Niveis, rota, etapaId).Contains(c.Nivel)) { problemas.Add($"{col.Titulo}, {nome}: modelo ou nível inválido ({c.Modelo}, {c.Nivel})"); continue; }
             var lista = listas(col);
             if (c.Modelo != mestre.Celula(col, etapaId)!.Modelo && Falta(lista, c.Modelo)) problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aparece mais na lista {lista!.Fonte}");
-            else if (lista is not null && !NiveisDoModelo(mestre, lista, c.Modelo).Contains(c.Nivel))
+            else if (lista is not null && !NiveisDoModelo(mestre, lista, c.Modelo, rota, etapaId).Contains(c.Nivel))
                 problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aceita o nível {NomeDoNivel(c.Nivel).ToLowerInvariant()}");
         }
         return problemas;

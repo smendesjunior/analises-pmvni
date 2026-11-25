@@ -50,7 +50,7 @@ public class ModeloOficialTestes
         };
 
         Assert.Equal(esperado.OrderBy(x => x), ModeloOficial.HashesDoRegistro.Keys.OrderBy(x => x));
-        Assert.Equal("54614fd99c430a06def203a495da58707ff5e5343688791069091881369869bf", ModeloOficial.HashesDoRegistro["gerar_relatorio.py"]);
+        Assert.Equal("00c2d8114902091267e5acc850327d8709268a71ae40faa0c6d24ab43200f392", ModeloOficial.HashesDoRegistro["gerar_relatorio.py"]);
     }
 
     [Fact]

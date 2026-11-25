@@ -58,7 +58,9 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
         "low" or "baixo" => "baixo",
         "medium" or "medio" or "médio" => "médio",
         "high" or "alto" => "alto",
-        "xhigh" or "max" or "maximo" or "máximo" => "máximo",
+        "xhigh" => "muito alto",
+        "max" or "maximo" or "máximo" => "máximo",
+        "ultra" => "ultra",
         _ => null,
     };
 
