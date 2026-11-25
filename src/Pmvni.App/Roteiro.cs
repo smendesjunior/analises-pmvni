@@ -141,6 +141,9 @@ internal sealed class ConversorMedido(IConversorPdf real) : IConversorPdf
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
 {
+    internal static IReadOnlyList<string> EtapasDaAnaliseDeTeste { get; } =
+        ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
+
     public static int CodigoSaida { get; private set; } = 1;
 
     static readonly List<string> programasIniciados = [];
@@ -3345,7 +3348,7 @@ internal static class Roteiro
                 // A fonte fornece valores de teste ao mesmo modelo que recebe o progresso do kit.
                 await j.NovoRelatorioAsync();
                 n.MostrarExecucao(true);
-                var ordem = new[] { "prepare","analyze","produce","final_review" };
+                var ordem = EtapasDaAnaliseDeTeste.ToArray();
                 n.MostrarResumo(true,null,FluxoNovoRelatorio.Etapas("analyze","",ordem),"ChatGPT");
                 n.MostrarProgresso(new ProgressoEtapa("analyze",1,7,28,Secoes:true));
                 var detalhesFicticios = new DetalhesDasEtapas(
@@ -3387,6 +3390,16 @@ internal static class Roteiro
                     await EsperarAteAsync(() => Task.FromResult(n.TituloDoDialogo is null), 3000);
                 }
                 await AbrirPagina("Resumo");
+                await Conferir("Trilha com as seis etapas e ambas as auditorias", () =>
+                {
+                    var trilha = Arvore(n.MonitorNativo).OfType<Grid>().FirstOrDefault(g =>
+                        Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(g) == "Progresso das etapas");
+                    if (trilha is null) return false;
+                    var nomes = trilha.Children.OfType<Grid>()
+                        .Select(g => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(g).Split(" · ")[0]);
+                    return nomes.SequenceEqual(ordem.Select(FluxoNovoRelatorio.NomeDaEtapa))
+                        && trilha.Children.OfType<Microsoft.UI.Xaml.Shapes.Rectangle>().Count() == 1;
+                });
                 await Conferir("Progresso geral 40%, tempo ativo 20 min e restante 30 min",
                     () => Campo("percent").Contains("40%") && Campo("elapsed").Contains("20 min") && Campo("eta").Contains("30 min"));
                 n.MostrarRelogios(TimeSpan.FromMinutes(21),agora.AddMinutes(1));
@@ -5509,7 +5522,7 @@ internal static class Roteiro
             await PrepararAgentesAsync();
             var refs = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "references");
             Directory.CreateDirectory(refs);
-            string[] ids = ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
+            var ids = EtapasDaAnaliseDeTeste.ToArray();
             string[] iaIds = ["analyze", "technical_audit", "autocorrecao"];
             string Celulas(Func<string, (string Modelo, string Nivel)> c) =>
                 string.Join(",", iaIds.Select(id => $"\"{id}\":{{\"modelo\":\"{c(id).Modelo}\",\"nivel\":\"{c(id).Nivel}\"}}"));

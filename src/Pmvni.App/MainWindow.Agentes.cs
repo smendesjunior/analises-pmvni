@@ -76,7 +76,7 @@ public sealed partial class MainWindow
                 && PaginaDeAjustes.CartaoGemini.Visibility == Visibility.Collapsed;
             d["cartoes"] = cartoes.Count;
             d["gemini_desativado"] = geminiOculto;
-            var etapasMonitor = new[] { ("Análise", EstadoEtapa.Agora) };
+            var etapasMonitor = FluxoNovoRelatorio.Etapas("analyze", "EM_ANDAMENTO", Roteiro.EtapasDaAnaliseDeTeste);
             NR.MostrarResumo(true, null, etapasMonitor, "ChatGPT");
             var amostra = new ConsumoAoVivo("codex", null, false, null, null, null, null, null, null, null)
                 { EtapaEmExecucao = "analyze", ModelosEmExecucao = "modelo-um" };
