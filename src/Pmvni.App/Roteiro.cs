@@ -3441,7 +3441,7 @@ internal static class Roteiro
                 await Conferir("Recolher etapa", () => Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") is null);
                 await AbrirPagina("Detalhes");
                 await Conferir("Ordem do plano, registro e plano do executor",
-                    () => string.Join("|", Campos("stage").Select(t => t[2..].Trim())) == "Preparo|Análise|Produção do relatório|Revisão final"
+                    () => string.Join("|", Campos("stage").Select(t => t[2..].Trim())) == "Preparo|Análise|Auditoria técnica|Auditoria cruzada|Produção do relatório|Revisão final"
                         && Campos("item").Contains("figuras (imagens, hashes)") && PaginaContem("Plano específico da execução") && PaginaContem("Registro de teste"));
                 await AbrirPagina("Consumo");
                 await Conferir("Cota medida separada da parcela sem atribuição", () => Campo("budget").Contains("18 p.p. observados") && Campo("budget").Contains("7 p.p. sem atribuição"));
