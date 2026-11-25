@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'nativo.ps1')
+. (Join-Path $PSScriptRoot 'inventario-motor.ps1')
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 $fontes = Join-Path $base 'fontes'
 [IO.Directory]::CreateDirectory($fontes) | Out-Null
@@ -8,6 +9,7 @@ $venv = Join-Path $base ('visao-' + (Get-FileHash $lock).Hash.Substring(0,16))
 $python = Join-Path $venv 'Scripts\python.exe'
 $uv = Join-Path $base 'uv-0.13.9.exe'
 $env:UV_PYTHON_INSTALL_DIR = Join-Path $base 'python'
+$ambienteNovo=!(Test-Path -LiteralPath $venv)
 if (!(Test-Path $python)) {
     Invocar-Nativo $uv @('venv', '--quiet', '--managed-python', '--python', '3.11.14', $venv)
 
@@ -43,6 +45,7 @@ try {
         if (!(Test-Path $json)) { throw "Falha no teste: $nome" }
         Write-Output "$nome INSTALADO"
     }
+    if ($ambienteNovo) { RegistrarAmbienteCriado $base $venv }
     [IO.File]::WriteAllText((Join-Path $base 'visao-runtime.txt'),$python)
 } finally {
     foreach($f in 'teste.pdf','blueprint.json','fyp-floorplan.json'){ $a=Join-Path $teste $f; if(Test-Path $a){Remove-Item -LiteralPath $a} }

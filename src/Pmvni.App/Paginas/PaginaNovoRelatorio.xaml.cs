@@ -10,6 +10,8 @@ namespace Pmvni.App;
 /// com a <see cref="SessaoNovoRelatorio"/>.</summary>
 public sealed partial class PaginaNovoRelatorio : UserControl
 {
+    internal string TextoExecutorExibido => ExecutorDetalhes.Text;
+
     ScrollViewer? rolagemDasLinhas;
 
     public PaginaNovoRelatorio()

@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'nativo.ps1')
+. (Join-Path $PSScriptRoot 'inventario-motor.ps1')
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 [IO.Directory]::CreateDirectory($base) | Out-Null
 $mutex = [Threading.Mutex]::new($false,'Local\PMVNI-MotorPdf')
@@ -30,6 +31,7 @@ try {
         } finally { if (Test-Path $zip) { Remove-Item -LiteralPath $zip } }
     }
     $env:UV_PYTHON_INSTALL_DIR = Join-Path $base 'python'
+    $ambienteNovo=!(Test-Path -LiteralPath $venv)
     if (!(Test-Path $python)) {
         Invocar-Nativo $uv @('venv', '--quiet', '--managed-python', '--python', '3.11.14', $venv)
 
@@ -38,6 +40,7 @@ try {
 
     Invocar-Nativo $python @('-I', '-c', 'import pymupdf, docling_mcp, mcp, rapidocr, shapely, duckdb, z3')
 
+    if ($ambienteNovo) { RegistrarAmbienteCriado $base $venv }
     $tmp = "$pointer.new"
     [IO.File]::WriteAllText($tmp,$python)
     if (Test-Path $pointer) { [IO.File]::Replace($tmp,$pointer,($pointer + ".anterior")) } else { [IO.File]::Move($tmp,$pointer) }

@@ -1,6 +1,7 @@
 param([string]$EditorAberto)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'politica-limpeza.ps1')
+. (Join-Path $PSScriptRoot 'inventario-motor.ps1')
 $pmvni = Join-Path $env:LOCALAPPDATA 'PMVNI'
 $motor = Join-Path $pmvni 'MotorPdf'
 $log = Join-Path $motor 'limpeza.log'
@@ -26,14 +27,35 @@ function MedirSemLinks($item) {
 function Apagar($raiz, $item) {
     $alvo = [IO.Path]::GetFullPath($item.FullName)
     if ([IO.Path]::GetDirectoryName($alvo) -ne $raiz -or !(CaminhoSemLink $alvo)) { return }
-    foreach ($processo in $processos) {
-        if (($processo.CommandLine -and $processo.CommandLine.IndexOf($alvo,[StringComparison]::OrdinalIgnoreCase) -ge 0) -or
-            ($processo.ExecutablePath -and $processo.ExecutablePath.StartsWith($alvo,[StringComparison]::OrdinalIgnoreCase))) { return }
-    }
     try {
+        if (!(ConteudoMotorConferido $item $motor (Join-Path $motor 'bootstrap'))) { return }
+        if ($null -eq $script:referenciasMotor) {
+            $valores=@(
+                Get-CimInstance Win32_Process | ForEach-Object { $_.CommandLine; $_.ExecutablePath }
+                Get-CimInstance Win32_Service | ForEach-Object PathName
+                Get-CimInstance Win32_StartupCommand | ForEach-Object Command
+                Get-ScheduledTask | ForEach-Object { $_.Actions | ForEach-Object { $_.Execute; $_.Arguments } }
+                $shell=New-Object -ComObject WScript.Shell
+                foreach($nomePasta in 'Programs','CommonPrograms','Desktop','CommonDesktopDirectory','Startup','CommonStartup') {
+                    $p=[Environment]::GetFolderPath($nomePasta)
+                    if ($p -and (Test-Path -LiteralPath $p)) {
+                        Get-ChildItem -LiteralPath $p -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                            $lnk=$shell.CreateShortcut($_.FullName); $lnk.TargetPath; $lnk.Arguments
+                        }
+                    }
+                }
+            )
+            $script:referenciasMotor=[Environment]::ExpandEnvironmentVariables(($valores -join [Environment]::NewLine))
+        }
+        if ($script:referenciasMotor.IndexOf($alvo,[StringComparison]::OrdinalIgnoreCase) -ge 0) { return }
         $bytes = MedirSemLinks $item
-        Remove-Item -LiteralPath $alvo -Recurse -Force
-        Add-Content -LiteralPath $log -Encoding UTF8 -Value "$(Get-Date -Format o) Apagado $alvo ($bytes bytes)"
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        if ($item.PSIsContainer) {
+            [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($alvo,'OnlyErrorDialogs','SendToRecycleBin','ThrowException')
+        } else {
+            [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($alvo,'OnlyErrorDialogs','SendToRecycleBin','ThrowException')
+        }
+        Add-Content -LiteralPath $log -Encoding UTF8 -Value "$(Get-Date -Format o) Reciclado $alvo ($bytes bytes)"
     } catch { Add-Content -LiteralPath $log -Encoding UTF8 -Value "$(Get-Date -Format o) Preservado $alvo : $_" }
 }
 
@@ -55,11 +77,21 @@ try {
         if (!$entrou) { $trava.Dispose(); return }
         $travas += $trava
     }
-    $processos = @(Get-CimInstance Win32_Process -Property CommandLine,ExecutablePath)
+    $script:referenciasMotor=$null
     $previsto = 'env-' + (Get-FileHash (Join-Path $PSScriptRoot 'requirements.lock')).Hash.Substring(0,20)
     $visao = 'visao-' + (Get-FileHash (Join-Path $PSScriptRoot 'visao.lock')).Hash.Substring(0,16)
     $ativo = AmbienteAtivo 'runtime.txt'
     $visaoAtiva = AmbienteAtivo 'visao-runtime.txt'
+    $selo=Join-Path $motor 'kit-plugins-3.0.0_2.0.0_2.0.0.ok'
+    if (($ativo -or $visaoAtiva) -and (Test-Path -LiteralPath $selo -PathType Leaf) -and (CaminhoSemLink $selo) -and
+        [IO.File]::ReadAllText($selo).Trim() -ceq 'analise, analise-pro, analise-google') { Apagar $motor (Get-Item -LiteralPath $selo) }
+    foreach ($nome in 'runtime.txt','visao-runtime.txt') {
+        $ant=Join-Path $motor ($nome+'.anterior')
+        if (!(AmbienteAtivo $nome) -or !(Test-Path -LiteralPath $ant -PathType Leaf) -or !(CaminhoSemLink $ant)) { continue }
+        $texto=[IO.File]::ReadAllText($ant).Trim()
+        $padrao='^'+[regex]::Escape($motor)+'\\(?:env-[0-9a-f]{20}|visao-[0-9a-f]{16})\\Scripts\\python\.exe$'
+        if ($texto -match $padrao -and ($texto -eq [IO.File]::ReadAllText((Join-Path $motor $nome)).Trim() -or !(Test-Path -LiteralPath $texto))) { Apagar $motor (Get-Item -LiteralPath $ant) }
+    }
     foreach ($item in Get-ChildItem -LiteralPath $motor -Directory) {
         if ([PoliticaLimpezaMotor]::Teste($item.Name) -or [PoliticaLimpezaMotor]::Ambiente($item.Name,$previsto,$ativo) -or
             [PoliticaLimpezaMotor]::Ambiente($item.Name,$visao,$visaoAtiva)) { Apagar $motor $item }
@@ -74,7 +106,7 @@ try {
     $instalacao = Join-Path $env:LOCALAPPDATA 'Programs\Analise de Projetos PMVNI'
     if ($EditorAberto -eq (Join-Path $instalacao 'Editor de Relatorios PMVNI.exe')) {
         foreach ($item in Get-ChildItem -LiteralPath $instalacao -File -Force) {
-            if ([PoliticaLimpezaMotor]::SobraInstalacao($item.Name)) { Apagar $instalacao $item }
+            if ([PoliticaLimpezaMotor]::SobraInstalacao($item.Name) -and $item.VersionInfo.OriginalFilename -eq 'Pmvni.App.dll' -and $item.VersionInfo.CompanyName -eq 'PMVNI') { Apagar $instalacao $item }
         }
     }
 } catch { Write-Warning "Limpeza adiada: $_" }

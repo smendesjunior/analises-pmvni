@@ -81,12 +81,12 @@ public sealed partial class MainWindow
             var amostra = new ConsumoAoVivo("codex", null, false, null, null, null, null, null, null, null)
                 { EtapaEmExecucao = "analyze", ModelosEmExecucao = "modelo-um" };
             NR.MostrarConsumo([], leitura: amostra);
-            var primeiro = NR.ExecutorDetalhes.Text;
+            var primeiro = NR.TextoExecutorExibido;
             NR.MostrarConsumo([], leitura: amostra with { ModelosEmExecucao = "modelo-dois" });
-            var segundo = NR.ExecutorDetalhes.Text;
+            var segundo = NR.TextoExecutorExibido;
             NR.MostrarResumo(false, null, [], "ChatGPT");
             NR.MostrarConsumo([]);
-            var troca = primeiro == "modelo-um" && segundo == "modelo-dois" && NR.ExecutorDetalhes.Text == "ChatGPT";
+            var troca = primeiro == "modelo-um" && segundo == "modelo-dois" && NR.TextoExecutorExibido == "ChatGPT";
             d["troca_de_modelo_observada"] = troca;
             d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca;
             if (!(bool)d["ok"]!) d["erro"] = "Confira as rotas de análise disponíveis em Novo relatório e Ajustes.";

@@ -8,5 +8,5 @@ class PoliticaLimpezaMotor {
 
     static [bool] Teste([string]$nome) { return $nome -like 'teste-*' }
     static [bool] Bootstrap([string]$nome) { return $nome -match '^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$' }
-    static [bool] SobraInstalacao([string]$nome) { return $nome -like '*.anterior*' -or $nome -like '*~RF*.TMP' }
+    static [bool] SobraInstalacao([string]$nome) { return $nome -match '^antigo-[\da-f]{32}\.exe\.old$' }
 }

@@ -227,6 +227,14 @@ public class RecuperacaoAnaliseLocalTestes
         var img = Pmvni.Composicao.CaminhoImagem.Resolver(Path.GetDirectoryName(pub.Documento!)!, fig, false);
         Assert.Equal("png fictício", File.ReadAllText(img!));
         Assert.Empty(Directory.EnumerateFiles(Em(origem, RecuperacaoAnaliseLocal.Produtos), "privado.bin", SearchOption.AllDirectories));
+        Gravar(img!, "arquivar edição humana");
+        var recomposta = RecuperacaoAnaliseLocal.Publicar(origem, a, Id, "analise", fim, () => {});
+        Assert.NotEqual(pub.Documento, recomposta.Documento);
+        Assert.Equal("arquivar edição humana", File.ReadAllText(img!));
+        Assert.Equal(recomposta, RecuperacaoAnaliseLocal.Publicar(origem, a, Id, "analise", fim, () => {}));
+        pub = recomposta;
+        img = Pmvni.Composicao.CaminhoImagem.Resolver(Path.GetDirectoryName(pub.Documento!)!, fig, false);
+        Assert.Equal("png fictício", File.ReadAllText(img!));
         Gravar(fim.Documento!, "{}");
         if (!manual) Assert.Throws<InvalidDataException>(() => RecuperacaoAnaliseLocal.Publicar(origem, a, Id, "analise", fim, () => {}));
         Assert.Equal(pub.Documento, RecuperacaoAnaliseLocal.EntregaPublicada(origem, Id)?.Documento);

@@ -16,7 +16,9 @@ internal static partial class RecuperacaoAnaliseLocal
     sealed record Ponteiro(string Atual, string? Anterior);
     internal static readonly string Produtos = Path.Combine("RELATÓRIOS DE ANÁLISE", "Entregas do Editor");
     sealed record Entrega(int Versao, string Processo, string Execucao, string Controle, string Modo, string? EtapaPendente,
-        string Documento, string? Pdf, List<Arquivo> Arquivos);
+        string Documento, string? Pdf, List<Arquivo> Arquivos,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+        int Reemissao = 0);
 
     static string Raiz(string caminho) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(caminho));
     static string Digest(Stream fluxo) => Convert.ToHexStringLower(SHA256.HashData(fluxo));
@@ -583,13 +585,29 @@ internal static partial class RecuperacaoAnaliseLocal
         if (nomePdf != null) mapa.Add(nomePdf, pdf!);
         var arquivos = mapa.OrderBy(p => p.Key, Nomes).Select(p => Medir(local, p.Value, ct) with { Nome = p.Key }).ToList();
         var manifesto = new Entrega(1, AreaAnaliseLocal.Identidade(origem), id, rota, modo, etapa, nomeDoc, nomePdf, arquivos);
-        var dados = JsonSerializer.SerializeToUtf8Bytes(manifesto);
-        var sha = Convert.ToHexStringLower(SHA256.HashData(dados));
         var indice = IndiceEntrega(origem, id);
         Directory.CreateDirectory(indice);
         using var trava = Reservar(indice, ct);
         var pasta = Dentro(origem, Path.Combine(Produtos, NomeExecucao(id)));
-        var destino = Dentro(pasta, sha);
+        byte[] dados;
+        string sha, destino, caminhoManifesto;
+        Resultado? existente = null;
+        // Preserva a pasta divergente para o analista. Cada reemissão tem endereço próprio e pode ser retomada.
+        for (var reemissao = 0; ; reemissao++)
+        {
+            ct.ThrowIfCancellationRequested();
+            manifesto = manifesto with { Reemissao = reemissao };
+            dados = JsonSerializer.SerializeToUtf8Bytes(manifesto);
+            sha = Convert.ToHexStringLower(SHA256.HashData(dados));
+            destino = Dentro(pasta, sha);
+            caminhoManifesto = Dentro(indice, sha + ".json");
+            if (File.Exists(caminhoManifesto) && Hash(caminhoManifesto) != sha) continue;
+            if (!Directory.Exists(destino)) break;
+            try { existente = ValidarProduto(origem, id, sha, manifesto); break; }
+            catch (InvalidDataException) { }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
+        }
         var shaDoc = arquivos.Single(a => Nomes.Equals(a.Nome, nomeDoc)).Sha256;
         var shaPdf = arquivos.SingleOrDefault(a => Nomes.Equals(a.Nome, nomePdf))?.Sha256;
         void ConferirPublicacao()
@@ -600,11 +618,10 @@ internal static partial class RecuperacaoAnaliseLocal
             conferirOriginais();
             ct.ThrowIfCancellationRequested();
         }
-        var caminhoManifesto = Dentro(indice, sha + ".json");
         if (!File.Exists(caminhoManifesto)) InstalarArquivo(caminhoManifesto, tmp => File.WriteAllBytes(tmp, dados), false);
         if (Hash(caminhoManifesto) != sha) throw new InvalidDataException("Manifesto de entrega divergente.");
         Resultado resultado;
-        if (!Directory.Exists(destino))
+        if (existente is null)
         {
             var temporario = Dentro(indice, "produto-" + Guid.NewGuid().ToString("N") + ".tmp");
             Directory.CreateDirectory(temporario);
@@ -629,7 +646,7 @@ internal static partial class RecuperacaoAnaliseLocal
         }
         else
         {
-            resultado = ValidarProduto(origem, id, sha, manifesto);
+            resultado = existente;
             ConferirPublicacao();
         }
         var anterior = LerPonteiro(indice)?.Atual;
