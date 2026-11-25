@@ -55,13 +55,14 @@ public sealed class AjusteModelos
 {
     public Dictionary<(string Rota, string Perfil, string Etapa), CelulaModelos> Celulas { get; } = new();
     public bool? SobePorObjecao { get; set; }
+    public bool ReconferenciaEconomica { get; set; }
     /// <summary>true = o ajuste troca o limite de cota (<see cref="DescePorCota"/>; null nele = não desce por cota).</summary>
     public bool TrocaDescePorCota { get; set; }
     public double? DescePorCota { get; set; }
     /// <summary>(etapa, rota) → ligada; só etapas opcionais.</summary>
     public Dictionary<(string Etapa, string Rota), bool> Ligadas { get; } = new();
 
-    public bool Vazio => Celulas.Count == 0 && SobePorObjecao is null && !TrocaDescePorCota && Ligadas.Count == 0;
+    public bool Vazio => !ReconferenciaEconomica && Celulas.Count == 0 && SobePorObjecao is null && !TrocaDescePorCota && Ligadas.Count == 0;
 }
 
 /// <summary>Um aviso da aba ou da partida, por rota.</summary>
@@ -223,6 +224,8 @@ public static class ModelosDaAnalise
                             throw new InvalidDataException($"Modelo ou nível inválido em {rota} / {perfil} / {etapa}.");
                         a.Celulas[(rota, perfil, etapa)] = new CelulaModelos(m, n);
                     }
+            if (raiz.ContainsKey("reconferencia_economica"))
+                a.ReconferenciaEconomica = Booleano(raiz["reconferencia_economica"], "reconferencia_economica");
             var regras = Grupo(raiz, "regras");
             if (regras.ContainsKey("sobe_por_objecao_tecnica"))
                 a.SobePorObjecao = Booleano(regras["sobe_por_objecao_tecnica"], "sobe_por_objecao_tecnica");
@@ -252,11 +255,11 @@ public static class ModelosDaAnalise
     }
 
     /// <summary>O arquivo do ajuste local: o mesmo formato do kit, só com o que muda.</summary>
-    public static string SerializarAjuste(AjusteModelos a) => Nucleo(a.Celulas, a.SobePorObjecao, a.TrocaDescePorCota, a.DescePorCota, a.Ligadas, "ajuste local do Editor de Relatórios")
+    public static string SerializarAjuste(AjusteModelos a) => Nucleo(a.Celulas, a.SobePorObjecao, a.TrocaDescePorCota, a.DescePorCota, a.Ligadas, "ajuste local do Editor de Relatórios", a.ReconferenciaEconomica)
         .ToJsonString(Opcoes) + "\n";
 
     static JsonObject Nucleo(IReadOnlyDictionary<(string Rota, string Perfil, string Etapa), CelulaModelos> celulas, bool? sobe, bool trocaDesce, double? desce,
-        IReadOnlyDictionary<(string Etapa, string Rota), bool> ligadas, string origem)
+        IReadOnlyDictionary<(string Etapa, string Rota), bool> ligadas, string origem, bool reconferenciaEconomica = false)
     {
         var rotas = new JsonObject();
         foreach (var ((rota, perfil, etapa), c) in celulas.OrderBy(k => Array.IndexOf(Rotas, k.Key.Rota)))
@@ -267,6 +270,7 @@ public static class ModelosDaAnalise
             ((JsonObject)p["etapas"]!)[etapa] = new JsonObject { ["modelo"] = c.Modelo, ["nivel"] = c.Nivel };
         }
         var o = new JsonObject { ["versao"] = 1, ["origem"] = origem, ["rotas"] = rotas };
+        if (reconferenciaEconomica) o["reconferencia_economica"] = true;
         if (sobe is not null || trocaDesce)
         {
             var regras = new JsonObject();
@@ -377,7 +381,7 @@ public static class ModelosDaAnalise
 
     public static AjusteModelos AjustesAtivos(AjusteModelos ajuste)
     {
-        var ativos = new AjusteModelos { SobePorObjecao = ajuste.SobePorObjecao, DescePorCota = ajuste.DescePorCota, TrocaDescePorCota = ajuste.TrocaDescePorCota };
+        var ativos = new AjusteModelos { ReconferenciaEconomica = ajuste.ReconferenciaEconomica, SobePorObjecao = ajuste.SobePorObjecao, DescePorCota = ajuste.DescePorCota, TrocaDescePorCota = ajuste.TrocaDescePorCota };
         foreach (var (k, v) in ajuste.Celulas.Where(i => RotasAtivas.Contains(i.Key.Rota))) ativos.Celulas[k] = v;
         foreach (var (k, v) in ajuste.Ligadas.Where(i => RotasAtivas.Contains(i.Key.Rota))) ativos.Ligadas[k] = v;
         return ativos;
@@ -437,7 +441,8 @@ public static class ModelosDaAnalise
             }
         }
         var json = Nucleo(celulas, ajuste.SobePorObjecao, ajuste.TrocaDescePorCota, ajuste.DescePorCota, ajuste.Ligadas,
-            ajuste.Vazio ? "padrão do kit (sem ajuste local)" : "padrão do kit com o ajuste local do Editor de Relatórios");
+            ajuste.Vazio ? "padrão do kit (sem ajuste local)" : "padrão do kit com o ajuste local do Editor de Relatórios",
+            ajuste.ReconferenciaEconomica && kit.Bruto.ContainsKey("reconferencia_economica"));
         json["reparo_julgamento_previsto"] = kit.Bruto["rotas"]?["codex"]?["reparo_julgamento"]?.DeepClone();
         if (ajuste.SobePorObjecao is { } subir) json["subir_nova_tentativa_chatgpt"] = subir;
         if (ajuste.TrocaDescePorCota) json["cota_baixa_da_execucao"] = ajuste.DescePorCota;
@@ -555,7 +560,7 @@ public static class ModelosDaAnalise
     /// publica. Assim o ajuste antigo não esconde um padrão novo que vier depois.</summary>
     public static AjusteModelos SemOPublicado(AjusteModelos a)
     {
-        var novo = new AjusteModelos();
+        var novo = new AjusteModelos { ReconferenciaEconomica = a.ReconferenciaEconomica };
         foreach (var (k, v) in a.Ligadas) novo.Ligadas[k] = v;
         return novo;
     }

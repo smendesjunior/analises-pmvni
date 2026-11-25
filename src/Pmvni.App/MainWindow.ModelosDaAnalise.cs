@@ -87,6 +87,12 @@ public sealed partial class MainWindow
         var p = PaginaDeAjustes;
         p.CartoesRotas.SizeChanged += (_, e) => DistribuirCartoes(p.CartoesRotas, e.NewSize.Width);
         foreach (var (texto, _) in OpcoesCotaBaixa) p.CaixaCotaBaixa.Items.Add(new ComboBoxItem { Content = texto });
+        p.AlternarReconferenciaEconomica.Toggled += (_, _) =>
+        {
+            if (montandoModelosAnalise || !p.AlternarReconferenciaEconomica.IsEnabled) return;
+            AjusteDosModelos.ReconferenciaEconomica = p.AlternarReconferenciaEconomica.IsOn;
+            GravarAjusteDosModelos("Preferência de reconferência gravada neste computador.");
+        };
         p.AlternarSobeObjecao.Toggled += (_, _) =>
         {
             if (montandoModelosAnalise || TabelaDoKitInstalado().Kit is not { } kit) return;
@@ -106,7 +112,7 @@ public sealed partial class MainWindow
         p.BotaoRestaurarModelos.Click += async (_, _) =>
         {
             if (ModelosDaAnalise.AjustesAtivos(AjusteDosModelos).Vazio && erroAjusteModelos is null) { p.TextoModelosAnalise.Text = "Já está no padrão do kit."; return; }
-            if (!await Perguntas.Atual.ConfirmarAsync("Restaurar o padrão do kit?", "Os modelos, os níveis, as regras e a auditoria cruzada deste computador voltam ao padrão do kit. Os ajustes dessas rotas voltam ao padrão.",
+            if (!await Perguntas.Atual.ConfirmarAsync("Restaurar o padrão do kit?", "Os modelos, os níveis, as regras e as preferências de auditoria deste computador voltam ao padrão do kit. Os ajustes dessas rotas voltam ao padrão.",
                     "Restaurar", "Cancelar", destrutiva: false)) return;
             ajusteModelos = ModelosDaAnalise.PreservarRotasInativas(AjusteDosModelos, ModelosDaAnalise.Restaurar());
             erroAjusteModelos = null;
@@ -179,6 +185,7 @@ public sealed partial class MainWindow
             p.RodapeModelos.Visibility = Visibility.Collapsed;
             var habilitado = kit is not null;
             p.AlternarSobeObjecao.IsEnabled = p.CaixaCotaBaixa.IsEnabled = p.BotaoRestaurarModelos.IsEnabled = habilitado;
+            p.AlternarReconferenciaEconomica.IsEnabled = habilitado && kit?.Bruto.ContainsKey("reconferencia_economica") == true;
             if (kit is null)
             {
                 p.PainelModelosAnalise.Children.Add(new TextBlock
@@ -196,7 +203,7 @@ public sealed partial class MainWindow
             {
                 p.AvisoModelosAnalise.Message = erro;
                 p.AvisoModelosAnalise.IsOpen = true;
-                p.AlternarSobeObjecao.IsEnabled = p.CaixaCotaBaixa.IsEnabled = false;
+                p.AlternarReconferenciaEconomica.IsEnabled = p.AlternarSobeObjecao.IsEnabled = p.CaixaCotaBaixa.IsEnabled = false;
                 p.BotaoPublicarModelos.Visibility = Visibility.Collapsed;
                 return;
             }
@@ -238,12 +245,13 @@ public sealed partial class MainWindow
                 p.OrigemModelos.Text = $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise.";
             p.RodapeModelos.Visibility = Visibility.Visible;
 
+            p.AlternarReconferenciaEconomica.IsOn = p.AlternarReconferenciaEconomica.IsEnabled && a.ReconferenciaEconomica;
             p.AlternarSobeObjecao.IsOn = a.SobePorObjecao ?? kit.SobePorObjecao;
             var desce = a.TrocaDescePorCota ? a.DescePorCota : kit.DescePorCota;
             var i = Array.FindIndex(OpcoesCotaBaixa, o => Igual(o.Valor, desce));
             p.CaixaCotaBaixa.SelectedIndex = i >= 0 ? i : -1;
             p.TextoRegraObjecao.Text = "Na rota ChatGPT, uma nova tentativa após objeção técnica registrada sobe um nível de raciocínio, até alto. "
-                + "A auditoria técnica mantém o modelo e o esforço escolhidos para ela, inclusive quando precisa repetir uma conferência.";
+                + "A primeira auditoria usa o modelo e o esforço escolhidos na grade.";
             p.TextoRegrasDasRotas.Text = string.Join(" ", kit.NotasDasRotas.Values)
                 + (kit.NotasDasRotas.Count > 0 ? " " : "") + "Padrão do kit: objeção técnica " + (kit.SobePorObjecao ? "sobe" : "não sobe") + " um nível; cota baixa "
                 + (kit.DescePorCota is { } d ? "com " + (d * 100).ToString("0", CultureInfo.InvariantCulture) + "% ou menos restantes" : "não desce o nível") + ".";
@@ -457,7 +465,7 @@ public sealed partial class MainWindow
         var mestre = KitMestreDesteComputador();
         if (!await Perguntas.Atual.ConfirmarAsync("Publicar como padrão do kit?",
                 "A tabela desta página (modelos, níveis e regras) passa a ser o padrão do kit mestre" + (mestre is null ? "" : " (" + mestre + ")")
-                + " e chega aos outros computadores pela atualização automática. A auditoria cruzada continua sendo ajuste de cada computador.",
+                + " e chega aos outros computadores pela atualização automática. Cada computador mantém suas preferências de auditoria cruzada e reconferência econômica.",
                 "Publicar", "Cancelar", destrutiva: false)) return;
         p.BotaoPublicarModelos.IsEnabled = false;
         try
@@ -476,10 +484,10 @@ public sealed partial class MainWindow
             if (r.Publicada && (ajuste.Celulas.Count > 0 || ajuste.SobePorObjecao is not null || ajuste.TrocaDescePorCota)
                 && await Perguntas.Atual.ConfirmarAsync("Limpar o ajuste deste computador?",
                     "A tabela publicada passa a ser o padrão do kit. Limpar os modelos, os níveis e as regras deste computador deixa valer o padrão (até a atualização "
-                    + "automática instalar o kit novo, este computador usa o padrão instalado). O liga/desliga da auditoria cruzada fica.", "Limpar", "Manter", destrutiva: false))
+                    + "automática instalar o kit novo, este computador usa o padrão instalado). As preferências de auditoria cruzada e reconferência econômica são preservadas.", "Limpar", "Manter", destrutiva: false))
             {
                 ajusteModelos = ModelosDaAnalise.PreservarRotasInativas(AjusteDosModelos, ModelosDaAnalise.SemOPublicado(ajuste));
-                GravarAjusteDosModelos(r.Texto + " O ajuste deste computador foi limpo.");
+                GravarAjusteDosModelos(r.Texto + " Os modelos e as regras deste computador voltaram ao padrão publicado.");
             }
         }
         catch (Exception e)

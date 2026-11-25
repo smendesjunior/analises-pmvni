@@ -1,9 +1,10 @@
-﻿# Novidades do Editor de Relatórios PMVNI
+# Novidades do Editor de Relatórios PMVNI
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
 ## 4.6.2
 
+- Em Ajustes, a reconferência econômica permite escolher uma revisão dirigida às objeções nas novas análises. A primeira auditoria usa o modelo e o nível escolhidos pelo usuário.
 - Na etapa em andamento, o Monitor reúne o ícone do provedor, o modelo e o nível de esforço da sessão logo abaixo da situação.
 - Os registros técnicos, pontos de retomada e evidências das novas análises pelo Editor ficam no AppData.
 - A reanálise distingue a parte atendida de uma exigência da parte que ainda requer comprovação. O kit aceita registros de leitura com fonte, local e exame e os encaminha à auditoria. O reparo de julgamento usa Sol 6.2 no Codex.

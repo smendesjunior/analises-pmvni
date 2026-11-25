@@ -11,6 +11,24 @@ namespace Pmvni.Revisao.Testes;
 /// <c>PMVNI_KIT_RAIZ</c>); o ajuste local só guarda o que muda; a tabela efetiva vai ao controlador, que a lê de verdade (Python do kit).</summary>
 public class ModelosDaAnaliseTestes
 {
+    [Fact]
+    public void ReconferenciaEconomicaDependeDaEscolhaLocalEDoSuporteDoKit()
+    {
+        var kit = Kit();
+        kit.Bruto.Remove("reconferencia_economica");
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), kit);
+        var ajuste = ModelosDaAnalise.LerAjuste("""{"reconferencia_economica":true}""");
+        Assert.True(ModelosDaAnalise.LerAjuste(ModelosDaAnalise.SerializarAjuste(ajuste)).ReconferenciaEconomica);
+        Assert.Null(ModelosDaAnalise.Efetiva(kit, ajuste, etapas, Listas()).Json["reconferencia_economica"]);
+        kit.Bruto["reconferencia_economica"] = false;
+        Assert.Null(ModelosDaAnalise.Efetiva(kit, new(), etapas, Listas()).Json["reconferencia_economica"]);
+        var efetiva = ModelosDaAnalise.Efetiva(kit, ajuste, etapas, Listas());
+        foreach (var rota in new[] { "codex", "claude" })
+            Assert.True(JsonNode.Parse(efetiva.ParaExecucao(rota).Json)!["reconferencia_economica"]!.GetValue<bool>());
+        Assert.True(ModelosDaAnalise.SemOPublicado(ajuste).ReconferenciaEconomica);
+        Assert.False(ModelosDaAnalise.TabelaParaPublicar(kit, ajuste).Contains("\"reconferencia_economica\": true", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("{")]
