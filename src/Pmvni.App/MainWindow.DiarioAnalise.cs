@@ -34,6 +34,11 @@ public sealed partial class MainWindow
     {
         var terminal = new ListView
         {
+            Padding = new Thickness(18, 14, 18, 14), CornerRadius = new CornerRadius(8),
+            Header = new TextBlock { Text = "Início do log", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGray), Margin = new Thickness(8, 0, 0, 10) },
+            Footer = new TextBlock { Text = "▌", FontSize = 16, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGreen),
+                Margin = new Thickness(8, 6, 0, 6) },
             Height = 410, SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = false,
             Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 25, 27, 31)),
             Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.WhiteSmoke),
@@ -111,6 +116,27 @@ public sealed partial class MainWindow
         return painel;
     }
 
+    static string DetalheParaTerminal(string detalhe)
+    {
+        if (!detalhe.StartsWith('{')) return detalhe;
+        try
+        {
+            using var json = JsonDocument.Parse(detalhe);
+            if (json.RootElement.TryGetProperty("item", out var item) && item.ValueKind == JsonValueKind.Object &&
+                item.TryGetProperty("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
+            {
+                var texto = "> " + cmd.GetString();
+                if (item.TryGetProperty("aggregated_output", out var saida) && saida.ValueKind == JsonValueKind.String)
+                    texto += Environment.NewLine + saida.GetString();
+                if (item.TryGetProperty("exit_code", out var codigo) && codigo.ValueKind == JsonValueKind.Number)
+                    texto += Environment.NewLine + "Código de saída: " + codigo;
+                return texto;
+            }
+        }
+        catch (JsonException) { }
+        return detalhe;
+    }
+
     static ScrollViewer? LocalizarRolagem(DependencyObject raiz)
     {
         if (raiz is ScrollViewer rolagem) return rolagem;
@@ -140,7 +166,7 @@ public sealed partial class MainWindow
                 try
                 {
                     if (JsonSerializer.Deserialize<EventoDoPlugin>(texto) is { } e)
-                        texto = $"[{e.Hora.LocalDateTime:T}] {e.Titulo}" + (e.Detalhe.Length == 0 ? "" : Environment.NewLine + e.Detalhe);
+                        texto = $"[{e.Hora.LocalDateTime:T}] {e.Titulo}" + (e.Detalhe.Length == 0 ? "" : Environment.NewLine + DetalheParaTerminal(e.Detalhe));
                 }
                 catch (JsonException) { }
                 using var leitor = new StringReader(texto);

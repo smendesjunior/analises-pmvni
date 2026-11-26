@@ -65,9 +65,25 @@ public sealed partial class PaginaNovoRelatorio
         return cartao;
     }
 
+    internal static async Task<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource> CarregarMarcaOpenAI()
+    {
+        using var marca = typeof(PaginaNovoRelatorio).Assembly.GetManifestResourceStream("Pmvni.App.openai.svg")
+            ?? throw new InvalidDataException("Marca OpenAI ausente.");
+        using var fluxo = new MemoryStream();
+        marca.CopyTo(fluxo);
+        fluxo.Position = 0;
+        var imagem = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource { RasterizePixelWidth = 78 };
+        var status = await imagem.SetSourceAsync(fluxo.AsRandomAccessStream());
+        if (status != Microsoft.UI.Xaml.Media.Imaging.SvgImageSourceLoadStatus.Success)
+            throw new InvalidDataException("Falha ao carregar a marca OpenAI: " + status);
+        return imagem;
+    }
+
+    static Task<Microsoft.UI.Xaml.Media.Imaging.SvgImageSource>? marcaOpenAI;
+
     FrameworkElement CartoesDosGrupos(IEnumerable<RodadaDoMonitorChatGpt> rodadas, bool mostrarModelo, EstadoEtapa estadoEtapa)
     {
-        var grade = new PainelQuebra { Espaco = 8, EspacoLinhas = 8 };
+        var grade = new PainelQuebra { Espaco = 8, EspacoLinhas = 8, AlturaUniforme = true };
         foreach (var rodada in rodadas)
         {
             var grupo = rodada.Grupos[0];
@@ -88,7 +104,12 @@ public sealed partial class PaginaNovoRelatorio
             var bloco = Cartao();
             bloco.Width = 260;
             var linha = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(16, 12, 16, 12) };
-            var logo = new Image { Width = 26, Height = 26, Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Recursos/Provedores/openai.svg")) };
+            var logo = new Image { Width = 26, Height = 26 };
+            logo.Loaded += async (_, _) =>
+            {
+                try { logo.Source = await (marcaOpenAI ??= CarregarMarcaOpenAI()); }
+                catch (Exception erro) { marcaOpenAI = null; RegistroErros.Gravar("monitor.marca-openai", erro); }
+            };
             linha.Children.Add(new Border { Child = logo, Width = 38, Height = 38, CornerRadius = new CornerRadius(19),
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White), VerticalAlignment = VerticalAlignment.Center });
             var rotulo = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };

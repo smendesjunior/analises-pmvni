@@ -11,12 +11,20 @@ public sealed partial class PainelQuebra : Panel
     public double Espaco { get; set; } = 6;
     public double EspacoLinhas { get; set; } = 6;
 
+    public bool AlturaUniforme { get; set; }
+    double alturaMaxima;
+
     protected override Size MeasureOverride(Size disponivel)
     {
-        double x = 0, y = 0, alturaLinha = 0, larguraMax = 0;
+        alturaMaxima = 0;
         foreach (var filho in Children)
         {
             filho.Measure(new Size(disponivel.Width, double.PositiveInfinity));
+            alturaMaxima = Math.Max(alturaMaxima, filho.DesiredSize.Height);
+        }
+        double x = 0, y = 0, alturaLinha = 0, larguraMax = 0;
+        foreach (var filho in Children)
+        {
             var d = filho.DesiredSize;
             if (x > 0 && x + d.Width > disponivel.Width + 0.5)
             {
@@ -25,7 +33,7 @@ public sealed partial class PainelQuebra : Panel
                 alturaLinha = 0;
             }
             x += d.Width + Espaco;
-            alturaLinha = Math.Max(alturaLinha, d.Height);
+            alturaLinha = AlturaUniforme ? alturaMaxima : Math.Max(alturaLinha, d.Height);
             larguraMax = Math.Max(larguraMax, x - Espaco);
         }
         var largura = Math.Min(Math.Ceiling(larguraMax), disponivel.Width);
@@ -44,9 +52,9 @@ public sealed partial class PainelQuebra : Panel
                 x = 0;
                 alturaLinha = 0;
             }
-            filho.Arrange(new Rect(x, y, d.Width, d.Height));
+            filho.Arrange(new Rect(x, y, d.Width, AlturaUniforme ? alturaMaxima : d.Height));
             x += d.Width + Espaco;
-            alturaLinha = Math.Max(alturaLinha, d.Height);
+            alturaLinha = AlturaUniforme ? alturaMaxima : Math.Max(alturaLinha, d.Height);
         }
         return final;
     }

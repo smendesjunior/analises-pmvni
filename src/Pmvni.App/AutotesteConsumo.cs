@@ -16,6 +16,7 @@ internal static class AutotesteConsumo
         var pagina = new PaginaNovoRelatorio();
         try
         {
+            await PaginaNovoRelatorio.CarregarMarcaOpenAI();
             var agora = DateTimeOffset.UtcNow;
             var arquivo = Path.Combine(pasta.FullName, "teste" + DiarioAnaliseChatGpt.Sufixo);
             var consumo = new ConsumoDoPlugin("Processo fictício", agora.AddMinutes(-2))

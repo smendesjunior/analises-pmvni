@@ -44,6 +44,7 @@
     <!-- O ícone do app no cartão "Sobre" dos Ajustes (2026-11-17). -->
     <Content Include="Recursos\Provedores\*.svg;Recursos\cabecalho-pmvni*.svg;Recursos\app.ico" CopyToOutputDirectory="PreserveNewest"/>
     <EmbeddedResource Include="Recursos\atualizar-kit.ps1" LogicalName="kit.atualizar-kit.ps1" />
+    <EmbeddedResource Include="Recursos\Provedores\openai.svg" LogicalName="Pmvni.App.openai.svg" />
     <EmbeddedResource Include="Recursos\icone-app.png" LogicalName="Pmvni.App.icone-app.png" />
   </ItemGroup>
 </Project>
