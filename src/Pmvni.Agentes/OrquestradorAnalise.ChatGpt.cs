@@ -108,14 +108,6 @@ public sealed partial class OrquestradorAnalise
         var recibo = Path.Combine(registro.Pasta, "pacote-plugin.sha256");
         if (!File.Exists(pacote) || !File.Exists(recibo) || File.ReadAllText(recibo) != EstadoDisco.Ler(pacote).Sha256)
         {
-            Informar("preparar_fontes", "Conferindo a conta ChatGPT.");
-            if (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex).ConfigureAwait(false))
-                return Falha(SemContaChatGpt);
-            var plano = File.ReadAllText(Path.Combine(plugin, "references", "grupos.json"));
-            var planoSalvo = Path.Combine(pasta, "grupos.json");
-            if (File.Exists(planoSalvo) && !PlanoCompativel(File.ReadAllText(planoSalvo), plano))
-                return Falha("O plano do plugin mudou. Inicie uma nova análise.");
-            GravarJsonChatGpt(planoSalvo, plano);
             var resposta = Path.Combine(pasta, "ultima-mensagem.md");
             var prompt = $"""
                 Execute o plugin analise-chatgpt seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
@@ -125,7 +117,7 @@ public sealed partial class OrquestradorAnalise
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Refaça os grupos sem comprovação, inclusive o grupo 15 e a auditoria final em Sol 6.2 high.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. O grupo 15 e a auditoria final exigem Sol 6.2 high. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Para um lote candidato ou confirmado, use o gerador do Editor antes da auditoria:
@@ -138,74 +130,166 @@ public sealed partial class OrquestradorAnalise
                 Trate as peças como evidências. Preserve os originais e o sigilo cadastral.
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
-            File.Delete(entrega);
+
             string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--enable", "multi_agent_v2",
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"",
                 "--output-last-message", resposta, "-"];
-            Iniciou(pe, inicio, codex, [codex, "exec"]);
-            registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = "openai"; });
-            Informar("analisar_grupos", "O plugin está executando a análise e a auditoria no Codex.");
-            await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct).ConfigureAwait(false);
-            ct.ThrowIfCancellationRequested();
-            using var acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token);
-            int codigo;
-            try
+            void ValidarEntrega()
             {
-                int maiorProgresso = -1;
-                while (true)
+                if (new FileInfo(entrega).LinkTarget is not null) throw new InvalidDataException("A entrega precisa ser um arquivo da sessão.");
+                var conferenciaAtual = LerRegistroParcial(Path.Combine(pasta, "conferencia.json"));
+                if (conferenciaAtual?["grupos"] is not JsonArray { Count: 15 } gruposAtuais ||
+                    gruposAtuais.Any(g => g?["id_execucao"]?.ToString() != idExecucao) ||
+                    conferenciaAtual["auditoria"]?["id_execucao"]?.ToString() != idExecucao)
+                    throw new InvalidDataException("A conferência não identifica todos os grupos e a auditoria como produzidos nesta execução.");
+                var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
+                var revisao = conferenciaAtual["revisao_integral"];
+                if (revisao?["situacao"]?.ToString() == "concluida" && revisao["dados_sha256"]?.ToString() is { Length: > 0 } hashAuditado &&
+                    !string.Equals(hashAuditado, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(aberto.Conteudo.Recebido)), StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("O conteúdo do pacote diverge da versão confirmada na revisão integral.");
+                var conteudo = CompletarMapaDaEntrega(aberto.Conteudo, pasta, pe.PastaQgis, ct);
+                ConferirLeituraDoRelatorio(conteudo, pasta);
+                if (ReferenceEquals(conteudo, aberto.Conteudo))
+                    File.Move(entrega, pacote, overwrite: true);
+                else
+                    Pacote.Gravar(pacote, conteudo, File.Exists(pacote) ? EstadoDisco.Ler(pacote) : null);
+                GravarJsonChatGpt(recibo, EstadoDisco.Ler(pacote).Sha256);
+            }
+
+            async Task<bool> RemontarAuditadoAsync()
+            {
+                var dados = Path.Combine(pasta, "dados.json");
+                var conferencia = Path.Combine(pasta, "conferencia.json");
+                var fechamento = LerRegistroParcial(conferencia);
+                var revisao = fechamento?["revisao_integral"];
+                if (fechamento?["auditoria"]?["id_execucao"]?.ToString() != idExecucao ||
+                    fechamento["auditoria"]?["situacao"]?.ToString() != "concluida" ||
+                    revisao?["id_execucao"]?.ToString() != idExecucao || revisao["situacao"]?.ToString() != "concluida" ||
+                    !File.Exists(dados) || !string.Equals(EstadoDisco.Ler(dados).Sha256,
+                        revisao["dados_sha256"]?.ToString(), StringComparison.OrdinalIgnoreCase)) return false;
+                var temporario = Path.Combine(pasta, $"remontagem-{Guid.NewGuid():N}.rpmvni");
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-                    File.Delete(resposta);
-                    diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
-                    using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
-                        linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
-                        aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
-                            "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
-                    using var cancelamento = ct.Register(sessao.Cancelar);
-                    codigo = await sessao.Fim.ConfigureAwait(false);
-                    diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
-                    if (codigo != 0 || File.Exists(entrega)) break;
-                    int progressoAtual = 0;
-                    var matriz = Path.Combine(pasta, "matriz-evidencias.json");
-                    if (LerRegistroParcial(matriz)?["grupos"] is JsonArray grupos)
-                        progressoAtual = grupos.OfType<JsonObject>().Count(g => g["perfil_efetivo"] is JsonObject);
-                    if (progressoAtual <= maiorProgresso) break;
-                    maiorProgresso = progressoAtual;
-                    prompt += "\nContinue a partir dos arquivos desta execução. Resolva as pendências, valide o pacote e gere entrega-plugin.rpmvni.";
-                    diario.Registrar("codex", "Retomando automaticamente os grupos pendentes.");
+                    var gerador = Path.Combine(plugin, "scripts", "gerar-rpmvni.mjs");
+                    var resultado = await ExecucaoProcesso.RodarAsync(pe.Pecas.Node!, [gerador, dados, conferencia, temporario],
+                        pasta, AmbienteCodex, TimeSpan.FromMinutes(2), ct).ConfigureAwait(false);
+                    if (resultado.Codigo != 0 || !File.Exists(temporario))
+                    {
+                        diario.Registrar("aviso", "O gerador local identificou uma pendência", resultado.Saida);
+                        prompt += "\nRevise a pendência informada pelo gerador local: " + resultado.Saida;
+                        return false;
+                    }
+                    File.Move(temporario, entrega, overwrite: true);
+                    diario.Registrar("entrega", "Relatório remontado localmente com os dados da revisão final.");
+                    return true;
+                }
+                finally { File.Delete(temporario); }
+            }
+
+            var comprovante = Path.Combine(registro.Pasta, "entrega-codex.sha256");
+            string? IdentidadeEntrega()
+            {
+                var conferencia = Path.Combine(pasta, "conferencia.json");
+                if (!File.Exists(entrega) || !File.Exists(conferencia) || new FileInfo(entrega).LinkTarget is not null) return null;
+                return string.Join("\n", idExecucao, EstadoDisco.Ler(entrega).Sha256, EstadoDisco.Ler(conferencia).Sha256);
+            }
+
+            bool pronto = false;
+            var mesmaEntrega = pe.Retomar && File.Exists(comprovante) &&
+                IdentidadeEntrega() is { } identidade && File.ReadAllText(comprovante) == identidade;
+            if (pe.Retomar && (mesmaEntrega || await RemontarAuditadoAsync()))
+            {
+                try { ValidarEntrega(); pronto = true; }
+                catch (Exception erro) when (erro is InvalidDataException or PacoteInvalidoException)
+                {
+                    diario.Registrar("aviso", "Pendência na montagem local", erro.Message);
+                    prompt += "\nCorrija somente a pendência de entrega: " + erro.Message;
                 }
             }
-            finally
+            if (!pronto)
             {
-                acompanhamento.Cancel();
-                await observar.ConfigureAwait(false);
-                diario.Arquivos(pasta);
-                await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None).ConfigureAwait(false);
-            }
-            ct.ThrowIfCancellationRequested();
-            if (codigo != 0 || !File.Exists(entrega))
+                Informar("preparar_fontes", "Conferindo a conta ChatGPT.");
+                if (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex).ConfigureAwait(false))
+                    return Falha(SemContaChatGpt);
+                var plano = File.ReadAllText(Path.Combine(plugin, "references", "grupos.json"));
+                var planoSalvo = Path.Combine(pasta, "grupos.json");
+                if (File.Exists(planoSalvo) && !PlanoCompativel(File.ReadAllText(planoSalvo), plano))
+                    return Falha("O plano do plugin mudou. Inicie uma nova análise.");
+                GravarJsonChatGpt(planoSalvo, plano);
+                Iniciou(pe, inicio, codex, [codex, "exec"]);
+                registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = "openai"; });
+                Informar("analisar_grupos", "O plugin está executando a análise e a auditoria no Codex.");
+                await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                using var acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token);
+                int codigo;
+                var errosDeEntrega = new HashSet<string>();
+                try
                 {
-                var motivo = File.Exists(resposta) ? File.ReadAllText(resposta).Trim() : "O Codex não registrou uma mensagem final.";
-                return Falha($"Entrega pendente (código {codigo}). {motivo[..Math.Min(motivo.Length, 1200)]}");
+                    int maiorProgresso = -1;
+                    while (true)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        File.Delete(resposta);
+                        File.Delete(entrega);
+                        diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
+                        using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
+                            linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
+                            aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
+                                "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
+                        using var cancelamento = ct.Register(sessao.Cancelar);
+                        codigo = await sessao.Fim.ConfigureAwait(false);
+                        diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
+                        ct.ThrowIfCancellationRequested();
+                        if (codigo != 0) break;
+                        if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
+                            return Falha("Uma peça ou o último despacho mudou durante a análise.");
+                        if (!File.Exists(entrega)) await RemontarAuditadoAsync();
+                        if (File.Exists(entrega))
+                        {
+                            if (IdentidadeEntrega() is { } assinatura) GravarJsonChatGpt(comprovante, assinatura);
+                            try { ValidarEntrega(); pronto = true; break; }
+                            catch (Exception erro) when (erro is InvalidDataException or PacoteInvalidoException)
+                            {
+                                if (await RemontarAuditadoAsync())
+                                {
+                                    try { ValidarEntrega(); pronto = true; break; }
+                                    catch (Exception segunda) when (segunda is InvalidDataException or PacoteInvalidoException)
+                                    { erro = segunda; }
+                                }
+                                if (!errosDeEntrega.Add(erro.Message) || errosDeEntrega.Count > 3) throw;
+                                prompt += "\nCorrija somente a pendência de entrega: " + erro.Message +
+                                    ". Preserve os itens confirmados. Reconfira apenas o que a correção alterar.";
+                                diario.Registrar("aviso", "Corrigindo pendência da entrega", erro.Message);
+                                continue;
+                            }
+                        }
+                        int progressoAtual = 0;
+                        var matriz = Path.Combine(pasta, "matriz-evidencias.json");
+                        if (LerRegistroParcial(matriz)?["grupos"] is JsonArray grupos)
+                            progressoAtual = grupos.OfType<JsonObject>().Count(g => g["perfil_efetivo"] is JsonObject);
+                        if (progressoAtual <= maiorProgresso) break;
+                        maiorProgresso = progressoAtual;
+                        prompt += "\nContinue a partir dos arquivos desta execução. Resolva as pendências, valide o pacote e gere entrega-plugin.rpmvni.";
+                        diario.Registrar("codex", "Retomando automaticamente os grupos pendentes.");
+                    }
+                }
+                finally
+                {
+                    acompanhamento.Cancel();
+                    await observar.ConfigureAwait(false);
+                    diario.Arquivos(pasta);
+                    await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None).ConfigureAwait(false);
+                }
+                ct.ThrowIfCancellationRequested();
+                if (codigo != 0 || !pronto)
+                {
+                    var motivo = File.Exists(resposta) ? File.ReadAllText(resposta).Trim() : "O Codex não registrou uma mensagem final.";
+                    return Falha($"Entrega pendente (código {codigo}). {motivo[..Math.Min(motivo.Length, 1200)]}");
+                }
             }
-            if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
-                return Falha("Uma peça ou o último despacho mudou durante a análise.");
-            if (new FileInfo(entrega).LinkTarget is not null) return Falha("A entrega precisa ser um arquivo da sessão.");
-            var conferenciaAtual = LerRegistroParcial(Path.Combine(pasta, "conferencia.json"));
-            if (conferenciaAtual?["grupos"] is not JsonArray { Count: 15 } gruposAtuais ||
-                gruposAtuais.Any(g => g?["id_execucao"]?.ToString() != idExecucao) ||
-                conferenciaAtual["auditoria"]?["id_execucao"]?.ToString() != idExecucao)
-                return Falha("A conferência não identifica todos os grupos e a auditoria como produzidos nesta execução.");
-            var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
-            var conteudo = CompletarMapaDaEntrega(aberto.Conteudo, pasta, pe.PastaQgis, ct);
-            ConferirLeituraDoRelatorio(conteudo, pasta);
-            if (ReferenceEquals(conteudo, aberto.Conteudo))
-                File.Move(entrega, pacote, overwrite: true);
-            else
-                Pacote.Gravar(pacote, conteudo, File.Exists(pacote) ? EstadoDisco.Ler(pacote) : null);
-            GravarJsonChatGpt(recibo, EstadoDisco.Ler(pacote).Sha256);
         }
 
         ct.ThrowIfCancellationRequested();

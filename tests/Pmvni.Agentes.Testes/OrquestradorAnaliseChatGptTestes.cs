@@ -240,7 +240,11 @@ public partial class OrquestradorTestes
         Assert.Equal("fim", log.Last().Tipo);
         Assert.False(Pacote.Ler(entrega.Documento!).SomenteLeitura);
         Assert.Equal(entrega.Documento, (await orq.ExecutarAsync(retomar, c.Progresso, CancellationToken.None)).Documento);
-        Assert.Equal(new[] { "exec", "exec", "exec" }, File.ReadAllLines(rodadas));
+        var antesDaRetomadaLocal = File.ReadAllLines(rodadas);
+        Assert.Equal(4, antesDaRetomadaLocal.Length); // Inclui a correção automática da montagem inválida.
+        File.Move(Path.Combine(trabalho, "relatorio.rpmvni"), Path.Combine(trabalho, "entrega-plugin.rpmvni"));
+        Assert.Equal(entrega.Documento, (await orq.ExecutarAsync(retomar, c.Progresso, CancellationToken.None)).Documento);
+        Assert.Equal(antesDaRetomadaLocal, File.ReadAllLines(rodadas));
     }
 
     [Theory]
