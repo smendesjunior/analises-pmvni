@@ -18,6 +18,25 @@ public sealed partial class MainWindow
         AtualizarRecentes();
     }
 
+    async Task EscolherDescarteAsync()
+    {
+        await CarregarHistoricoAsync();
+        bool Pendente(AnaliseHistorica h) => h.Situacao is not ("concluida" or "descartada" or "para_revisao")
+            && OrquestradorAnalise.RegistroAnaliseChatGpt(h.Registro)
+            && !sessaoNR.Execucoes.Any(e => !e.Fim.IsCompleted && MesmoRegistro(e.Registro.Pasta, h.Registro));
+        var itens = historicoAnalises.Where(Pendente).ToList();
+        if (itens.Count == 0)
+        {
+            MostrarMensagem(InfoBarSeverity.Informational, "Descartar pendência", "Nenhuma análise parada para descartar.");
+            return;
+        }
+        var escolha = await Perguntas.Atual.EscolherNaListaAsync("Descartar pendência", "Escolha a análise que deseja retirar da retomada.",
+            itens.Select(h => h.Identificacao).ToArray(), 0, "Descartar");
+        if (escolha is not int i || i < 0 || i >= itens.Count) return;
+        var item = AnaliseHistorica.Ler(itens[i].Processo, itens[i].Registro);
+        if (item is not null && Pendente(item)) DescartarAnalisePendente(item.Processo, item.Registro);
+    }
+
     async Task EscolherHistoricoPendenteAsync()
     {
         await CarregarHistoricoAsync();

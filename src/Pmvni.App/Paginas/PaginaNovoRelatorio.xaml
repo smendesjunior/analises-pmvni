@@ -80,8 +80,12 @@
     <StackPanel x:Name="AcoesRetomadaFormulario" x:FieldModifier="internal" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Executar}" x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
+            <Button x:Name="BotaoDescartarPendencias" x:FieldModifier="internal" Content="Descartar pendência…" local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}"
+                    local:Dicas.Descricao="Escolher uma análise salva para retirar da lista de retomada."/>
+            <StackPanel Visibility="Collapsed">
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}" x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="Collapsed"
                     local:Dicas.Descricao="Remove esta análise da lista de retomada e conserva os arquivos do processo."/>
+            </StackPanel>
     </StackPanel>
 
     <!-- Formulário. -->

@@ -262,6 +262,7 @@ public sealed partial class MainWindow
         n.LinkEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.RegistroDeTrabalho); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.RegistroDeTrabalho); };
+        n.BotaoDescartarPendencias.Click += async (_, _) => await TentarAsync(EscolherDescarteAsync);
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
         n.LinkRemontarTeste.Click += async (_, _) => { if (ultimoResultadoNR is { } e) await TentarAsync(async () => await RemontarRelatorioTesteAsync(e)); };
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());

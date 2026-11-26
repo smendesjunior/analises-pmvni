@@ -218,7 +218,12 @@ public sealed class Ajustes
         AbrirEm != "ultimo" && Enum.TryParse<Modulo>(AbrirEm, out var m) && Enum.IsDefined(m) ? m : Modulo;
 
     /// <summary>"Limpar lista" de Arquivo › Recentes.</summary>
-    public void LimparRecentes() => Recentes.Clear();
+    public long RecentesLimposEmUtc { get; private set; }
+    public void LimparRecentes()
+    {
+        Recentes.Clear();
+        RecentesLimposEmUtc = DateTime.UtcNow.Ticks;
+    }
 
     /// <summary>"Restaurar os ajustes": todas as opções da tela voltam ao padrão. Ficam os recentes, os ajustes dos agentes (modo, programa,
     /// aviso aceito; a chave de API nem está aqui), as análises em andamento e o módulo/aba lembrados.</summary>
@@ -358,6 +363,7 @@ public sealed class Ajustes
         if (Texto(j, "tema") is { } t && Temas.Contains(t)) a.Tema = t;
         if (j["intervalo_autosave_s"] is JsonValue iv && iv.TryGetValue<int>(out var s) && Intervalos.Contains(s)) a.IntervaloAutosaveS = s;
         if (j["marcas_revisao"] is JsonValue mv && mv.TryGetValue<bool>(out var marcas)) a.MarcasRevisao = marcas;
+        if (j["recentes_limpos_utc"] is JsonValue corte && corte.TryGetValue<long>(out var t)) a.RecentesLimposEmUtc = t;
         if (j["recentes_max"] is JsonValue rm && rm.TryGetValue<int>(out var max) && OpcoesRecentes.Contains(max)) a.recentesMax = max;
         if (j["recentes"] is JsonArray rec)
             foreach (var r in rec)
@@ -438,6 +444,7 @@ public sealed class Ajustes
             ["tema"] = Tema,
             ["intervalo_autosave_s"] = IntervaloAutosaveS,
             ["marcas_revisao"] = MarcasRevisao,
+            ["recentes_limpos_utc"] = RecentesLimposEmUtc,
             ["recentes_max"] = recentesMax,
             ["recentes"] = new JsonArray(Recentes.Take(recentesMax).Select(r => (JsonNode)r).ToArray()),
             ["pasta_processos"] = PastaProcessos,

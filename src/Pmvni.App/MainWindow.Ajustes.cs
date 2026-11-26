@@ -96,12 +96,7 @@ public sealed partial class MainWindow
         AoEscolher(p.CaixaAbrirEm, v => ajustes.AbrirEm = (string)v);
         AoAlternar(p.AlternarJanela, sim => { ajustes.LembrarJanela = sim; if (!sim) ajustes.Janela = null; });
         AoEscolher(p.CaixaRecentes, v => { ajustes.RecentesMax = (int)v; AtualizarRecentes(); });
-        p.BotaoLimparRecentes.Click += (_, _) =>
-        {
-            ajustes.LimparRecentes();
-            SalvarAjustes();
-            AtualizarRecentes();
-        };
+        p.BotaoLimparRecentes.Click += (_, _) => LimparListaDeRecentes();
         AoEscolher(p.CaixaRotulosFaixa, v => { ajustes.FaixaRotulos = (string)v; AplicarLargura(Raiz.ActualWidth); });
         AoEscolher(p.CaixaAvisosLayout, v =>
         {
@@ -197,7 +192,8 @@ public sealed partial class MainWindow
         Faixa.ItensDinamicos = ItensDoMenuDaFaixa;
         Faixa.ItemDinamicoEscolhido += async (menu, valor) =>
         {
-            if (menu == ComandosApp.ArquivoRecentes) await AbrirRecenteAsync(valor);
+            if (menu == ComandosApp.ArquivoRecentes && valor == ValorLimparRecentes) LimparListaDeRecentes();
+            else if (menu == ComandosApp.ArquivoRecentes) await AbrirRecenteAsync(valor);
             else if (menu == ComandosApp.ProcessosAno) await DefinirAnoAsync(valor);
             else if (menu == ComandosApp.FigurasAbrirEditor && valor == ValorAdicionarFigura) AbrirRecortePrancha(figuraSelecionada);
             else if (menu == ComandosApp.FigurasAbrirEditor) AbrirEditorFigura(valor);
@@ -729,10 +725,19 @@ public sealed partial class MainWindow
         try { existentes = await Task.Run(() => lista.Where(File.Exists).ToList()); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return; }
         if (fechada || geracao != geracaoRecentes) return;
-        haRecentes = existentes.Count > 0 || historicoAnalises.Count > 0;
+        haRecentes = existentes.Count > 0 || HistoricoRecente.Any();
         // A tela vazia de Relatórios (M5) mostra os 5 mais recentes que ainda existem.
         R.TextoVazio.DefinirRecentes(existentes.Take(5).Select(c => (Path.GetFileName(c), c)).ToList());
         AtualizarComandos();
+    }
+
+    const string ValorLimparRecentes = "comando:limpar-recentes";
+    IEnumerable<AnaliseHistorica> HistoricoRecente => historicoAnalises.Where(h => h.Alterada.Ticks > ajustes.RecentesLimposEmUtc);
+    void LimparListaDeRecentes()
+    {
+        ajustes.LimparRecentes();
+        SalvarAjustes();
+        AtualizarRecentes();
     }
 
     IReadOnlyList<(string Texto, string Valor, string Dica)> ItensDoMenuDaFaixa(string menu)
@@ -741,12 +746,12 @@ public sealed partial class MainWindow
         if (menu == ComandosApp.FigurasAbrirEditor) return ItensDoMenuFiguras();
         if (menu != ComandosApp.ArquivoRecentes) return [];
         var lista = ajustes.RecentesExistentes();
-        haRecentes = lista.Count > 0 || historicoAnalises.Count > 0;
-        return historicoAnalises.Select(h => (h.Identificacao, h.Registro, h.Registro)).Concat(lista.Where(c => !historicoAnalises.Any(h => string.Equals(h.Pacote, c, StringComparison.OrdinalIgnoreCase))).Select(c =>
+        haRecentes = lista.Count > 0 || HistoricoRecente.Any();
+        return HistoricoRecente.Select(h => (h.Identificacao, h.Registro, h.Registro)).Concat(lista.Where(c => !HistoricoRecente.Any(h => string.Equals(h.Pacote, c, StringComparison.OrdinalIgnoreCase))).Select(c =>
         {
             var pasta = Path.GetFileName(Path.GetDirectoryName(c)) ?? "";
             return (pasta.Length == 0 ? Path.GetFileName(c) : Path.GetFileName(c) + "  ·  " + pasta, c, c);
-        })).ToList();
+        })).Concat(haRecentes ? new[] { ("Limpar recentes", ValorLimparRecentes, "Limpar a lista de recentes") } : []).ToList();
     }
 
     /// <summary>Arquivo › Recentes: abre o relatório escolhido (na fila de comandos, como Abrir); se ele sumiu, avisa.</summary>

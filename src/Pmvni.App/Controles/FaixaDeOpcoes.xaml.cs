@@ -350,16 +350,20 @@ public sealed partial class FaixaDeOpcoes : UserControl
             if (itensMenu.TryGetValue(id, out var atual) && ReferenceEquals(atual, mi)) itensMenu.Remove(id);
         itensDoPrimario.Clear();
         primario = secundario = null;
+        VagaSecundario.Content = null;
+        VagaSecundario.Visibility = Visibility.Collapsed;
         VagaPrimario.Content = null;
         if (definicao?.Primario is not { } c) { VagaPrimario.Visibility = Visibility.Collapsed; return; }
         VagaPrimario.Visibility = Visibility.Visible;
         primario = BotaoDaVaga(c, destaque: true);
+        VagaPrimario.Content = primario;
         if (definicao.Secundario is { } s2)
         {
             secundario = BotaoDaVaga(s2, destaque: false);
-            VagaPrimario.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { primario, secundario } };
+            VagaSecundario.Visibility = Visibility.Visible;
+            VagaSecundario.Content = secundario;
         }
-        else VagaPrimario.Content = primario;
+
     }
 
     Button BotaoDaVaga(ComandoFaixa c, bool destaque)
@@ -522,6 +526,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
         AlinharRotulo(b);
+        if (c.Id == ComandosApp.EmitirProcessoAprovado) b.Style = (Style)Application.Current.Resources["PmvniEmissaoFaixaStyle"];
         if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
         // A dica automática do atalho (só "Ctrl+O") não pode tomar o lugar da dica do app, que já traz o atalho no título.
         b.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
