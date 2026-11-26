@@ -196,7 +196,8 @@ public partial class OrquestradorTestes
                 await Task.Delay(40, ct.Token);
         }
         finally { await ct.CancelAsync(); }
-        Assert.Equal("cancelada", (await analise).Situacao);
+        var cancelada = await analise;
+        Assert.True(cancelada.Situacao == "cancelada", cancelada.Mensagem);
         var trabalho = OrquestradorAnalise.PastaAnaliseChatGpt(pedido.RaizDados, pedido.Processo.Pasta, pedido.Registro.Pasta);
         File.Delete(bloqueio);
         File.WriteAllText(invalida, "recusar");

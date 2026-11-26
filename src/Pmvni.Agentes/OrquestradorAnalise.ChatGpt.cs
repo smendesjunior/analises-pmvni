@@ -62,7 +62,10 @@ public sealed partial class OrquestradorAnalise
         }
         catch (Exception e)
         {
-            diario.Encerrar(ct.IsCancellationRequested ? "Interrompida" : "Falhou", e.Message);
+            diario.Encerrar(ct.IsCancellationRequested ? "Cancelada" : "Falhou", e.Message);
+            // Ao cancelar, o Windows também pode informar o fechamento do processo ou dos canais como erro de E/S.
+            if (ct.IsCancellationRequested && e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+                throw new OperationCanceledException("A análise foi cancelada.", e, ct);
             throw;
         }
     }
