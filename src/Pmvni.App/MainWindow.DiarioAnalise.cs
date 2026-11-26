@@ -30,142 +30,97 @@ public sealed partial class MainWindow
         await MostrarDialogoAsync("Consumo e log integral", new ScrollViewer { MaxHeight = 540, Content = LeitorDoDiario(arquivo, consumo.Texto()) });
     }
 
-    static readonly JsonSerializerOptions JsonDoDetalhe = new(DiarioAnaliseChatGpt.Json) { WriteIndented = true };
+    internal static ListView TerminalDoMonitor()
+    {
+        var terminal = new ListView
+        {
+            Height = 410, SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = false,
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 25, 27, 31)),
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.WhiteSmoke),
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"), FontSize = 13,
+            ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                """<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><TextBlock Text="{Binding}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Foreground="WhiteSmoke" FontFamily="Consolas" FontSize="13"/></DataTemplate>""")
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(terminal, "Terminal da análise");
+        var estilo = new Style(typeof(ListViewItem));
+        estilo.Setters.Add(new Setter(Control.MinHeightProperty, 0d));
+        estilo.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 0, 8, 0)));
+        estilo.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+        terminal.ItemContainerStyle = estilo;
+        return terminal;
+    }
 
     internal static FrameworkElement LeitorDoDiario(string arquivo, string resumoInicial)
     {
-        var painel = new StackPanel { Spacing = 6 };
-        var resumo = new TextBlock { Text = resumoInicial, IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap };
-        painel.Children.Add(resumo);
-        var controles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var anterior = new Button { Content = "Página anterior" };
-        var proximo = new Button { Content = "Próxima página" };
-        var atualizar = new Button { Content = "Atualizar" };
-        foreach (var botao in new[] { anterior, proximo, atualizar }) controles.Children.Add(botao);
-        painel.Children.Add(controles);
-        var seguir = new CheckBox { Content = "Acompanhar os eventos mais recentes", IsChecked = true };
+        var painel = new StackPanel { Spacing = 8 };
+        if (!string.IsNullOrEmpty(resumoInicial))
+            painel.Children.Add(new TextBlock { Text = resumoInicial, TextWrapping = TextWrapping.Wrap });
+        var seguir = new CheckBox { Content = "Acompanhar o fim do log", IsChecked = true };
         painel.Children.Add(seguir);
-        var lista = new ListView { Height = 140, SelectionMode = ListViewSelectionMode.Single };
-        var posicao = new TextBlock();
-        painel.Children.Add(posicao);
-        painel.Children.Add(lista);
-        var detalhe = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 166 };
-        ScrollViewer.SetVerticalScrollBarVisibility(detalhe, ScrollBarVisibility.Auto);
-        painel.Children.Add(detalhe);
-        var pagina = 0;
-        const int quantidade = 40;
-        List<EventoDoPlugin> exibidos = [];
-        bool carregando = false;
-        const int tamanhoDoTrecho = 4096;
-        string textoSelecionado = "";
-        int inicioDoTrecho = 0;
-        var trechos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Visibility = Visibility.Collapsed };
-        var voltar = new Button { Content = "Trecho anterior" };
-        var avancar = new Button { Content = "Próximo trecho" };
-        trechos.Children.Add(voltar);
-        trechos.Children.Add(avancar);
-        painel.Children.Add(trechos);
-        void MostrarTrecho()
+        var terminal = TerminalDoMonitor();
+        painel.Children.Add(terminal);
+        long posicao = 0;
+        bool lendo = false;
+        async Task Atualizar()
         {
-            var tamanho = Math.Min(tamanhoDoTrecho, textoSelecionado.Length - inicioDoTrecho);
-            detalhe.Text = textoSelecionado.Substring(inicioDoTrecho, tamanho);
-            trechos.Visibility = textoSelecionado.Length > tamanhoDoTrecho ? Visibility.Visible : Visibility.Collapsed;
-            voltar.IsEnabled = inicioDoTrecho > 0;
-            avancar.IsEnabled = inicioDoTrecho + tamanho < textoSelecionado.Length;
-        }
-        voltar.Click += (_, _) => { inicioDoTrecho -= tamanhoDoTrecho; MostrarTrecho(); };
-        avancar.Click += (_, _) => { seguir.IsChecked = false; inicioDoTrecho += tamanhoDoTrecho; MostrarTrecho(); };
-        lista.SelectionChanged += (_, _) =>
-        {
-            inicioDoTrecho = 0;
-            textoSelecionado = "";
-            if (lista.SelectedIndex is int n && n >= 0 && n < exibidos.Count)
-            {
-                if (!carregando && n != exibidos.Count - 1) seguir.IsChecked = false;
-                textoSelecionado = exibidos[n].Detalhe;
-                if (textoSelecionado.Length <= tamanhoDoTrecho && (textoSelecionado.StartsWith('{') || textoSelecionado.StartsWith('[')))
-                {
-                    try
-                    {
-                        using var json = JsonDocument.Parse(textoSelecionado);
-                        textoSelecionado = JsonSerializer.Serialize(json.RootElement, JsonDoDetalhe);
-                    }
-                    catch (JsonException) { }
-                }
-            }
-            MostrarTrecho();
-        };
-        long tamanhoLido = 0;
-        var paginas = new List<long> { 0 };
-        var buffer = new byte[65536];
-        int total = 0;
-        async Task CarregarAsync()
-        {
-            if (carregando) return;
-            carregando = true;
-            var indiceAnterior = lista.SelectedIndex;
-            var acompanhar = seguir.IsChecked == true;
-            seguir.IsEnabled = false;
-            anterior.IsEnabled = proximo.IsEnabled = atualizar.IsEnabled = false;
+            if (lendo) return;
+            lendo = true;
             try
             {
-                var (proxima, novoResumo) = await Task.Run(() =>
-                {
-                    var eventos = new List<EventoDoPlugin>();
-                    using var fs = new FileStream(DiarioAnaliseChatGpt.LogDe(arquivo), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                    // Indexa as quebras de linha novas. Cada atualização lê somente a página solicitada.
-                    fs.Position = tamanhoLido;
-                    var tamanho = fs.Length;
-                    while (fs.Position < tamanho)
-                    {
-                        var inicio = fs.Position;
-                        var lidos = fs.Read(buffer, 0, (int)Math.Min(buffer.Length, tamanho - inicio));
-                        if (lidos == 0) break;
-                        for (var j = 0; j < lidos; j++)
-                            if (buffer[j] == (byte)'\n' && ++total % quantidade == 0) paginas.Add(inicio + j + 1);
-                    }
-                    tamanhoLido = fs.Position;
-                    if (acompanhar) pagina = Math.Max(0, total - 1) / quantidade;
-                    fs.Position = paginas[pagina];
-                    using var leitor = new StreamReader(fs);
-                    var nestaPagina = Math.Min(quantidade, total - pagina * quantidade);
-                    while (eventos.Count < nestaPagina && leitor.ReadLine() is { } linha)
-                    {
-                        if (JsonSerializer.Deserialize<EventoDoPlugin>(linha) is { } evento) eventos.Add(evento);
-                    }
-                    return (eventos, DiarioAnaliseChatGpt.LerConsumo(arquivo)?.Texto());
-                });
-                proximo.IsEnabled = (pagina + 1) * quantidade < total;
-                exibidos = proxima;
-                lista.ItemsSource = exibidos.Select(x => $"{x.Hora.LocalDateTime:T} · {x.Titulo}").ToList();
-                detalhe.Text = "";
-                posicao.Text = $"Página {pagina + 1} · Eventos {Math.Min(pagina * quantidade + 1, pagina * quantidade + exibidos.Count)} a {pagina * quantidade + exibidos.Count}";
-                lista.SelectedIndex = acompanhar ? exibidos.Count - 1 : exibidos.Count > 0 ? Math.Clamp(indiceAnterior, 0, exibidos.Count - 1) : -1;
-                if (lista.SelectedItem is { } selecionado) lista.ScrollIntoView(selecionado);
-                if (novoResumo is not null && resumo.Text != novoResumo) resumo.Text = novoResumo;
+                var lote = await Task.Run(() => LerTrechoDoLog(DiarioAnaliseChatGpt.LogDe(arquivo), posicao));
+                if (!painel.IsLoaded) return;
+                if (lote.Reiniciar) terminal.Items.Clear();
+                foreach (var linha in lote.Linhas) terminal.Items.Add(linha);
+                posicao = lote.Proxima;
+                if (seguir.IsChecked == true && lote.Linhas.Count > 0) terminal.ScrollIntoView(terminal.Items.Last());
             }
-            catch (JsonException) { detalhe.Text = "Esta página contém um evento com formato inválido."; }
-            catch (IOException e) { detalhe.Text = "Falha ao ler o registro. " + e.Message; }
-            catch (UnauthorizedAccessException e) { detalhe.Text = "Acesso ao registro indisponível. " + e.Message; }
-            finally { carregando = false; seguir.IsEnabled = true; atualizar.IsEnabled = true; anterior.IsEnabled = pagina > 0; }
-        }
-        anterior.Click += async (_, _) => { seguir.IsChecked = false; pagina--; await CarregarAsync(); };
-        proximo.Click += async (_, _) => { seguir.IsChecked = false; pagina++; await CarregarAsync(); };
-        seguir.Checked += async (_, _) => await CarregarAsync();
-        atualizar.Click += async (_, _) => await CarregarAsync();
-        var pulso = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-        pulso.Tick += async (_, _) =>
-        {
-            if (carregando || seguir.IsChecked != true) return;
-            try
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                var mudou = await Task.Run(() => new FileInfo(DiarioAnaliseChatGpt.LogDe(arquivo)).Length != tamanhoLido);
-                if (mudou && painel.IsLoaded && seguir.IsChecked == true) await CarregarAsync();
+                var aviso = "Leitura do log: " + e.Message;
+                if (terminal.Items.LastOrDefault() as string != aviso) terminal.Items.Add(aviso);
             }
-            catch (IOException) { }
-        };
-        painel.Loaded += async (_, _) => { pulso.Start(); await CarregarAsync(); };
+            finally { lendo = false; }
+        }
+        var pulso = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        pulso.Tick += async (_, _) => await Atualizar();
+        painel.Loaded += async (_, _) => { pulso.Start(); await Atualizar(); };
         painel.Unloaded += (_, _) => pulso.Stop();
         return painel;
+    }
+
+    static (long Proxima, bool Reiniciar, List<string> Linhas) LerTrechoDoLog(string caminho, long posicao)
+    {
+        using var arquivo = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var reiniciar = arquivo.Length < posicao;
+        arquivo.Position = reiniciar ? 0 : posicao;
+        var proxima = arquivo.Position;
+        var linhas = new List<string>();
+        using var evento = new MemoryStream();
+        var buffer = new byte[65536];
+        int lidos;
+        while ((lidos = arquivo.Read(buffer)) > 0)
+        {
+            var inicio = 0;
+            for (int i = 0; i < lidos; i++)
+            {
+                if (buffer[i] != 10) continue;
+                evento.Write(buffer, inicio, i - inicio);
+                var texto = System.Text.Encoding.UTF8.GetString(evento.GetBuffer(), 0, (int)evento.Length);
+                try
+                {
+                    if (JsonSerializer.Deserialize<EventoDoPlugin>(texto) is { } e)
+                        texto = $"[{e.Hora.LocalDateTime:T}] {e.Titulo}" + (e.Detalhe.Length == 0 ? "" : Environment.NewLine + e.Detalhe);
+                }
+                catch (JsonException) { }
+                for (int j = 0; j < texto.Length; j += 4096)
+                    linhas.Add(texto.Substring(j, Math.Min(4096, texto.Length - j)));
+                proxima = arquivo.Position - lidos + i + 1;
+                if (linhas.Count >= 64) return (proxima, reiniciar, linhas);
+                evento.SetLength(0);
+                inicio = i + 1;
+            }
+            evento.Write(buffer, inicio, lidos - inicio);
+        }
+        return (proxima, reiniciar, linhas);
     }
 }

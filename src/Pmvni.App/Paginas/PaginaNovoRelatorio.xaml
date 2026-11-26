@@ -372,7 +372,6 @@
         <NavigationView.MenuItems>
           <NavigationViewItem Content="Resumo" ToolTipService.ToolTip="Resumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Painel}"/></NavigationViewItem.Icon></NavigationViewItem>
           <NavigationViewItem Content="Etapas" ToolTipService.ToolTip="Etapas"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Lista}"/></NavigationViewItem.Icon></NavigationViewItem>
-          <NavigationViewItem Content="Detalhes" ToolTipService.ToolTip="Detalhes"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Documento}"/></NavigationViewItem.Icon></NavigationViewItem>
           <NavigationViewItem Content="Consumo" ToolTipService.ToolTip="Consumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Grafico}"/></NavigationViewItem.Icon></NavigationViewItem>
           <NavigationViewItem Content="Log" ToolTipService.ToolTip="Log"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}"/></NavigationViewItem.Icon></NavigationViewItem>
         </NavigationView.MenuItems>
@@ -792,7 +791,6 @@
         <NavigationView.MenuItems>
           <NavigationViewItem Content="Resumo" ToolTipService.ToolTip="Resumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Painel}"/></NavigationViewItem.Icon></NavigationViewItem>
           <NavigationViewItem Content="Etapas" ToolTipService.ToolTip="Etapas"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Lista}"/></NavigationViewItem.Icon></NavigationViewItem>
-          <NavigationViewItem Content="Detalhes" ToolTipService.ToolTip="Detalhes"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Documento}"/></NavigationViewItem.Icon></NavigationViewItem>
           <NavigationViewItem Content="Consumo" ToolTipService.ToolTip="Consumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Grafico}"/></NavigationViewItem.Icon></NavigationViewItem>
           <NavigationViewItem Content="Log" ToolTipService.ToolTip="Log"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}"/></NavigationViewItem.Icon></NavigationViewItem>
         </NavigationView.MenuItems>

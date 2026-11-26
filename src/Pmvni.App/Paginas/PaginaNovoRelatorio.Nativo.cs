@@ -1555,63 +1555,16 @@ public sealed partial class PaginaNovoRelatorio
             emCurso ? TagAoVivo("Em execução") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
         if (ArquivoDoDiario is { } arquivo)
         {
-            Adicionar(MainWindow.LeitorDoDiario(arquivo, ConsumoDoPlugin?.Texto() ?? ""), 12);
+            Adicionar(MainWindow.LeitorDoDiario(arquivo, ""), 12);
             return;
         }
-        Adicionar(CabecalhoDeSecao(MonitorChatGpt is not null ? "Eventos recentes" : atividades.Count == 1 ? "1 evento registrado" : $"{atividades.Count} eventos registrados", HoraUltimoEvento.Text, null, idTitulo: "count"), 18);
-        var lista = Cartao();
-        Elevar(lista, levantar: false);
-        var pilha = new StackPanel();
-        var larguras = new[] { new GridLength(90), new GridLength(120), new GridLength(1, GridUnitType.Star) };
-        var cab = new Grid { Style = Estilo<Style>("MnCabecalhoTabela"), ColumnSpacing = 16 };
-        foreach (var l in larguras) cab.ColumnDefinitions.Add(new() { Width = l });
-        string[] titulos = ["HORA", "TIPO", "EVENTO"];
-        for (var k = 0; k < 3; k++)
-        {
-            var t = Texto(titulos[k], "MnLegenda");
-            t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-           
-            if (k == 1) t.HorizontalAlignment = HorizontalAlignment.Center;
-            Grid.SetColumn(t, k);
-            cab.Children.Add(t);
-        }
-        pilha.Children.Add(cab);
-        foreach (var item in MonitorChatGpt is null ? atividades.AsEnumerable() : atividades.TakeLast(80))
+        var terminal = MainWindow.TerminalDoMonitor();
+        foreach (var item in atividades)
         {
             var a = item.Atividade;
-            var tipo = LinhaAndamento.Classificar(a).Nome;
-            var mensagem = string.Join(" — ", new[] { a.Titulo, a.Detalhe }.Where(t => !string.IsNullOrWhiteSpace(t)));
-            var linha = new Grid { ColumnSpacing = 16, Padding = new Thickness(20, 9, 20, 9) };
-            foreach (var l in larguras) linha.ColumnDefinitions.Add(new() { Width = l });
-            linha.Children.Add(Id(Texto(string.IsNullOrEmpty(a.HoraTexto) ? "—" : a.HoraTexto, "MnSecundario"), "time"));
-            var (fundo, texto) = tipo switch
-            {
-                "IA" => ("MnTagIa", "MnTagTextoIa"),
-                "CONCLUÍDO" => ("MnTagSucesso", "MnTagTextoSucesso"),
-                "ERRO" => ("MnTagErro", "MnTagTextoErro"),
-                "ATENÇÃO" => ("MnTagAtencao", "MnTagTextoAtencao"),
-                _ => ("MnTag", "MnTagTexto"),
-            };
-            var tag = Selo(tipo, fundo, texto);
-            tag.HorizontalAlignment = HorizontalAlignment.Center;
-            Grid.SetColumn(tag, 1);
-            linha.Children.Add(tag);
-            var msg = Texto(mensagem, "MnCorpo");
-            Grid.SetColumn(msg, 2);
-            linha.Children.Add(msg);
-            FrameworkElement conteudo = linha;
-            if (tipo == "ERRO")
-            {
-                var comFaixa = new Grid();
-                comFaixa.Children.Add(linha);
-                comFaixa.Children.Add(new Rectangle { Width = 3, HorizontalAlignment = HorizontalAlignment.Left, Style = Estilo<Style>("MnFormaErro") });
-                conteudo = comFaixa;
-            }
-            pilha.Children.Add(LinhaClicavel(conteudo, mensagem, true, () => Mostrar((string.IsNullOrEmpty(a.HoraTexto) ? "—" : a.HoraTexto) + " · " + tipo, mensagem)));
+            terminal.Items.Add($"[{a.HoraTexto}] {a.Titulo} {a.Detalhe}".TrimEnd());
         }
-        if (atividades.Count == 0) pilha.Children.Add(Vazio("Aguardando registros de execução."));
-        lista.Child = pilha;
-        Adicionar(lista, 10);
+        Adicionar(terminal, 12);
         if (BotaoEvidenciasPdf.Visibility == Visibility.Visible)
             Adicionar(BotaoAcao(Glifos.Relatorio, "Ver evidências por PDF e página", () => EvidenciasSolicitadas?.Invoke(this, EventArgs.Empty)), 12);
     }

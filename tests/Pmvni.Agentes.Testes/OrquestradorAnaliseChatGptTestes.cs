@@ -153,7 +153,7 @@ public partial class OrquestradorTestes
             nome = "Grupo fictício " + i,
             secoes = i <= 13 ? new[] { i * 2 - 1, i * 2 } : [i + 13],
             modelo = i is 14 or 15 ? "gpt-6.2-sol" : "gpt-6.1-terra",
-            esforco = i <= 2 ? "low" : "medium"
+            esforco = i == 15 ? "high" : i <= 2 ? "low" : "medium"
         }).ToArray();
         File.WriteAllText(Path.Combine(skill, "references", "grupos.json"), JsonSerializer.Serialize(grupos));
         var fontesMonitor = Path.Combine(skill, "references");

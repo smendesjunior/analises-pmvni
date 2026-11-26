@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "0.3.6";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.0.1";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -107,13 +107,14 @@ public sealed partial class OrquestradorAnalise
                 return Falha(SemContaChatGpt);
             var plano = File.ReadAllText(Path.Combine(plugin, "references", "grupos.json"));
             var planoSalvo = Path.Combine(pasta, "grupos.json");
-            if (File.Exists(planoSalvo) && File.ReadAllText(planoSalvo) != plano)
+            if (File.Exists(planoSalvo) && !PlanoCompativel(File.ReadAllText(planoSalvo), plano))
                 return Falha("O plano do plugin mudou. Inicie uma nova análise.");
             GravarJsonChatGpt(planoSalvo, plano);
             var resposta = Path.Combine(pasta, "ultima-mensagem.md");
             var prompt = $"""
                 Execute o plugin analise-chatgpt seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
                 A entrada é entrada-editor.json nesta pasta. Use a matriz recuperável se houver.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Refaça os grupos sem comprovação, inclusive o grupo 15 e a auditoria final em Sol 6.2 high.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Para um lote candidato ou confirmado, use o gerador do Editor antes da auditoria:
@@ -127,7 +128,7 @@ public sealed partial class OrquestradorAnalise
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
             File.Delete(entrega);
-            string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--ephemeral",
+            string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--enable", "multi_agent_v2",
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"",
                 "--output-last-message", resposta, "-"];
@@ -141,14 +142,29 @@ public sealed partial class OrquestradorAnalise
             int codigo;
             try
             {
-                diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
-                using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
-                    linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
-                    aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
-                        "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
-                using var cancelamento = ct.Register(sessao.Cancelar);
-                codigo = await sessao.Fim.ConfigureAwait(false);
-                diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
+                int maiorProgresso = -1;
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    File.Delete(resposta);
+                    diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
+                    using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
+                        linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
+                        aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
+                            "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
+                    using var cancelamento = ct.Register(sessao.Cancelar);
+                    codigo = await sessao.Fim.ConfigureAwait(false);
+                    diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
+                    if (codigo != 0 || File.Exists(entrega)) break;
+                    int progressoAtual = 0;
+                    var matriz = Path.Combine(pasta, "matriz-evidencias.json");
+                    if (LerRegistroParcial(matriz)?["grupos"] is JsonArray grupos)
+                        progressoAtual = grupos.OfType<JsonObject>().Count(g => g["perfil_efetivo"] is JsonObject);
+                    if (progressoAtual <= maiorProgresso) break;
+                    maiorProgresso = progressoAtual;
+                    prompt += "\nContinue a partir dos arquivos desta execução. Resolva as pendências, valide o pacote e gere entrega-plugin.rpmvni.";
+                    diario.Registrar("codex", "Retomando automaticamente os grupos pendentes.");
+                }
             }
             finally
             {
@@ -159,7 +175,10 @@ public sealed partial class OrquestradorAnalise
             }
             ct.ThrowIfCancellationRequested();
             if (codigo != 0 || !File.Exists(entrega))
-                return Falha($"A sessão Codex encerrou com código {codigo} e sem entrega confirmada. Confira ultima-mensagem.md na pasta da execução.");
+                {
+                var motivo = File.Exists(resposta) ? File.ReadAllText(resposta).Trim() : "O Codex não registrou uma mensagem final.";
+                return Falha($"Entrega pendente (código {codigo}). {motivo[..Math.Min(motivo.Length, 1200)]}");
+            }
             if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
                 return Falha("Uma peça ou o último despacho mudou durante a análise.");
             if (new FileInfo(entrega).LinkTarget is not null) return Falha("A entrega precisa ser um arquivo da sessão.");
@@ -475,12 +494,24 @@ public sealed partial class OrquestradorAnalise
         return porPerfil;
     }
 
+    static bool PlanoCompativel(string salvo, string atual)
+    {
+        var anterior = JsonNode.Parse(salvo) as JsonArray;
+        var novo = JsonNode.Parse(atual) as JsonArray;
+        if (anterior is null || novo is null) return false;
+        if (JsonNode.DeepEquals(anterior, novo)) return true;
+        foreach (var grupo in anterior.OfType<JsonObject>())
+            if (grupo["id"]?.ToString() == "15" && grupo["modelo"]?.ToString() == "gpt-6.2-sol" && grupo["esforco"]?.ToString() == "medium")
+                grupo["esforco"] = "high";
+        return JsonNode.DeepEquals(anterior, novo);
+    }
+
     static bool GruposChatGptValidos(GrupoChatGpt[] grupos) =>
         grupos.All(g => g is not null && g.Secoes is { Length: > 0 }) &&
         grupos.Select(g => g.Id).Order().SequenceEqual(Enumerable.Range(1, 15)) &&
         grupos.SelectMany(g => g.Secoes).Order().SequenceEqual(Enumerable.Range(1, 28)) &&
-        grupos.All(g => (g.Modelo, g.Esforco) is ("gpt-6.1-terra", "low" or "medium") or ("gpt-6.2-sol", "medium")) &&
-        grupos.Any(g => g.Id == 15 && g.Modelo == "gpt-6.2-sol" && g.Esforco == "medium");
+        grupos.All(g => g.Id == 15 ? (g.Modelo, g.Esforco) == ("gpt-6.2-sol", "high") :
+            (g.Modelo, g.Esforco) is ("gpt-6.1-terra", "low" or "medium") or ("gpt-6.2-sol", "medium"));
 
     sealed record GrupoChatGpt(int Id, int[] Secoes, string Modelo, string Esforco, string? Nome);
 }

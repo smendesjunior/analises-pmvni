@@ -3324,7 +3324,6 @@ internal static class Roteiro
                         await EsperarMonitor("Botão de evidências", () => BotaoDoMonitor("Ver evidências por PDF e página") is not null);
                         Invocar(BotaoDoMonitor("Ver evidências por PDF e página")!);
                         Verificar("Evidências", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + evidencias)),3000));
-                        await AbrirPagina("Detalhes");
                         await AbrirPagina("Consumo");
                         await AbrirPagina("Resumo");
                         if (pausar)
@@ -3521,10 +3520,6 @@ internal static class Roteiro
                         && titulosGrupos.All(t => Arvore(n.ConteudoMonitor).Contains(t)) && Campo("result").Contains("4 de 15"));
                 Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") ?? throw new InvalidOperationException("Etapa aberta"));
                 await Conferir("Recolher etapa", () => Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") is null);
-                await AbrirPagina("Detalhes");
-                await Conferir("Ordem do plano, registro e plano do executor",
-                    () => string.Join("|", Campos("stage").Select(t => t[2..].Trim())) == "Preparo|Análise|Auditoria técnica|Auditoria cruzada|Produção do relatório|Revisão final"
-                        && Campos("item").Contains("figuras (imagens, hashes)") && PaginaContem("Plano específico da execução") && PaginaContem("Registro de teste"));
                 await AbrirPagina("Consumo");
                 await Conferir("Cota medida separada da parcela sem atribuição", () => Campo("budget").Contains("18 p.p. observados") && Campo("budget").Contains("7 p.p. sem atribuição"));
                 await Conferir("Cache 25%, saída 12%, cotas 40% e 12%",
@@ -3535,12 +3530,9 @@ internal static class Roteiro
                 n.MostrarConsumo([]);
                 await Conferir("Sem telemetria não inventa percentuais", () => Campo("cachePercent") == "—" && Campo("shortPercent") == "—" && Campo("weeklyPercent") == "—");
                 await AbrirPagina("Log");
-                await Conferir("Log cronológico, horário ausente e evento com hora",
-                    () => Campo("count") == "3 eventos registrados" && Campos("time") is [ "—", var comHora, var horaDoAvanco ]
-                        && comHora.Contains(':') && horaDoAvanco.Contains(':'));
-                Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).Contains("sem hora")) ?? throw new InvalidOperationException("Evento"));
-                await Conferir("Abrir e ler evento completo", () => n.TextoDoDialogo?.Contains("sem hora") == true);
-                await FecharDialogo();
+                await Conferir("Log contínuo com os eventos da execução", () =>
+                    Arvore(n.ConteudoMonitor).OfType<Microsoft.UI.Xaml.Controls.ListView>().Any(lista =>
+                        lista.Items.OfType<string>().Any(texto => texto.Contains("sem hora"))));
                 n.ReiniciarEstimativa();
                 n.MostrarRelogios(TimeSpan.Zero,agora);
                 await AbrirPagina("Resumo");

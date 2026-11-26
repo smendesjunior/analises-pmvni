@@ -39,7 +39,7 @@ internal static class AutotesteConsumo
             Abrir("Consumo");
             await Esperar(() => Valor("weeklyPercent") == "11%" && Valor("shortPercent") == "—" && Valor("cachePercent") == "25%");
             Abrir("Log");
-            await Esperar(() => Controles(pagina.ConteudoMonitor).OfType<TextBox>().Any(t => t.Text.Length == 4096));
+            await Esperar(() => Controles(pagina.ConteudoMonitor).OfType<ListView>().Any(t => t.Items.Count > 200 && t.Items[0].ToString()!.Contains("Evento grande")));
             Abrir("Consumo");
             await Esperar(() => Valor("weeklyPercent") == "11%");
         }
