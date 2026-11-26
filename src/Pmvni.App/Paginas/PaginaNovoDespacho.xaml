@@ -101,7 +101,7 @@
                       <TextBlock Text="Como funciona" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                     </StackPanel>
                     <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
-                               Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Use Escolher arquivo… para um relatório de outra pasta. A data é a da pasta da etapa."/>
+                               Text="O relatório é opcional. Escolha o processo e a pasta da etapa, preencha os campos do despacho na prévia e clique em Gerar e conferir."/>
                   </StackPanel>
                 </Border>
 
@@ -183,7 +183,7 @@
               </Button>
             </Grid>
           </Border>
-          <TextBlock Text="Prévia no modelo oficial. Clique no protocolo, requerente, assunto, data, grupos ou exigências para editar; o resto é texto fixo do modelo. As páginas finais são conferidas no PDF."
+          <TextBlock Text="Prévia no modelo oficial. Clique nos campos para editar. As páginas finais são conferidas no PDF."
                      Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" Width="794" Margin="0,0,0,8"/>
           <StackPanel x:Name="Folhas" x:FieldModifier="internal" Spacing="16" AutomationProperties.Name="Prévia do despacho"/>
         </StackPanel>

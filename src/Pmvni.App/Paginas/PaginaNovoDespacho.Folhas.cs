@@ -329,6 +329,7 @@ public sealed partial class PaginaNovoDespacho
         "cabecalho:data" => "Data (por extenso)",
         ConteudoDespacho.ChaveIntervencao => "Tipo de obra",
         ConteudoDespacho.ChaveArea => "Área total a construir (m², ex.: 210,52)",
+        _ when chave.StartsWith("formulario:", StringComparison.Ordinal) => chave["formulario:".Length..],
         _ when chave.StartsWith("corpo:", StringComparison.Ordinal) => "Texto do despacho",
         _ when chave.StartsWith("grupo:", StringComparison.Ordinal) => "Título do grupo",
         _ when chave.EndsWith(":fundamento", StringComparison.Ordinal) => "Fundamento",
@@ -366,7 +367,7 @@ public sealed partial class PaginaNovoDespacho
                 Text = string.Join(", ", marcadas.Where(n => !ConteudoDespacho.NomesDasIntervencoes.Contains(n, StringComparer.OrdinalIgnoreCase))),
             };
             AutomationProperties.SetName(outro, "Outro tipo de obra");
-            outro.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; fly.Hide(); } };
+            outro.KeyDown += (_, e) => { if ( e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; fly.Hide(); } };
             painel.Children.Add(outro);
             fly.Closed += (_, _) =>
             {
@@ -380,18 +381,18 @@ public sealed partial class PaginaNovoDespacho
             // Altura conforme o texto: uma linha para um trecho curto, crescendo com as quebras até o máximo (daí em diante, rolagem vertical).
             var caixa = new TextBox
             {
-                Header = NomeDoCampo(chave), Text = valor, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false,
+                Header = NomeDoCampo(chave), Text = valor, TextWrapping = TextWrapping.Wrap, AcceptsReturn = chave == "formulario:Texto",
                 MinHeight = m.AlturaMinima, MaxHeight = m.AlturaMaxima, HorizontalAlignment = HorizontalAlignment.Stretch,
             };
             ScrollViewer.SetVerticalScrollBarVisibility(caixa, ScrollBarVisibility.Auto);
             ScrollViewer.SetHorizontalScrollBarVisibility(caixa, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(caixa, NomeDoCampo(chave));
             painel.Children.Add(caixa);
-            painel.Children.Add(new TextBlock { Text = "Enter para aplicar. Esc para descartar.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+            painel.Children.Add(new TextBlock { Text = caixa.AcceptsReturn ? "Clique fora para aplicar. Esc para descartar." : "Enter para aplicar. Esc para descartar.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
             var desistiu = false;
             caixa.KeyDown += (_, e) =>
             {
-                if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; fly.Hide(); }
+                if (!caixa.AcceptsReturn && e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; fly.Hide(); }
             };
             // Esc desiste de qualquer ponto do cartão (também com o foco no botão da IA), não só da caixa.
             painel.AddHandler(KeyDownEvent, new KeyEventHandler((_, e) =>

@@ -78,50 +78,60 @@ public static class ValidacaoDespacho
         {
             var fonte = Entradas(modelo);
             var saida = Entradas(documento);
-            var textos = Xml(saida[PreenchimentoDocx.Documento]).Root!.Element(W + "body")!.Elements(W + "p").Select(PreenchimentoDocx.Texto).ToList();
-
-            foreach (var resto in new[] { PreenchimentoDocx.MarcaData, "XX", "[ ]", "{{", TextosFixos.LacunaIntervencao, TextosFixos.LacunaArea })
-                if (textos.Any(t => t.Contains(resto, StringComparison.Ordinal)))
-                    erros.Add("Texto do modelo não preenchido: " + resto);
-
-            void Valor(string rotulo, string nome, string valor)
+            if (d.ValoresFormulario is { } campos)
             {
-                var p = textos.FirstOrDefault(t => t.TrimStart().StartsWith(rotulo, StringComparison.Ordinal));
-                if (valor.Length == 0 || p is null || !p.Contains(valor, StringComparison.Ordinal)) erros.Add("O despacho não traz o valor de " + nome + ".");
+                var esperado = new FormularioDespacho(modelo).Preencher(campos);
+                if (!XNode.DeepEquals(PreenchimentoDocx.LerDocumento(esperado), PreenchimentoDocx.LerDocumento(documento)))
+                    erros.Add("Os campos do despacho diferem da prévia conferida.");
             }
-            Valor(PreenchimentoDocx.RotuloProtocolo, "Protocolo nº", d.Protocolo);
-            Valor(PreenchimentoDocx.RotuloRequerente, "Requerente", d.Requerente);
-            Valor(PreenchimentoDocx.RotuloAssunto, "Assunto", d.Assunto);
-            if (!textos.Any(t => t.Contains(d.DataPorExtenso, StringComparison.Ordinal))) erros.Add("O despacho não traz o valor de data.");
+            else
+            {
+                var textos = Xml(saida[PreenchimentoDocx.Documento]).Root!.Element(W + "body")!.Elements(W + "p").Select(PreenchimentoDocx.Texto).ToList();
 
-            var cursor = 0;
-            var numero = 0;
-            int Achar(string texto)
-            {
-                for (var i = cursor; i < textos.Count; i++)
-                    if (textos[i] == texto) return i;
-                return -1;
-            }
-            foreach (var g in d.Grupos)
-            {
-                var titulo = Achar(g.Titulo);
-                if (titulo >= 0) cursor = titulo + 1;
-                for (var n = 0; n < g.Exigencias.Count; n++)
+                foreach (var resto in new[] { PreenchimentoDocx.MarcaData, "XX", "[ ]", "{{", TextosFixos.LacunaIntervencao, TextosFixos.LacunaArea })
+                    if (textos.Any(t => t.Contains(resto, StringComparison.Ordinal)))
+                        erros.Add("Texto do modelo não preenchido: " + resto);
+
+                void Valor(string rotulo, string nome, string valor)
                 {
-                    var i = titulo < 0 ? -1 : Achar(ConteudoDespacho.Numero(++numero) + g.Exigencias[n].Texto + g.Exigencias[n].Fundamento);
-                    if (i < 0) erros.Add("O despacho não traz a exigência " + (n + 1) + " do grupo " + g.Titulo + ".");
+                    var p = textos.FirstOrDefault(t => t.TrimStart().StartsWith(rotulo, StringComparison.Ordinal));
+                    if (valor.Length == 0 || p is null || !p.Contains(valor, StringComparison.Ordinal)) erros.Add("O despacho não traz o valor de " + nome + ".");
+                }
+                Valor(PreenchimentoDocx.RotuloProtocolo, "Protocolo nº", d.Protocolo);
+                Valor(PreenchimentoDocx.RotuloRequerente, "Requerente", d.Requerente);
+                Valor(PreenchimentoDocx.RotuloAssunto, "Assunto", d.Assunto);
+                if (!textos.Any(t => t.Contains(d.DataPorExtenso, StringComparison.Ordinal))) erros.Add("O despacho não traz o valor de data.");
+
+                var cursor = 0;
+                var numero = 0;
+                int Achar(string texto)
+                {
+                    for (var i = cursor; i < textos.Count; i++)
+                        if (textos[i] == texto) return i;
+                    return -1;
+                }
+                foreach (var g in d.Grupos)
+                {
+                    var titulo = Achar(g.Titulo);
+                    if (titulo >= 0) cursor = titulo + 1;
+                    for (var n = 0; n < g.Exigencias.Count; n++)
+                    {
+                        var i = titulo < 0 ? -1 : Achar(ConteudoDespacho.Numero(++numero) + g.Exigencias[n].Texto + g.Exigencias[n].Fundamento);
+                        if (i < 0) erros.Add("O despacho não traz a exigência " + (n + 1) + " do grupo " + g.Titulo + ".");
+                        else cursor = i + 1;
+                    }
+                }
+                for (var n = 0; n < d.Corpo.Count; n++)
+                {
+                    var i = Achar(d.Corpo[n]);
+                    if (i < 0) erros.Add("O despacho não traz o parágrafo " + (n + 1) + " do corpo.");
                     else cursor = i + 1;
                 }
-            }
-            for (var n = 0; n < d.Corpo.Count; n++)
-            {
-                var i = Achar(d.Corpo[n]);
-                if (i < 0) erros.Add("O despacho não traz o parágrafo " + (n + 1) + " do corpo.");
-                else cursor = i + 1;
-            }
 
-            var linha = textos.FindIndex(t => t.Trim().Length >= 10 && t.Trim().All(c => c == '_'));
-            if (linha <= 0 || textos[linha - 1].Trim().Length != 0) erros.Add("Falta a linha em branco antes da assinatura.");
+                var linha = textos.FindIndex(t => t.Trim().Length >= 10 && t.Trim().All(c => c == '_'));
+                if (linha <= 0 || textos[linha - 1].Trim().Length != 0) erros.Add("Falta a linha em branco antes da assinatura.");
+
+            }
 
             foreach (var (nome, bytes) in fonte)
                 if (nome != PreenchimentoDocx.Documento && (!saida.TryGetValue(nome, out var b) || !b.AsSpan().SequenceEqual(bytes)))

@@ -66,19 +66,16 @@ public sealed partial class MainWindow
 
     void IniciarNovoDespacho()
     {
-        foreach (var id in new[] { ComandosApp.DespachosNovoCorrecao, ComandosApp.DespachosNovoAprovacao })
+        foreach (var id in new[] { ComandosApp.DespachosNovoCorrecao, ComandosApp.DespachosNovoAprovacao, ComandosApp.DespachosNovoEntrega, ComandosApp.DespachosNovoDevolucao, ComandosApp.DespachosNovoGenerico })
         {
             var tipo = ComandosApp.TipoDoNovoDespacho(id)!.Value;
             manipuladores[id] = async () => await AbrirNovoDespachoAsync(tipo);
         }
-        manipuladores[ComandosApp.DespachosNovoEntrega] = () => CriarAdministrativoAsync("RETIRADA DE PROCESSOS/PROJETOS");
-        manipuladores[ComandosApp.DespachosNovoDevolucao] = () => CriarAdministrativoAsync("DEVOLUÇÃO DE PROCESSOS/PROJETOS");
-        manipuladores[ComandosApp.DespachosNovoGenerico] = () => CriarAdministrativoAsync("USO GERAL");
         manipuladores[ComandosApp.DespachosNovoCorrecaoAutomatica] = async () => await AbrirCorrecaoAutomaticaAsync();
         manipuladores[ComandosApp.DespachosGerarPdf] = async () => { if (docxSemPdf is { } d) await AbrirGerarPdfAsync(d); };
 
         var n = N;
-        foreach (var t in new[] { TipoDespacho.Correcao, TipoDespacho.Aprovacao })
+        foreach (var t in RegistroModelos.TiposEmitidos)
             n.CaixaTipo.Items.Add(new ComboBoxItem { Content = RegistroModelos.Rotulo(t), Tag = t });
         n.CaixaTipo.SelectionChanged += (_, _) =>
         {
@@ -186,7 +183,7 @@ public sealed partial class MainWindow
         try
         {
             var fontes = RoteiroLegado ? FontesDosModelos(kit, CodexHomeAtual()) : FontesDosModelosAtuais(kit);
-            m = await Task.Run(() => RegistroModelos.Ler(fontes, kit));
+            m = await Task.Run(() => FormularioDespacho.IncluirModelos(RegistroModelos.Ler(fontes, kit), kit));
         }
         catch (Exception e)
         {
@@ -232,7 +229,7 @@ public sealed partial class MainWindow
         p.TextoPastaKit.Text = ajustes.PastaKitEfetiva + (padrao ? "  (pasta padrão)" : "");
         p.BotaoKitPadrao.IsEnabled = !padrao;
         p.TextoModelos.Text = modelos is not { } m ? "Lendo os modelos de despacho do kit…"
-            : string.Join(Environment.NewLine, new[] { TipoDespacho.Correcao, TipoDespacho.Aprovacao }
+            : string.Join(Environment.NewLine, RegistroModelos.TiposEmitidos
                 .Select(t => RegistroModelos.Rotulo(t) + ": " + (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) ?? "disponível"))
                 .Concat(m.Fonte is { } f ? ["Modelos lidos de: " + f.Origem] : Array.Empty<string>())
                 .Concat(m.Falhas.Select(x => "Não serviu: " + x)));
@@ -243,7 +240,8 @@ public sealed partial class MainWindow
         var compondo = novo is not null;
         Faixa.Habilitar(ComandosApp.DespachosNovo, novo is not { Gravando: true });
         foreach (var (id, t) in new[] { (ComandosApp.DespachosNovoCorrecao, TipoDespacho.Correcao), (ComandosApp.DespachosNovoCorrecaoAutomatica, TipoDespacho.Correcao),
-                     (ComandosApp.DespachosNovoAprovacao, TipoDespacho.Aprovacao) })
+                     (ComandosApp.DespachosNovoAprovacao, TipoDespacho.Aprovacao), (ComandosApp.DespachosNovoEntrega, TipoDespacho.Entrega),
+                     (ComandosApp.DespachosNovoDevolucao, TipoDespacho.Devolucao), (ComandosApp.DespachosNovoGenerico, TipoDespacho.Generico) })
         {
             var motivo = modelos is { } m ? FluxoNovoDespacho.MotivoDesabilitado(t, m, novo is { Gravando: true }) : "Lendo os modelos do kit…";
             Faixa.Habilitar(id, motivo is null);

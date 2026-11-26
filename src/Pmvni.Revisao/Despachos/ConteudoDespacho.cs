@@ -42,7 +42,10 @@ public sealed record GrupoFinal(string Titulo, IReadOnlyList<ExigenciaFinal> Exi
 
 /// <summary>O despacho congelado: o que vai para o DOCX. <see cref="Corpo"/>: aprovação = os 4 parágrafos fixos resolvidos; correção = o fechamento.</summary>
 public sealed record DespachoFinal(TipoDespacho Tipo, string Protocolo, string Requerente, string Assunto, string DataPorExtenso,
-    IReadOnlyList<GrupoFinal> Grupos, IReadOnlyList<string> Corpo, string? Destinatario = null);
+    IReadOnlyList<GrupoFinal> Grupos, IReadOnlyList<string> Corpo, string? Destinatario = null)
+{
+    public IReadOnlyDictionary<string, string>? ValoresFormulario { get; init; }
+}
 
 public enum EstiloPrevia { Titulo, Rotulo, Destinatario, Grupo, Corpo, Data, Assinatura, Vazio }
 
@@ -89,7 +92,7 @@ public sealed class RascunhoDespacho
     public IReadOnlySet<Intervencao> Intervencoes => _intervencoes;
     readonly Dictionary<string, string> textosDoCorpo = new(StringComparer.Ordinal);
     public IReadOnlyDictionary<string, string> TextosDoCorpo => textosDoCorpo;
-    public void EditarTrechoDoCorpo(string chave, string texto) => textosDoCorpo[chave] = TextoEditado.Normalizar(texto);
+    public void EditarTrechoDoCorpo(string chave, string texto) => textosDoCorpo[chave] = chave == "formulario:Texto" ? texto.Trim() : TextoEditado.Normalizar(texto);
 
     internal IReadOnlyList<TrechoPrevia> TrechosDoCorpo(ParagrafoFixo paragrafo)
     {
@@ -230,8 +233,20 @@ public sealed class RascunhoDespacho
     public void DefinirArea(string texto) => AreaTotal = TextoEditado.Normalizar(texto);
 
     /// <summary>O que o usuário ainda precisa preencher, na ordem da tela; vazio = pode gerar.</summary>
+    internal FormularioDespacho? Formulario { get; init; }
+    internal string ValorFormulario(string campo) => campo switch
+    {
+        "Protocolo" => Protocolo, "Requerente" => Requerente, "Assunto" => Assunto, "Data" => DataPorExtenso,
+        _ => textosDoCorpo.GetValueOrDefault("formulario:" + campo, campo switch
+        {
+            "Título" => "USO GERAL", "Prazo" => "24 horas",
+            "Encaminhamento" => "A solicitação foi atendida. Arquive-se.", _ => ""
+        })
+    };
+
     public IReadOnlyList<string> Faltando()
     {
+        if (Formulario is not null) return Formulario.Campos.Where(c => string.IsNullOrWhiteSpace(ValorFormulario(c))).ToList();
         var f = new List<string>();
         if (Protocolo.Length == 0) f.Add(ConteudoDespacho.FaltaProtocolo);
         if (Requerente.Length == 0) f.Add(ConteudoDespacho.FaltaRequerente);
@@ -276,7 +291,8 @@ public sealed class RascunhoDespacho
         foreach (var p in tx.Paragrafos)
             corpo.Add(string.Concat(TrechosDoCorpo(p).Select(t => t.Chave is null
                 ? ConteudoDespacho.Resolver(t.Texto, TextoIntervencao, AreaTotal) : t.Texto)));
-        return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo, Destinatario);
+        return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo, Destinatario)
+        { ValoresFormulario = Formulario?.Campos.ToDictionary(c => c, ValorFormulario) };
     }
 }
 
@@ -357,8 +373,8 @@ public static class ConteudoDespacho
     public static RascunhoDespacho MontarEmBranco(TipoDespacho t, InfoModelo m, DateOnly data, string protocolo, string requerente)
     {
         ArgumentNullException.ThrowIfNull(m);
-        if (t is not (TipoDespacho.Correcao or TipoDespacho.Aprovacao)) throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido.");
-        return new RascunhoDespacho(t, protocolo ?? "", requerente ?? "", m.Assunto, data, []) { GrupoPadrao = m.TituloGrupo };
+        if (!RegistroModelos.TiposEmitidos.Contains(t)) throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido.");
+        return new RascunhoDespacho(t, protocolo ?? "", requerente ?? "", m.Assunto, data, []) { GrupoPadrao = m.TituloGrupo, Formulario = m.Formulario };
     }
 
     public static RascunhoDespacho Montar(TipoDespacho t, Projeto p, InfoModelo m, EtapaDespacho etapa)
@@ -366,7 +382,7 @@ public static class ConteudoDespacho
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(m);
         ArgumentNullException.ThrowIfNull(etapa);
-        if (t is not (TipoDespacho.Correcao or TipoDespacho.Aprovacao)) throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido.");
+        if (!RegistroModelos.TiposEmitidos.Contains(t)) throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido.");
         if (m.Tipo != t) throw new ArgumentException("O modelo é de outro tipo de despacho.", nameof(m));
         var itens = Itens(p, out var doc);
         var capa = doc["capa"] as JsonObject;
@@ -380,7 +396,7 @@ public static class ConteudoDespacho
                     Grupo = m.TituloGrupo, GrupoOriginal = m.TituloGrupo,
                     Texto = x.Texto, TextoOriginal = x.Texto, Fundamento = x.Fundamento, FundamentoOriginal = x.Fundamento,
                 });
-        return new RascunhoDespacho(t, Texto(capa?["processo"]) ?? "", Texto(capa?["requerente"]) ?? "", m.Assunto, etapa.Data, pendencias) { GrupoPadrao = m.TituloGrupo };
+        return new RascunhoDespacho(t, Texto(capa?["processo"]) ?? "", Texto(capa?["requerente"]) ?? "", m.Assunto, etapa.Data, pendencias) { GrupoPadrao = m.TituloGrupo, Formulario = m.Formulario };
     }
 
     /// <summary>O que não deixa abrir o despacho (desenho §10.3): erros da conferência da revisão, processo da capa diferente do da pasta ou
@@ -457,6 +473,7 @@ public static class ConteudoDespacho
         var partes = chave.Split(':', 3);
         switch (partes[0])
         {
+            case "formulario" when partes.Length == 2 && r.Formulario?.Campos.Contains(partes[1]) == true:
             case "corpo" when partes.Length == 3:
                 r.EditarTrechoDoCorpo(chave, texto);
                 return true;
@@ -495,6 +512,7 @@ public static class ConteudoDespacho
         ArgumentNullException.ThrowIfNull(m);
         ArgumentNullException.ThrowIfNull(r);
         ArgumentNullException.ThrowIfNull(tx);
+        if (m.Formulario is { } formulario) return formulario.Previa(m, r);
         var lista = new List<ParagrafoPrevia>();
         var antesDoProtocolo = true;
         var depoisDaAssinatura = false;

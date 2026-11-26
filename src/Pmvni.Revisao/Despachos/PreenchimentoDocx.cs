@@ -13,7 +13,10 @@ public sealed record ParagrafoModelo(string Texto, bool Negrito, string Alinhame
 
 /// <summary>O que o app precisa saber do modelo DOCX: o assunto (texto em negrito do modelo), o título de grupo (só correção; "" na aprovação),
 /// quantas vagas há e os parágrafos do corpo na ordem.</summary>
-public sealed record InfoModelo(TipoDespacho Tipo, string Assunto, string TituloGrupo, int Vagas, IReadOnlyList<ParagrafoModelo> Paragrafos);
+public sealed record InfoModelo(TipoDespacho Tipo, string Assunto, string TituloGrupo, int Vagas, IReadOnlyList<ParagrafoModelo> Paragrafos)
+{
+    public FormularioDespacho? Formulario { get; init; }
+}
 
 /// <summary>O modelo não tem uma âncora (ou a tem repetida): o tipo fica indisponível; nunca se improvisa.</summary>
 public sealed class ModeloForaDoPadraoException(string ancora) : Exception("O modelo não está no formato esperado (âncora \"" + ancora + "\").")
@@ -45,6 +48,12 @@ public static class PreenchimentoDocx
     {
         ArgumentNullException.ThrowIfNull(docx);
         var doc = LerDocumento(docx);
+        if (FormularioDespacho.UsaFormulario(t))
+        {
+            var ps = doc.Root!.Element(W + "body")!.Elements(W + "p")
+                .Select(p => new ParagrafoModelo(Texto(p), Negrito(p), Alinhamento(p), PapelParagrafo.Fixo)).ToList();
+            return new InfoModelo(t, "", "", 0, ps) { Formulario = new FormularioDespacho(docx) };
+        }
         var mapa = Mapear(doc, t);
         var paragrafos = mapa.Paragrafos.Select((p, i) => new ParagrafoModelo(Texto(p), Negrito(p), Alinhamento(p), mapa.Papeis[i])).ToList();
         var assunto = mapa.Um(PapelParagrafo.Assunto);
@@ -97,6 +106,7 @@ public static class PreenchimentoDocx
     {
         ArgumentNullException.ThrowIfNull(modelo);
         ArgumentNullException.ThrowIfNull(d);
+        if (d.ValoresFormulario is { } valores) return new FormularioDespacho(modelo).Preencher(valores);
         var (doc, declaracao) = LerDocumentoComDeclaracao(modelo);
         var mapa = Mapear(doc, d.Tipo);
 

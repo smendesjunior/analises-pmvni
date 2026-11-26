@@ -287,7 +287,7 @@ public static class Processos
 
     static TipoDespacho TipoPeloNome(IEnumerable<string> arquivos)
     {
-        var nomes = arquivos.Select(a => Normalizar(Path.GetFileName(a))).ToList();
+        var nomes = arquivos.Select(a => Normalizar(Path.GetFileName(a)).Replace('_', ' ')).ToList();
         if (nomes.Any(n => n.Contains("correcao", StringComparison.Ordinal))) return TipoDespacho.Correcao;
         if (nomes.Any(n => n.Contains("aprovacao", StringComparison.Ordinal))) return TipoDespacho.Aprovacao;
         if (nomes.Any(n => n.StartsWith("despacho retirada", StringComparison.Ordinal))) return TipoDespacho.Entrega;

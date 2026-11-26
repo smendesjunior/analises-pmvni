@@ -83,9 +83,12 @@ internal sealed class SessaoNovoDespacho
     public static (ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) LerModelo(ModelosDisponiveis m, TipoDespacho t)
     {
         if (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) is { } motivo) throw new InvalidOperationException(motivo);
-        var fonte = m.Fonte ?? throw new InvalidOperationException(FontesModelos.AtualizeOKit);
         var modelo = m.Modelos.Single(x => x.Tipo == t);
-        var bytes = PreenchimentoDocx.ComProfissional(File.ReadAllBytes(modelo.Caminho), Pmvni.Composicao.Profissional.Atual);
+        var bytes = File.ReadAllBytes(modelo.Caminho);
+        if (FormularioDespacho.UsaFormulario(t))
+            return (modelo, PreenchimentoDocx.LerModelo(bytes, t), new TextosFixos(t, modelo.CaminhoRelativo, modelo.Sha256, []), LayoutDespacho.Ler(bytes));
+        var fonte = m.Fonte ?? throw new InvalidOperationException(FontesModelos.AtualizeOKit);
+        bytes = PreenchimentoDocx.ComProfissional(bytes, Pmvni.Composicao.Profissional.Atual);
         var info = PreenchimentoDocx.LerModelo(bytes, t);
         return (modelo, info, TextosFixos.Ler(fonte, t), LayoutDespacho.Ler(bytes));
     }

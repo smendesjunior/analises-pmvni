@@ -27,10 +27,15 @@ public static class RegistroModelos
 
     static readonly (TipoDespacho Tipo, string Papel)[] Papeis = { (TipoDespacho.Correcao, "correction"), (TipoDespacho.Aprovacao, "approval_simple") };
 
+    public static readonly IReadOnlyList<TipoDespacho> TiposEmitidos = [TipoDespacho.Correcao, TipoDespacho.Aprovacao, TipoDespacho.Entrega, TipoDespacho.Devolucao, TipoDespacho.Generico];
+
     public static string Rotulo(TipoDespacho t) => t switch
     {
         TipoDespacho.Correcao => "Correção",
         TipoDespacho.Aprovacao => "Aprovação",
+        TipoDespacho.Entrega => "Retirada de processos/projetos",
+        TipoDespacho.Devolucao => "Devolução de processos/projetos",
+        TipoDespacho.Generico => "Uso geral",
         _ => throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido pelo editor."),
     };
 
@@ -38,6 +43,9 @@ public static class RegistroModelos
     {
         TipoDespacho.Correcao => "Correcao",
         TipoDespacho.Aprovacao => "Aprovacao",
+        TipoDespacho.Entrega => "Retirada",
+        TipoDespacho.Devolucao => "Devolucao",
+        TipoDespacho.Generico => "Uso_Geral",
         _ => throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido pelo editor."),
     };
 
