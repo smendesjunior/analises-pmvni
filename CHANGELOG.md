@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.11
+
+- O cartão Consumo mostra as cotas de 5 horas e semanal. O Editor reconhece cada janela pela duração que a conta informa, registra as duas quando disponíveis e identifica as janelas sem medição.
+
 ## 4.7.10
 
 - A aba Log registra os eventos da sessão Codex, comandos e resultados, erros e arquivos de análise com horário. É possível consultar o conteúdo de cada registro durante a execução e pelo histórico em Novo relatório.

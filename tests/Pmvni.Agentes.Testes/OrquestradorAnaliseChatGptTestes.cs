@@ -9,6 +9,39 @@ namespace Pmvni.Agentes.Testes;
 
 public partial class OrquestradorTestes
 {
+    [Theory]
+    [InlineData(300, 0)]
+    [InlineData(10080, 0)]
+    [InlineData(300, 10080)]
+    [InlineData(10080, 300)]
+    [InlineData(0, 300)]
+    public void AnaliseChatGpt_MedeCadaJanelaDaContaPelaDuracao(int primaria, int secundaria)
+    {
+        var inicio = DateTimeOffset.UtcNow;
+        AmostraDaConta Amostra(int leitura)
+        {
+            JsonObject? Janela(int minutos) => minutos == 0 ? null : new JsonObject
+            {
+                ["windowDurationMins"] = minutos, ["usedPercent"] = (double)(minutos == 300 ? 10 + leitura * 7 : 50 + leitura),
+                ["resetsAt"] = 1800000000L + minutos
+            };
+            var resposta = new JsonObject
+            {
+                ["accountId"] = "conta-de-teste",
+                ["rateLimits"] = new JsonObject { ["primary"] = Janela(primaria), ["secondary"] = Janela(secundaria) }
+            };
+            return AmostraDaConta.Ler(resposta) with { Hora = inicio.AddMinutes(leitura) };
+        }
+        var consumo = new ConsumoDoPlugin("teste", inicio) { Inicial = Amostra(0), Ultima = Amostra(1), CotaFinal = true };
+        var texto = consumo.Texto();
+        Assert.Contains(primaria == 300 || secundaria == 300
+            ? "5 horas · 10% → 17% · variação da conta 7 p.p."
+            : "5 horas · janela não informada pela conta", texto);
+        Assert.Contains(primaria == 10080 || secundaria == 10080
+            ? "Semana · 50% → 51% · variação da conta 1 p.p."
+            : "Semana · janela não informada pela conta", texto);
+    }
+
     [Fact]
     public void AnaliseChatGpt_AnexoDeTrabalhoNaoArquivaDocumentoNoProcesso()
     {

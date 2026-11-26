@@ -31,7 +31,7 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
         if (Ultima is { } atual)
         {
             linhas.Add($"Cota da conta {atual.Plano} · leitura {atual.Hora.LocalDateTime:G}");
-            foreach (var minutos in atual.Janelas.Select(j => j.Minutos).Append(300).Distinct().Order())
+            foreach (var minutos in atual.Janelas.Select(j => j.Minutos).Append(300).Append(10080).Distinct().Order())
             {
                 var nome = minutos switch { 300 => "5 horas", 10080 => "Semana", _ => $"{minutos} minutos" };
                 var j = atual.Janelas.FirstOrDefault(x => x.Minutos == minutos);
@@ -44,7 +44,12 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
             }
             if (Fim is not null && !CotaFinal) linhas.Add("A última leitura disponível é parcial.");
         }
-        else linhas.Add("Cota sem leitura disponível.");
+        else
+        {
+            var situacao = Fim.HasValue ? "sem leitura registrada" : "aguardando leitura da conta";
+            linhas.Add($"5 horas · {situacao}");
+            linhas.Add($"Semana · {situacao}");
+        }
         if (FalhaCota is { Length: > 0 }) linhas.Add(FalhaCota);
         if (Origem is { Length: > 0 }) linhas.Add(Origem);
         return string.Join(Environment.NewLine, linhas);
