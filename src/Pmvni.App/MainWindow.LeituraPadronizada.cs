@@ -25,6 +25,81 @@ public sealed partial class MainWindow
     IReadOnlyList<string>? paginasLeitura;
     CancellationTokenSource? figurasLeitura;
 
+    readonly List<(BlocoLei Bloco, Border Moldura)> blocosDoLeitor = [];
+    Border? molduraAtiva;
+    TextBlock? textoRealcado;
+    string buscaLeitor = "";
+    int indiceBusca = -1;
+
+    void LimparRealce()
+    {
+        molduraAtiva?.ClearValue(Border.BorderBrushProperty);
+        textoRealcado?.TextHighlighters.Clear();
+        molduraAtiva = null;
+        textoRealcado = null;
+    }
+
+    void RealcarBloco(Border alvo, bool navegar)
+    {
+        LimparRealce();
+        molduraAtiva = alvo;
+        alvo.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        if (navegar)
+        {
+            P.RolagemPadronizada.UpdateLayout();
+            alvo.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = false });
+        }
+    }
+
+    static IEnumerable<TextBlock> TextosDoBloco(UIElement? el)
+    {
+        if (el is TextBlock texto) yield return texto;
+        if (el is Panel painel)
+            foreach (var filho in painel.Children)
+                foreach (var t in TextosDoBloco(filho)) yield return t;
+        if (el is Border borda)
+            foreach (var t in TextosDoBloco(borda.Child)) yield return t;
+    }
+
+    ProcuraLei BuscarNaLeitura(string termo, int passo, int pagina, bool navegar = true)
+    {
+        var chave = Pmvni.Legislacao.TextoPesquisa.Normalizar(termo);
+        var ocorrencias = new List<(Border Alvo, TextBlock Texto, int Inicio, int Tamanho, int Pagina)>();
+        if (chave.Length > 0)
+        {
+            foreach (var (bloco, alvo) in blocosDoLeitor)
+            {
+                if (bloco.Tipo == TipoBlocoLei.Figura) continue;
+                foreach (var texto in TextosDoBloco(alvo.Child))
+                {
+                    if (bloco.Tipo == TipoBlocoLei.Artigo && resumosNaTela.TryGetValue(bloco.Chave, out var resumo) && ReferenceEquals(resumo.Folha, texto)) continue;
+                    var (normal, mapa) = Pmvni.Legislacao.TextoPesquisa.ComMapa(texto.Text);
+                    for (int i = normal.IndexOf(chave, StringComparison.Ordinal); i >= 0; i = normal.IndexOf(chave, i + chave.Length, StringComparison.Ordinal))
+                    {
+                        int fim = i + chave.Length;
+                        ocorrencias.Add((alvo, texto, mapa[i], (fim < mapa.Length ? mapa[fim] : texto.Text.Length) - mapa[i], bloco.Pagina));
+                    }
+                }
+            }
+        }
+        LimparRealce();
+        if (ocorrencias.Count == 0) { buscaLeitor = chave; indiceBusca = -1; return new(0, 0, null); }
+        if (buscaLeitor != chave || indiceBusca < 0)
+        {
+            indiceBusca = ocorrencias.FindIndex(o => o.Pagina >= pagina);
+            if (indiceBusca < 0) indiceBusca = 0;
+        }
+        else indiceBusca = (indiceBusca + passo + ocorrencias.Count) % ocorrencias.Count;
+        buscaLeitor = chave;
+        var atual = ocorrencias[indiceBusca];
+        RealcarBloco(atual.Alvo, navegar);
+        var marca = new TextHighlighter();
+        marca.Ranges.Add(new TextRange { StartIndex = atual.Inicio, Length = atual.Tamanho });
+        atual.Texto.TextHighlighters.Add(marca);
+        textoRealcado = atual.Texto;
+        return new(ocorrencias.Count, indiceBusca + 1, atual.Pagina);
+    }
+
     void IniciarLeituraPadronizada()
     {
         P.TextoPadronizado.RequestedTheme = ElementTheme.Default;
@@ -39,6 +114,8 @@ public sealed partial class MainWindow
     async Task MostrarLeituraPadronizadaAsync(Anexo anexo)
     {
         figurasLeitura?.Cancel();
+        buscaLeitor = "";
+        indiceBusca = -1;
         var id = anexo.Id;
         var (paginas, figuras, resumos) = await Task.Run(() =>
         {
@@ -72,9 +149,12 @@ public sealed partial class MainWindow
             if (fechada || ct.IsCancellationRequested || leiAberta?.Id != anexo.Id || !leituraPadronizadaLigada || paginasLeitura is not { } paginas) return;
             var blocos = await Task.Run(() => LeituraPadronizada.Estruturar(paginas, figuras), ct);
             if (fechada || ct.IsCancellationRequested || leiAberta?.Id != anexo.Id || !leituraPadronizadaLigada) return;
+            var selecionado = blocosDoLeitor.FirstOrDefault(x => x.Moldura == molduraAtiva).Bloco;
             var deslocamento = P.RolagemPadronizada.VerticalOffset;
             Desenhar(anexo, blocos, figuras is null ? EstadoFiguras.Falharam : EstadoFiguras.Prontas);
             P.RolagemPadronizada.UpdateLayout();
+            if (buscaLeitor.Length > 0) BuscarNaLeitura(buscaLeitor, 0, paginaLei, false);
+            else if (selecionado != null && blocosDoLeitor.FirstOrDefault(x => x.Bloco == selecionado).Moldura is { } alvo) RealcarBloco(alvo, false);
             P.RolagemPadronizada.ChangeView(null, deslocamento, null, true);
         }
         catch (OperationCanceledException) { }
@@ -91,6 +171,8 @@ public sealed partial class MainWindow
         P.ModoLeitura.Visibility = Visibility.Collapsed;
         P.VistaPadronizada.Visibility = Visibility.Collapsed;
         P.TextoPadronizado.Children.Clear();
+        LimparRealce();
+        blocosDoLeitor.Clear();
         topicosLei.Clear();
         resumosNaTela.Clear();
         AtualizarTopicosNaLista();
@@ -107,6 +189,8 @@ public sealed partial class MainWindow
     {
         var t = P.TextoPadronizado;
         t.Children.Clear();
+        LimparRealce();
+        blocosDoLeitor.Clear();
         topicosLei.Clear();
         resumosNaTela.Clear();
         t.Children.Add(CabecalhoDaFolha());
@@ -144,9 +228,11 @@ public sealed partial class MainWindow
                 TipoBlocoLei.Figura => Figura(b),
                 _ => Dispositivo(b),
             };
-            t.Children.Add(el);
-            if (b.Tipo is TipoBlocoLei.Titulo or TipoBlocoLei.Capitulo or TipoBlocoLei.Secao or TipoBlocoLei.Artigo)
-                topicosLei.Add((b, el));
+            var moldura = new Border { BorderThickness = new Thickness(3, 0, 0, 0), Padding = new Thickness(6, 0, 0, 0), Child = el };
+            t.Children.Add(moldura);
+            blocosDoLeitor.Add((b, moldura));
+            if (b.Tipo is TipoBlocoLei.Titulo or TipoBlocoLei.Capitulo or TipoBlocoLei.Secao or TipoBlocoLei.Subsecao or TipoBlocoLei.Artigo)
+                topicosLei.Add((b, moldura));
         }
         MenuTexto.Aplicar(t);
         P.RolagemPadronizada.ChangeView(null, 0, null, true);
@@ -201,7 +287,11 @@ public sealed partial class MainWindow
                 AplicarModoLeitura();
                 P.RolagemPadronizada.UpdateLayout();
             }
-            alvo.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = true });
+            buscaLeitor = "";
+            indiceBusca = -1;
+            paginaLei = b.Pagina;
+            AtualizarRodapeLegislacao();
+            RealcarBloco((Border)alvo, true);
         };
         return botao;
     }

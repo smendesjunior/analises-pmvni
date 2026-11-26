@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.5
+
+- Na legislação, clicar no índice destaca o tópico na folha. A busca abre a leitura padronizada e realça a ocorrência, com navegação entre os resultados.
+
 ## 4.7.4
 
 - Seções e quadros podem ser editados e ocultados como grupos. A opção de cada nota controla sua legenda e a marcação editável na imagem.

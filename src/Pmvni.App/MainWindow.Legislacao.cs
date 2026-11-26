@@ -323,9 +323,8 @@ public sealed partial class MainWindow
             P.TextoNadaAberto.Visibility = Visibility.Collapsed;
             P.AvisoSemTexto.IsOpen = !anexo.TemTexto;
             MontarMarcadores();
-            // Leitura padronizada (correções 2026-11-15); vindo de uma pesquisa (página/termo), fica no PDF original.
             await MostrarLeituraPadronizadaAsync(anexo);
-            if ((pagina is not null || termo is not null) && leituraPadronizadaLigada) P.ModoLeitura.SelectedItem = P.ModoPdf;
+            if ((pagina is not null && termo is null) && leituraPadronizadaLigada) P.ModoLeitura.SelectedItem = P.ModoPdf;
             // Ajustes › Módulos › Legislação › "Pesquisar em": o alvo da pesquisa ao abrir uma lei (padrão "Nesta lei", como sempre foi).
             escopoTodas = ajustes.LegislacaoEscopo == "todas";
             AtualizarDicaDaPesquisaLegislacao();
@@ -335,7 +334,7 @@ public sealed partial class MainWindow
                 try { CaixaPesquisa.Text = termo; }
                 finally { definindoPesquisa = false; }
                 termosPesquisa[Modulo.Legislacao] = termo;
-                MostrarContadorDaLei(termo, aberta.Procurado ?? new ProcuraLei(0, 0, null));
+                MostrarContadorDaLei(termo, leituraPadronizadaLigada ? BuscarNaLeitura(termo, 0, paginaLei) : aberta.Procurado ?? new ProcuraLei(0, 0, null));
             }
             else TextoPesquisa.Text = "";
             MontarListaDeLeis();
@@ -470,7 +469,8 @@ public sealed partial class MainWindow
             TextoPesquisa.Text = "Este PDF não tem texto pesquisável.";
             return TextoPesquisa.Text;
         }
-        var r = await leitorPdf.ProcurarAsync(termo, passo);
+        var r = leituraPadronizadaLigada && ReferenceEquals(P.ModoLeitura.SelectedItem, P.ModoPadronizado)
+            ? BuscarNaLeitura(termo, passo, paginaLei) : await leitorPdf.ProcurarAsync(termo, passo);
         MostrarContadorDaLei(termo, r);
         return TextoPesquisa.Text;
     }
