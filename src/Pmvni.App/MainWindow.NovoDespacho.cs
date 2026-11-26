@@ -71,6 +71,9 @@ public sealed partial class MainWindow
             var tipo = ComandosApp.TipoDoNovoDespacho(id)!.Value;
             manipuladores[id] = async () => await AbrirNovoDespachoAsync(tipo);
         }
+        manipuladores[ComandosApp.DespachosNovoEntrega] = () => CriarAdministrativoAsync("Entrega");
+        manipuladores[ComandosApp.DespachosNovoDevolucao] = () => CriarAdministrativoAsync("Devolução");
+        manipuladores[ComandosApp.DespachosNovoGenerico] = () => CriarAdministrativoAsync("Genérico");
         manipuladores[ComandosApp.DespachosNovoCorrecaoAutomatica] = async () => await AbrirCorrecaoAutomaticaAsync();
         manipuladores[ComandosApp.DespachosGerarPdf] = async () => { if (docxSemPdf is { } d) await AbrirGerarPdfAsync(d); };
 

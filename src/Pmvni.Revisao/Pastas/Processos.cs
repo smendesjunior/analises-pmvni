@@ -20,7 +20,7 @@ public enum TipoRelatorio { Pacote, AnaliseIa }
 
 public sealed record RelatorioEncontrado(string Caminho, TipoRelatorio Tipo, DateTime AlteradoUtc);
 
-public enum TipoDespacho { Correcao, Aprovacao, NaoIdentificado }
+public enum TipoDespacho { Correcao, Aprovacao, NaoIdentificado, Entrega, Devolucao, Generico }
 
 public sealed record Despacho(string Pasta, int Numero, DateOnly Data, TipoDespacho Tipo, IReadOnlyList<string> Arquivos, Processo? Processo);
 
@@ -290,6 +290,9 @@ public static class Processos
         var nomes = arquivos.Select(a => Normalizar(Path.GetFileName(a))).ToList();
         if (nomes.Any(n => n.Contains("correcao", StringComparison.Ordinal))) return TipoDespacho.Correcao;
         if (nomes.Any(n => n.Contains("aprovacao", StringComparison.Ordinal))) return TipoDespacho.Aprovacao;
+        if (nomes.Any(n => n.StartsWith("despacho entrega", StringComparison.Ordinal))) return TipoDespacho.Entrega;
+        if (nomes.Any(n => n.StartsWith("despacho devolucao", StringComparison.Ordinal))) return TipoDespacho.Devolucao;
+        if (nomes.Any(n => n.StartsWith("despacho generico", StringComparison.Ordinal))) return TipoDespacho.Generico;
         return TipoDespacho.NaoIdentificado;
     }
 

@@ -149,6 +149,9 @@ public static class ListasPastas
     public static string TextoDoTipo(TipoDespacho t) => t switch
     {
         TipoDespacho.Correcao => "Correção",
+        TipoDespacho.Entrega => "Entrega",
+        TipoDespacho.Devolucao => "Devolução",
+        TipoDespacho.Generico => "Genérico",
         TipoDespacho.Aprovacao => "Aprovação",
         _ => "Tipo não identificado",
     };

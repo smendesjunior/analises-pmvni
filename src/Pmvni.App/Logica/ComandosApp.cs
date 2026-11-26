@@ -88,6 +88,9 @@ public static class ComandosApp
     // Novo despacho (Tarefa 16): o menu com os tipos do registro do kit (em Despachos, Processos e Relatórios) e Gerar PDF (só Despachos).
     public const string DespachosNovo = "despachos.novo";
     public const string DespachosNovoCorrecao = "despachos.novo.correcao";
+    public const string DespachosNovoEntrega = "despachos.novo.entrega";
+    public const string DespachosNovoDevolucao = "despachos.novo.devolucao";
+    public const string DespachosNovoGenerico = "despachos.novo.generico";
     public const string DespachosNovoAprovacao = "despachos.novo.aprovacao";
     /// <summary>Correção automática (2026-11-16): monta o despacho de correção com todos os itens pendentes do relatório mais recente do
     /// processo e vai direto para a conferência.</summary>
@@ -96,7 +99,7 @@ public static class ComandosApp
 
     /// <summary>Os itens do Novo despacho valem em qualquer módulo que os mostra: abrem a página Novo despacho no módulo Despachos.
     /// Os outros comandos <c>despachos.*</c> só valem com a lista de despachos à vista.</summary>
-    public static bool ValeForaDeDespachos(string id) => id is DespachosNovoCorrecao or DespachosNovoAprovacao or DespachosNovoCorrecaoAutomatica;
+    public static bool ValeForaDeDespachos(string id) => id is DespachosNovoEntrega or DespachosNovoDevolucao or DespachosNovoGenerico or DespachosNovoCorrecao or DespachosNovoAprovacao or DespachosNovoCorrecaoAutomatica;
 
     /// <summary>O item "Correção automática" do menu Novo despacho.</summary>
     public static bool EhCorrecaoAutomatica(string id) => id == DespachosNovoCorrecaoAutomatica;
@@ -105,6 +108,9 @@ public static class ComandosApp
     public static TipoDespacho? TipoDoNovoDespacho(string id) => id switch
     {
         DespachosNovoCorrecao or DespachosNovoCorrecaoAutomatica => TipoDespacho.Correcao,
+        DespachosNovoEntrega => TipoDespacho.Entrega,
+        DespachosNovoDevolucao => TipoDespacho.Devolucao,
+        DespachosNovoGenerico => TipoDespacho.Generico,
         DespachosNovoAprovacao => TipoDespacho.Aprovacao,
         _ => null,
     };

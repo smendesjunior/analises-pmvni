@@ -370,7 +370,7 @@ public sealed class FluxoNovoDespachoTestes
         // Em Relatórios, o menu fica na Página Inicial, na ordem Correção, Correção automática, Aprovação.
         var inicio = Faixas.Para(Modulo.Relatorios).Abas.Single(a => a.Nome == "Página Inicial");
         var menu = inicio.Comandos.Single(c => c.Id == ComandosApp.DespachosNovo);
-        Assert.Equal(new[] { ComandosApp.DespachosNovoCorrecao, ComandosApp.DespachosNovoCorrecaoAutomatica, ComandosApp.DespachosNovoAprovacao },
+        Assert.Equal(new[] { ComandosApp.DespachosNovoCorrecao, ComandosApp.DespachosNovoCorrecaoAutomatica, ComandosApp.DespachosNovoAprovacao, ComandosApp.DespachosNovoEntrega, ComandosApp.DespachosNovoDevolucao, ComandosApp.DespachosNovoGenerico },
             menu.Itens!.Select(i => i.Id));
     }
 
