@@ -4,7 +4,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 4.7.0
 
-- Novas análises usam o analise-chatgpt com a conta ChatGPT. Uma única sessão do Codex conduz os grupos, consulta as fontes, audita e gera o .rpmvni com o plugin 0.3.5. O Editor acompanha a matriz e abre o arquivo para revisão.
+- Novas análises usam o analise-chatgpt com a conta ChatGPT. Uma única sessão do Codex conduz os grupos, consulta as fontes, audita e gera o .rpmvni com o plugin 0.3.6. O Editor acompanha a matriz e abre o arquivo para revisão.
 - A revisão permite editar textos, figuras e diagramas e definir o que sai no relatório. A conta nominal das esquadrias aparece separada da situação técnica.
 
 ## 4.6.7

@@ -1,6 +1,6 @@
 # Migração do Editor 4.7.0 para analise-chatgpt
 
-O plugin mínimo é 0.3.5. Novo relatório arquiva as peças e prepara entrada-editor.json. Uma única chamada a Codex exec com a conta ChatGPT entrega o pedido à skill do kit. A sessão resolve as fontes, consulta a biblioteca territorial, controla os perfis, registra a matriz, audita os 15 grupos e gera entrega-plugin.rpmvni. O Editor confere a integridade, a identidade da capa e a renderização antes de importar na etapa de despacho. O usuário emite o despacho pelo módulo Despachos.
+O plugin mínimo é 0.3.6. Novo relatório arquiva as peças e prepara entrada-editor.json. Uma única chamada a Codex exec com a conta ChatGPT entrega o pedido à skill do kit. A sessão resolve as fontes, consulta a biblioteca territorial, controla os perfis, registra a matriz, audita os 15 grupos e gera entrega-plugin.rpmvni. O Editor confere a integridade, a identidade da capa e a renderização antes de importar na etapa de despacho. O usuário emite o despacho pelo módulo Despachos.
 
 A retomada reutiliza a pasta e a matriz da execução. Alterações na seleção, no pedido ou no plano impedem o reaproveitamento. O monitor lê os registros produzidos pelo plugin. A tela de modelos apresenta os perfis definidos no kit. A preferência de pasta do kit e de base QGIS segue na entrada. As configurações de IA da revisão pontual pertencem à edição do documento.
 

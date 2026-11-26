@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "0.3.5";
+    internal const string VersaoMinimaAnaliseChatGpt = "0.3.6";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
