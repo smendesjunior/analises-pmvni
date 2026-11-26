@@ -56,23 +56,44 @@ public sealed partial class MainWindow
         const int quantidade = 40;
         List<EventoDoPlugin> exibidos = [];
         bool carregando = false;
+        const int tamanhoDoTrecho = 4096;
+        string textoSelecionado = "";
+        int inicioDoTrecho = 0;
+        var trechos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Visibility = Visibility.Collapsed };
+        var voltar = new Button { Content = "Trecho anterior" };
+        var avancar = new Button { Content = "Próximo trecho" };
+        trechos.Children.Add(voltar);
+        trechos.Children.Add(avancar);
+        painel.Children.Add(trechos);
+        void MostrarTrecho()
+        {
+            var tamanho = Math.Min(tamanhoDoTrecho, textoSelecionado.Length - inicioDoTrecho);
+            detalhe.Text = textoSelecionado.Substring(inicioDoTrecho, tamanho);
+            trechos.Visibility = textoSelecionado.Length > tamanhoDoTrecho ? Visibility.Visible : Visibility.Collapsed;
+            voltar.IsEnabled = inicioDoTrecho > 0;
+            avancar.IsEnabled = inicioDoTrecho + tamanho < textoSelecionado.Length;
+        }
+        voltar.Click += (_, _) => { inicioDoTrecho -= tamanhoDoTrecho; MostrarTrecho(); };
+        avancar.Click += (_, _) => { seguir.IsChecked = false; inicioDoTrecho += tamanhoDoTrecho; MostrarTrecho(); };
         lista.SelectionChanged += (_, _) =>
         {
+            inicioDoTrecho = 0;
+            textoSelecionado = "";
             if (lista.SelectedIndex is int n && n >= 0 && n < exibidos.Count)
             {
                 if (!carregando && n != exibidos.Count - 1) seguir.IsChecked = false;
-                var conteudo = exibidos[n].Detalhe;
-                if (conteudo.StartsWith('{') || conteudo.StartsWith('['))
+                textoSelecionado = exibidos[n].Detalhe;
+                if (textoSelecionado.Length <= tamanhoDoTrecho && (textoSelecionado.StartsWith('{') || textoSelecionado.StartsWith('[')))
                 {
                     try
                     {
-                        using var json = JsonDocument.Parse(conteudo);
-                        conteudo = JsonSerializer.Serialize(json.RootElement, JsonDoDetalhe);
+                        using var json = JsonDocument.Parse(textoSelecionado);
+                        textoSelecionado = JsonSerializer.Serialize(json.RootElement, JsonDoDetalhe);
                     }
                     catch (JsonException) { }
                 }
-                detalhe.Text = exibidos[n].Titulo + Environment.NewLine + conteudo;
             }
+            MostrarTrecho();
         };
         long tamanhoLido = 0;
         var paginas = new List<long> { 0 };
@@ -88,7 +109,7 @@ public sealed partial class MainWindow
             anterior.IsEnabled = proximo.IsEnabled = atualizar.IsEnabled = false;
             try
             {
-                var proxima = await Task.Run(() =>
+                var (proxima, novoResumo) = await Task.Run(() =>
                 {
                     var eventos = new List<EventoDoPlugin>();
                     using var fs = new FileStream(DiarioAnaliseChatGpt.LogDe(arquivo), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -112,7 +133,7 @@ public sealed partial class MainWindow
                     {
                         if (JsonSerializer.Deserialize<EventoDoPlugin>(linha) is { } evento) eventos.Add(evento);
                     }
-                    return eventos;
+                    return (eventos, DiarioAnaliseChatGpt.LerConsumo(arquivo)?.Texto());
                 });
                 proximo.IsEnabled = (pagina + 1) * quantidade < total;
                 exibidos = proxima;
@@ -121,8 +142,7 @@ public sealed partial class MainWindow
                 posicao.Text = $"Página {pagina + 1} · Eventos {Math.Min(pagina * quantidade + 1, pagina * quantidade + exibidos.Count)} a {pagina * quantidade + exibidos.Count}";
                 lista.SelectedIndex = acompanhar ? exibidos.Count - 1 : exibidos.Count > 0 ? Math.Clamp(indiceAnterior, 0, exibidos.Count - 1) : -1;
                 if (lista.SelectedItem is { } selecionado) lista.ScrollIntoView(selecionado);
-                var novo = DiarioAnaliseChatGpt.Listar(Path.GetDirectoryName(arquivo)!).FirstOrDefault(x => x.Arquivo == arquivo).Consumo;
-                if (novo is not null) resumo.Text = novo.Texto();
+                if (novoResumo is not null && resumo.Text != novoResumo) resumo.Text = novoResumo;
             }
             catch (JsonException) { detalhe.Text = "Esta página contém um evento com formato inválido."; }
             catch (IOException e) { detalhe.Text = "Falha ao ler o registro. " + e.Message; }
@@ -136,11 +156,11 @@ public sealed partial class MainWindow
         var pulso = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
         pulso.Tick += async (_, _) =>
         {
-            if (carregando || proximo.IsEnabled) return;
+            if (carregando || seguir.IsChecked != true) return;
             try
             {
-                var info = new FileInfo(DiarioAnaliseChatGpt.LogDe(arquivo));
-                if (info.Exists && info.Length != tamanhoLido) await CarregarAsync();
+                var mudou = await Task.Run(() => new FileInfo(DiarioAnaliseChatGpt.LogDe(arquivo)).Length != tamanhoLido);
+                if (mudou && painel.IsLoaded && seguir.IsChecked == true) await CarregarAsync();
             }
             catch (IOException) { }
         };

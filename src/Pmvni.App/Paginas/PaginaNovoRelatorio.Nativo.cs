@@ -227,12 +227,13 @@ public sealed partial class PaginaNovoRelatorio
         var aba = AbaAtual;
         var conteudo = aba switch
         {
-            "Log" when MonitorChatGpt is not null && ArquivoDoDiario is not null => ArquivoDoDiario,
+            "Log" when ArquivoDoDiario is not null => ArquivoDoDiario,
             "Log" => string.Join("|", versaoLogHtml, atividades.Count, HoraUltimoEvento.Text, TituloStatus.Text, emCurso, BotaoEvidenciasPdf.Visibility),
             "Etapas" => ChaveEstruturaEtapas(trilha),
             "Detalhes" => string.Join("|", ModelosConfigurados, ChaveEtapas(), ErroDetalhes.Text, TextoUltimaMensagem.Text, PainelUltimaMensagem.Visibility,
                 string.Join(";", detalhesEtapas.Validacoes), string.Join(";", detalhesEtapas.Plano)),
-            "Consumo" => string.Join("|", ChaveConsumo(), orcamentoExibido, ConsumoDoPlugin),
+            "Consumo" when MonitorChatGpt is not null || ConsumoDoPlugin is not null => ConsumoDoPlugin?.Texto(),
+            "Consumo" => string.Join("|", ChaveConsumo(), orcamentoExibido),
             _ => string.Join("|", string.Join(";", achadosExibidos.Select(a => a.Id + a.Situacao + a.Verificado + a.Titulo)), filtroAchados, todasEvidencias,
                 BotaoEvidenciasPdf.Visibility, TotalAtende.Text, TotalNaoAtende.Text, TotalComprovar.Text, TotalDivergentes.Text),
         };
@@ -1235,7 +1236,7 @@ public sealed partial class PaginaNovoRelatorio
         static long? Tokens(UsoEtapa l) => l.Total ?? (l.Executor == "Claude" && l.EntradaIncluiCache != true
             ? l.Entrada + l.Saida + l.CacheLido + l.CacheGravado : l.Entrada + l.Saida);
         var total = SomaMedida(ia.Select(Tokens));
-        if (leituraExibida is { Total: { } atual } leitura && (total is null || atual >= total))
+        if (MonitorChatGpt is null && ConsumoDoPlugin is null && leituraExibida is { Total: { } atual } leitura && (total is null || atual >= total))
             return (atual, leitura.Entrada, leitura.Saida, leitura.CacheLido,
                 leitura.CacheLido <= leitura.Entrada ? leitura.Entrada - leitura.CacheLido : null,
                 leitura.TokensParciais, leitura.TokensObservadosEm);
@@ -1244,20 +1245,15 @@ public sealed partial class PaginaNovoRelatorio
             SomaMedida(ia.Select(e => e.CacheLido)), cache is { } c ? (long?)c.Nova : null, ia.Any(e => Tokens(e) is null), null);
     }
 
-    internal string? ConsumoDoPlugin { get; set; }
+    internal ConsumoDoPlugin? ConsumoDoPlugin { get; set; }
     internal string? ArquivoDoDiario { get; set; }
-    internal event EventHandler? ConsultarDiario;
 
     void PaginaConsumo()
     {
-        if (MonitorChatGpt is not null)
-        {
-            Adicionar(TituloDePagina(Glifos.Grafico, "Consumo da análise", "Medições da sessão Codex e das janelas de cota da conta."), 0);
-            Adicionar(CartaoChatGpt("Tentativa atual", ConsumoDoPlugin ?? "Aguardando a primeira leitura."), 12);
-            Adicionar(BotaoAcao(Glifos.Recentes, "Consultar histórico e log integral", () => ConsultarDiario?.Invoke(this, EventArgs.Empty)), 12);
-            return;
-        }
-        var uso = consumoExibido ?? [];
+        var plugin = MonitorChatGpt is not null || ConsumoDoPlugin is not null;
+        IReadOnlyList<UsoEtapa> uso = plugin
+            ? ConsumoDoPlugin is { } consumo ? [consumo.UsoDaSessao()] : []
+            : consumoExibido ?? [];
         var ia = uso.Where(e => e.Executor != UsoDasIas.Programa).ToArray();
         var fichas = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var totais = TotaisMedidos(ia);
@@ -1267,7 +1263,7 @@ public sealed partial class PaginaNovoRelatorio
             fichas.Children.Add(Selo("Medidos às " + hora.ToLocalTime().ToString("HH:mm:ss"), "MnTag", "MnTagTexto"));
         Adicionar(TituloDePagina(Glifos.Grafico, "Consumo e desempenho", "Tokens, cotas e tempo gastos pela análise até agora.", fichas), 0);
 
-        if (orcamentoExibido is { } orc)
+        if (!plugin && orcamentoExibido is { } orc)
         {
             var nota = Cartao();
             nota.Padding = new Thickness(16, 10, 16, 10);
@@ -1294,7 +1290,7 @@ public sealed partial class PaginaNovoRelatorio
 
         var executores = Cartao();
         var pilhaEx = new StackPanel();
-        pilhaEx.Children.Add(CabecalhoDeSecao("Consumo por executor", "Cota gasta por modelo de IA e recursos da máquina no processamento local", null, true));
+        pilhaEx.Children.Add(CabecalhoDeSecao("Consumo por executor", plugin ? "Variação da conta entre leituras comparáveis" : "Cota gasta por modelo de IA e recursos da máquina no processamento local", null, true));
         foreach (var grupo in uso.GroupBy(NomeExecutor))
         {
             var r = grupo.Last();
@@ -1336,10 +1332,10 @@ public sealed partial class PaginaNovoRelatorio
 
         var tabela = Cartao();
         var pilhaTab = new StackPanel();
-        pilhaTab.Children.Add(CabecalhoDeSecao("Consumo por etapa", $"{uso.Select(u => u.Etapa).Distinct().Count()} de {etapasMostradas.Length} etapas com registro", null, true));
+        pilhaTab.Children.Add(CabecalhoDeSecao(plugin ? "Consumo da sessão" : "Consumo por etapa", plugin ? $"{ConsumoDoPlugin?.TurnosMedidos ?? 0} turno(s) com medição de tokens" : $"{uso.Select(u => u.Etapa).Distinct().Count()} de {etapasMostradas.Length} etapas com registro", null, true));
         var colunas = new[] { 1.2, 1.6, .8, .8, .8, .8, .9, .9 };
         GridLength[] larguras = [.. colunas.Select(c => new GridLength(c, GridUnitType.Star))];
-        var cab = LinhaDeTabela(larguras, ["Etapa", "Executor", "Entrada", "Saída", "Cache lido", "Cota 5 h", "Cota semanal", "Tempo"], cabecalho: true);
+        var cab = LinhaDeTabela(larguras, [plugin ? "Sessão" : "Etapa", "Executor", "Entrada", "Saída", "Cache lido", "Cota 5 h", "Cota semanal", "Tempo"], cabecalho: true);
         pilhaTab.Children.Add(cab);
         foreach (var r in uso)
         {
@@ -1354,6 +1350,11 @@ public sealed partial class PaginaNovoRelatorio
         tabela.Child = pilhaTab;
         Elevar(tabela);
         Adicionar(tabela, 16);
+        if (plugin)
+        {
+            Adicionar(CartaoChatGpt("Leituras da tentativa", ConsumoDoPlugin?.Texto() ?? "Aguardando a primeira leitura."), 12);
+            Adicionar(BotaoAcao(Glifos.Recentes, "Ver log desta análise", AbrirLogDoMonitorNativo), 12);
+        }
     }
 
     Grid LinhaDeTabela(GridLength[] larguras, string[] valores, bool cabecalho = false, bool local = false)
@@ -1435,14 +1436,14 @@ public sealed partial class PaginaNovoRelatorio
         var cartao = CartaoDeGrafico("Uso das cotas", "Uso da conta e variação no intervalo observado", out var corpo);
         var curta = ia.LastOrDefault(r => r.Usada5h != null);
         var semana = ia.LastOrDefault(r => r.UsadaSemana != null);
-        var leitura = leituraExibida;
+        var leitura = MonitorChatGpt is null && ConsumoDoPlugin is null ? leituraExibida : null;
         var usadaCurta = leitura is null ? curta?.Usada5h : leitura.Usada5h;
         var usadaSemana = leitura is null ? semana?.UsadaSemana : leitura.UsadaSemana;
         var aneis = new Grid { ColumnSpacing = 12 };
         aneis.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
         aneis.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
-        aneis.Children.Add(AnelDeCota("Cota de 5 h", usadaCurta, curta?.Cota5h, "MnArcoOcre", "MnTagTextoAtencao", "shortPercent", leitura?.CotaObservadaEm));
-        var s = AnelDeCota("Cota semanal", usadaSemana, semana?.CotaSemana, "MnArcoLilas", "MnTagTextoIa", "weeklyPercent", leitura?.CotaSemanaObservadaEm);
+        aneis.Children.Add(AnelDeCota("Cota de 5 h", usadaCurta, curta?.Cota5h, "MnArcoOcre", "MnTagTextoAtencao", "shortPercent", ConsumoDoPlugin?.Ultima?.Hora ?? leitura?.CotaObservadaEm));
+        var s = AnelDeCota("Cota semanal", usadaSemana, semana?.CotaSemana, "MnArcoLilas", "MnTagTextoIa", "weeklyPercent", ConsumoDoPlugin?.Ultima?.Hora ?? leitura?.CotaSemanaObservadaEm);
         Grid.SetColumn(s, 1);
         aneis.Children.Add(s);
         corpo.Children.Add(aneis);
@@ -1488,7 +1489,7 @@ public sealed partial class PaginaNovoRelatorio
 
     Border GraficoTempos(IReadOnlyList<UsoEtapa> uso)
     {
-        var cartao = CartaoDeGrafico("Tempo por etapa", TextoTempoAtivo.Text, out var corpo);
+        var cartao = CartaoDeGrafico(ConsumoDoPlugin is null ? "Tempo por etapa" : "Tempo da sessão", TextoTempoAtivo.Text, out var corpo);
         legendaTempos = ((StackPanel)((Border)cartao).Child).Children.OfType<TextBlock>().Skip(1).FirstOrDefault();
         var grupos = uso.Where(r => r.Duracao != null).GroupBy(r => FluxoNovoRelatorio.NomeDaEtapa(r.Etapa))
             .Select(g => (Nome: g.Key, Segundos: g.Sum(r => r.Duracao!.Value.TotalSeconds), Lista: g.ToArray())).ToArray();
@@ -1552,9 +1553,9 @@ public sealed partial class PaginaNovoRelatorio
     {
         Adicionar(TituloDePagina(Glifos.Recentes, "Log de execução", "Registros cronológicos por hora do evento e ações realizadas durante a análise.",
             emCurso ? TagAoVivo("Em execução") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
-        if (MonitorChatGpt is not null && ArquivoDoDiario is { } arquivo)
+        if (ArquivoDoDiario is { } arquivo)
         {
-            Adicionar(MainWindow.LeitorDoDiario(arquivo, ConsumoDoPlugin ?? ""), 12);
+            Adicionar(MainWindow.LeitorDoDiario(arquivo, ConsumoDoPlugin?.Texto() ?? ""), 12);
             return;
         }
         Adicionar(CabecalhoDeSecao(MonitorChatGpt is not null ? "Eventos recentes" : atividades.Count == 1 ? "1 evento registrado" : $"{atividades.Count} eventos registrados", HoraUltimoEvento.Text, null, idTitulo: "count"), 18);

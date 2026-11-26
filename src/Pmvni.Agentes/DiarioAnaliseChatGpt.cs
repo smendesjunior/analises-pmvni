@@ -21,6 +21,24 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
     public string? FalhaCota { get; set; }
     public string? Origem { get; set; }
 
+    internal double? Variacao(int minutos)
+    {
+        var antes = Inicial?.Janelas.FirstOrDefault(j => j.Minutos == minutos);
+        var depois = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == minutos);
+        return antes is not null && depois is not null && Inicial!.Hora < Ultima!.Hora &&
+            !JanelasInterrompidas.Contains(minutos) && Inicial.Conta is { } conta && conta == Ultima.Conta &&
+            antes.Reinicia.HasValue && antes.Reinicia == depois.Reinicia && depois.Usada >= antes.Usada
+            ? depois.Usada - antes.Usada : null;
+    }
+
+    internal UsoEtapa UsoDaSessao() => new("Sessão Codex", "Codex", null, Entrada, Saida, Cache,
+        Fim - Inicio, Variacao(300), Variacao(10080))
+    {
+        EntradaIncluiCache = true, Plano = Ultima?.Plano,
+        Usada5h = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 300)?.Usada,
+        UsadaSemana = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 10080)?.Usada
+    };
+
     internal string Texto()
     {
         var linhas = new List<string> { $"{Processo} · {Estado}", $"Início {Inicio.LocalDateTime:g}" +
@@ -37,9 +55,7 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
                 var j = atual.Janelas.FirstOrDefault(x => x.Minutos == minutos);
                 var antes = Inicial?.Janelas.FirstOrDefault(x => x.Minutos == minutos);
                 if (j is null) { linhas.Add($"{nome} · janela não informada pela conta"); continue; }
-                var comparavel = antes is not null && Inicial?.Hora < atual.Hora && !JanelasInterrompidas.Contains(minutos) && Inicial?.Conta is { } conta && conta == atual.Conta &&
-                    antes.Reinicia.HasValue && antes.Reinicia == j.Reinicia && j.Usada >= antes.Usada;
-                linhas.Add(comparavel ? $"{nome} · {antes!.Usada:0.##}% → {j.Usada:0.##}% · variação da conta {j.Usada - antes.Usada:0.##} p.p."
+                linhas.Add(Variacao(minutos) is { } delta ? $"{nome} · {antes!.Usada:0.##}% → {j.Usada:0.##}% · variação da conta {delta:0.##} p.p."
                     : $"{nome} · {j.Usada:0.##}% usados · sem amostras comparáveis para a variação");
             }
             if (Fim is not null && !CotaFinal) linhas.Add("A última leitura disponível é parcial.");
@@ -89,13 +105,19 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         var lista = new List<(string Arquivo, ConsumoDoPlugin Consumo)>();
         foreach (var arquivo in Directory.GetFiles(pasta, "*" + Sufixo))
         {
-            try {
-                using var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                if (JsonSerializer.Deserialize<ConsumoDoPlugin>(fs) is { } resumo) lista.Add((arquivo,resumo));
-            }
-            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException) { }
+            if (LerConsumo(arquivo) is { } resumo) lista.Add((arquivo, resumo));
         }
         return lista.OrderByDescending(x => x.Consumo.Inicio).ToList();
+    }
+
+    internal static ConsumoDoPlugin? LerConsumo(string arquivo)
+    {
+        try
+        {
+            using var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return JsonSerializer.Deserialize<ConsumoDoPlugin>(fs);
+        }
+        catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException) { return null; }
     }
 
     void Salvar()

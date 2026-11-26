@@ -258,7 +258,6 @@ public sealed partial class MainWindow
         };
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
         n.BotaoHistoricoMonitor.Click += async (_, _) => await TentarAsync(() => ConsultarMonitorSalvoAsync(null));
-        n.ConsultarDiario += async (_, _) => await TentarAsync(() => ConsultarMonitorSalvoAsync(execucaoMostrada?.PastaAnaliseChatGpt));
         n.BotaoEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.LinkEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.RegistroDeTrabalho); };
@@ -1057,7 +1056,7 @@ public sealed partial class MainWindow
                     DiarioAnaliseChatGpt.Listar(Path.Combine(pasta, DiarioAnaliseChatGpt.Pasta)).FirstOrDefault()));
                 if (!fechada && ReferenceEquals(e, execucaoMostrada))
                 {
-                    NR.ConsumoDoPlugin = resumo.Consumo?.Texto();
+                    NR.ConsumoDoPlugin = resumo.Consumo;
                     NR.ArquivoDoDiario = resumo.Arquivo;
                     if (monitor.Rodadas.Count > 0) NR.MonitorChatGpt = monitor;
                     RenderizarExecucao(e);

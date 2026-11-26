@@ -33,6 +33,12 @@ public partial class OrquestradorTestes
             return AmostraDaConta.Ler(resposta) with { Hora = inicio.AddMinutes(leitura) };
         }
         var consumo = new ConsumoDoPlugin("teste", inicio) { Inicial = Amostra(0), Ultima = Amostra(1), CotaFinal = true };
+        var uso = consumo.UsoDaSessao();
+        Assert.Equal(primaria == 300 || secundaria == 300 ? 7d : (double?)null, uso.Cota5h);
+        Assert.Equal(primaria == 10080 || secundaria == 10080 ? 51d : (double?)null, uso.UsadaSemana);
+        Assert.Null(uso.Total);
+        Assert.Null(uso.Entrada);
+        Assert.Null(uso.Duracao);
         var texto = consumo.Texto();
         Assert.Contains(primaria == 300 || secundaria == 300
             ? "5 horas · 10% → 17% · variação da conta 7 p.p."

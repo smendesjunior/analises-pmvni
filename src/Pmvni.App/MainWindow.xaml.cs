@@ -503,6 +503,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         var janelas = await AutotesteJanelas.ConferirAsync();
                         // E o ciclo do brilho "trabalhando" (sem halo ocioso, em página oculta ou depois do fim).
                         var brilho = await AutotesteBrilho.ConferirAsync(ambiente);
+                        try { await AutotesteConsumo.ConferirAsync(); }
+                        catch (Exception erro) { Autoteste.GravarErro(erro.ToString()); Application.Current.Exit(); return; }
                         Autoteste.GravarSucesso(ambiente.BrowserVersionString, janelas, brilho, AutotesteDosAgentes());
                     }
                     else Autoteste.GravarErro("NavigationCompleted: " + e.WebErrorStatus);
