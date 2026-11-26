@@ -28,6 +28,7 @@ public sealed partial class MainWindow
     readonly Dictionary<string, string> ementasLeis = new(StringComparer.Ordinal);
     Task lendoEmentas = Task.CompletedTask;
     StackPanel? topicosNoCartao;
+    internal IEnumerable<Button> BotoesDoIndice => topicosNoCartao?.Children.OfType<Button>() ?? [];
     string? topicosNoCartaoId;
     readonly AccessibilitySettings acessibilidadeConsulta = new();
 

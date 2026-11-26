@@ -79,7 +79,7 @@ if ($falhasTeste.Count) { throw "Testes reprovados: $($falhasTeste -join ', '). 
 if (Test-Path -LiteralPath $publicacao) { Remove-Item -LiteralPath $publicacao -Recurse -Force }
 # Carimbo da atualização automática (Atualizador.cs): aaaaMMddHHmmss; os PCs instalam a compilação mais nova publicada no GitHub.
 $compilacao = Get-Date -Format 'yyyyMMddHHmmss'
-& dotnet publish $projeto -c Release "-p:Platform=x64" -r win-x64 -o $publicacao --nologo "-p:CompilacaoAtualizacao=$compilacao"
+& dotnet publish $projeto -m:1 -p:BuildInParallel=false -c Release "-p:Platform=x64" -r win-x64 -o $publicacao --nologo "-p:CompilacaoAtualizacao=$compilacao"
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou (código $LASTEXITCODE)." }
 
 # 2. A publicação deve ter um único executável (um .pdb é tolerado e descartado)

@@ -238,6 +238,7 @@ internal static class Roteiro
         var falhas = new JsonArray();
         string? planoDaImportacao = null;
 
+        var somenteLeituraLei = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_LEITURA_LEI") == "1";
         var somenteMonitor = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_MONITOR") == "1";
         var somenteAjustes = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_AJUSTES") == "1";
         var somenteRevisao = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_REVISAO") == "1";
@@ -257,6 +258,7 @@ internal static class Roteiro
 
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
+            if (somenteLeituraLei && nome != "leitura_lei_realce") return;
             if (somenteAjustes && nome is not ("plugins_e_ferramentas" or "modelos_da_analise")) return;
             if (somenteRevisao && nome is not ("1_importar_longo" or "13_selecionar_e_editar_no_a4" or
                 "14_situacao_e_justificativa" or "15_excluir_e_marca" or "16_desfazer_refazer" or "17_salvar_reabrir_exportar")) return;
@@ -4575,6 +4577,23 @@ internal static class Roteiro
                 && (string?)r["ocupacao"] == "1 de 2" && (string?)r["inexistente"] == "Nenhuma ocorrência" && realces
                 && (string?)r["digitalizada"] == "Este PDF não tem texto pesquisável.";
         });
+
+        await Passo("leitura_lei_realce", async p =>
+        {
+            await GarantirLegislacaoAsync(60, p);
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await j.AbrirLeiAsync(IdDe(TituloLei), 2, "afastamento");
+            bool TermoVisivel() => Arvore(j.ElementoRaiz).OfType<TextBlock>().Any(t => t.TextHighlighters.Count > 0 && t.ActualWidth > 0);
+            p["termo_destacado"] = await EsperarAteAsync(() => Task.FromResult(TermoVisivel()), 5000);
+            var indice = j.BotoesDoIndice.First(b =>
+                Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).StartsWith("Art", StringComparison.OrdinalIgnoreCase));
+            ((IInvokeProvider)new ButtonAutomationPeer(indice).GetPattern(PatternInterface.Invoke)).Invoke();
+            p["topico_destacado"] = await EsperarAteAsync(() => Task.FromResult(!TermoVisivel() &&
+                Arvore(j.ElementoRaiz).OfType<Border>().Any(b => b.BorderThickness.Left == 3 &&
+                b.Padding.Left == 6 && b.BorderBrush != null && b.ActualWidth > 0)), 5000);
+            p["ok"] = p["termo_destacado"]!.GetValue<bool>() && p["topico_destacado"]!.GetValue<bool>();
+        });
+        if (somenteLeituraLei) { RegistrarProgramasIniciados(); Concluir(); return; }
 
         await Passo("62_legislacao_pesquisa_em_todas", async p =>
         {
