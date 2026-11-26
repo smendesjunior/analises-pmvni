@@ -443,6 +443,8 @@ public static class ModelosDaAnalise
         var json = Nucleo(celulas, ajuste.SobePorObjecao, ajuste.TrocaDescePorCota, ajuste.DescePorCota, ajuste.Ligadas,
             ajuste.Vazio ? "padrão do kit (sem ajuste local)" : "padrão do kit com o ajuste local do Editor de Relatórios",
             ajuste.ReconferenciaEconomica && kit.Bruto.ContainsKey("reconferencia_economica"));
+        if (kit.Bruto["rotas"]?["codex"]?["preparo"] is JsonObject preparo)
+            json["preparo_codex"] = preparo.DeepClone();
         json["reparo_julgamento_previsto"] = kit.Bruto["rotas"]?["codex"]?["reparo_julgamento"]?.DeepClone();
         if (ajuste.SobePorObjecao is { } subir) json["subir_nova_tentativa_chatgpt"] = subir;
         if (ajuste.TrocaDescePorCota) json["cota_baixa_da_execucao"] = ajuste.DescePorCota;

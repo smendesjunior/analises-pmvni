@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.6.7
+
+- O resumo do Monitor mostra o inventário do preparo, com identificação do imóvel, ambientes, áreas, esquadrias, fontes e ressalvas para conferência na análise.
+- O resumo da execução informa o uso de Terra 6.1 com esforço médio em todo o preparo do ChatGPT quando configurado pelo kit.
+
 ## 4.6.4
 
 - Retomar continua do estado salvo da própria execução, mesmo quando a interrupção ocorreu antes do primeiro registro de progresso.

@@ -644,10 +644,14 @@ public class ModelosDaAnaliseTestes
         File.WriteAllText(arquivo, tabela.ToJsonString());
         Assert.Contains("gpt-a · esforço Baixo", Ler());
         Assert.Contains("gpt-b · esforço Médio", Ler());
+        Assert.Contains("Luna 6", Ler());
+        tabela["preparo_codex"] = new JsonObject { ["modelo"] = "gpt-6.1-terra", ["nivel"] = "medio" };
         tabela["reparo_julgamento_da_execucao"] = new JsonObject { ["modelo"] = "gpt-c", ["nivel"] = "alto" };
         File.WriteAllText(arquivo, tabela.ToJsonString());
         Assert.Contains("gpt-c · esforço Alto", Ler());
         Assert.DoesNotContain("gpt-b", Ler());
+        Assert.Contains("Preparo · todos os documentos, plantas e imagens · gpt-6.1-terra · esforço Médio", Ler());
+        Assert.DoesNotContain("Luna 6", Ler());
     }
 
     sealed class PastaTemporaria : IDisposable

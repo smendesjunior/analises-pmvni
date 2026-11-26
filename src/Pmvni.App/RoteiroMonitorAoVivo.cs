@@ -105,6 +105,22 @@ internal static class RoteiroMonitorAoVivo
         await Esperar("conferencia_mostra_confirmado_e_insuficiente", () => Visiveis(pagina.MonitorNativo).OfType<TextBlock>()
             .Any(t => t.Text.Contains("TP · CONFERE · declarado 11,05% · calculado 11,05%") && t.Text.Contains("Quadro fictício de áreas")
                 && t.Text.Contains("CA · INSUFICIENTE · declarado 1,37 · calculado não disponível") && t.Text.Contains("Falta área computável.")));
+        reciboTeste["inventario_preparo"] = JsonSerializer.SerializeToNode(new
+        {
+            dados = new[] {
+                new { campo = "zona", rotulo = "Zona declarada", valor = "ZC", unidade = "", fonte = "DOC-01 p. 1" },
+                new { campo = "endereco_imovel", rotulo = "Endereço do imóvel", valor = "Rua de Ensaio, 1", unidade = "", fonte = "DOC-01 p. 1" },
+                new { campo = "ambiente", rotulo = "Quarto", valor = "12", unidade = "m²", fonte = "DOC-02 p. 2" },
+                new { campo = "janela", rotulo = "J1", valor = "1,20 × 1,00", unidade = "m", fonte = "DOC-02 p. 3" }
+            }
+        });
+        Gravar(reciboNumerico, reciboTeste);
+        await Esperar("inventario_identificacao_em_tabela", () => Tem("Inventário do preparo") && Tem("Valor levantado")
+            && Tem("Rua de Ensaio, 1") && Tem("ZC") && Tem("DOC-01 p. 1"));
+        foreach (var nome in new[] { "Ambientes e áreas (1)", "Esquadrias e vãos (1)" })
+            Visiveis(pagina.MonitorNativo).OfType<Expander>().Single(e => Equals(e.Header, nome)).IsExpanded = true;
+        await Esperar("inventario_ambientes_e_esquadrias_em_tabelas", () => Tem("Quarto") && Tem("12 m²") && Tem("DOC-02 p. 2")
+            && Tem("J1") && Tem("1,20 × 1,00 m") && Tem("DOC-02 p. 3"));
         reciboTeste["execucao"] = "outra-execucao";
         Gravar(reciboNumerico, reciboTeste);
         await Esperar("conferencia_numerica_de_outro_registro_recusada", () => Campo(campoNumerico) == "");

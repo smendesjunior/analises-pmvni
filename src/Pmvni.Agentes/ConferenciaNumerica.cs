@@ -6,7 +6,8 @@ namespace Pmvni.Agentes;
 internal sealed record ConferenciaNumerica(string Fase, string Resumo, string Detalhes)
 {
     internal sealed record Declaracao(string Rotulo, string Valor, string Fonte, string Revisao,
-        string Contexto = "", string Ressalva = "");
+        string Contexto = "", string Ressalva = "", string Campo = "");
+    internal sealed record Limitacao(string Fonte, string Motivo);
     internal sealed record Evidencia(string Indice, string Parcela, string Rotulo, string Valor, string Peca, int Pagina,
         string Arquivo, string Sha256, string Recorte, string Sha256Recorte, string Regiao)
     {
@@ -14,8 +15,14 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
     }
     internal IReadOnlyList<Evidencia> Evidencias { get; init; } = [];
     internal IReadOnlyList<Declaracao> Declaracoes { get; init; } = [];
+    internal bool TemInventario { get; init; }
+    internal IReadOnlyList<Declaracao> Inventario { get; init; } = [];
+    internal IReadOnlyList<Limitacao> Limitacoes { get; init; } = [];
+
     public bool Equals(ConferenciaNumerica? other) => other is not null &&
-        Fase == other.Fase && Resumo == other.Resumo && Detalhes == other.Detalhes && Declaracoes.SequenceEqual(other.Declaracoes) && Evidencias.SequenceEqual(other.Evidencias);
+        Fase == other.Fase && Resumo == other.Resumo && Detalhes == other.Detalhes && TemInventario == other.TemInventario &&
+        Declaracoes.SequenceEqual(other.Declaracoes) && Evidencias.SequenceEqual(other.Evidencias) &&
+        Inventario.SequenceEqual(other.Inventario) && Limitacoes.SequenceEqual(other.Limitacoes);
     public override int GetHashCode()
     {
         var hash = new HashCode();
@@ -24,6 +31,9 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
         hash.Add(Detalhes);
         foreach (var declaracao in Declaracoes) hash.Add(declaracao);
         foreach (var evidencia in Evidencias) hash.Add(evidencia);
+        hash.Add(TemInventario);
+        foreach (var declaracao in Inventario) hash.Add(declaracao);
+        foreach (var limitacao in Limitacoes) hash.Add(limitacao);
         return hash.ToHashCode();
     }
     internal const string ArquivoControle = "CONFERENCIA_INDICES.JSON";
@@ -94,8 +104,31 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
                 secoes.Add(string.Join(Environment.NewLine, itens));
             }
         }
+        recibo.TryGetProperty("dados_declarados", out var dados);
+        var temInventario = recibo.TryGetProperty("inventario_preparo", out var inventario)
+            && inventario.ValueKind == JsonValueKind.Object;
+        var declaracoesDoPreparo = temInventario && inventario.TryGetProperty("dados", out var extraidos)
+            ? LerDeclaracoes(extraidos) : [];
+        var limitacoes = new List<Limitacao>();
+        if (temInventario && inventario.TryGetProperty("paginas_sem_declaracao", out var paginas) && paginas.ValueKind == JsonValueKind.Array)
+            foreach (var pagina in paginas.EnumerateArray())
+                if (pagina.ValueKind == JsonValueKind.Object && Campo(pagina, "situacao") is ("ilegivel" or "pendente_de_conferencia")
+                    && Campo(pagina, "motivo") is { Length: > 0 } motivo)
+                    limitacoes.Add(new(Campo(pagina, "fonte") ?? "", motivo));
+        return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, secoes))
+        {
+            Declaracoes = LerDeclaracoes(dados),
+            Evidencias = LerEvidencias(verificacoes, dados),
+            TemInventario = temInventario,
+            Inventario = declaracoesDoPreparo,
+            Limitacoes = limitacoes
+        };
+    }
+
+    static List<Declaracao> LerDeclaracoes(JsonElement dados)
+    {
         var declaracoes = new List<Declaracao>();
-        if (recibo.TryGetProperty("dados_declarados", out var dados) && dados.ValueKind == JsonValueKind.Array)
+        if (dados.ValueKind == JsonValueKind.Array)
             foreach (var dado in dados.EnumerateArray())
                 if (dado.ValueKind == JsonValueKind.Object && Campo(dado, "rotulo") is { Length: > 0 } rotulo)
                 {
@@ -105,10 +138,10 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
                     string Juntar(params string[] campos) => string.Join(" · ", campos.Select(c => Campo(dado, c))
                         .Where(c => !string.IsNullOrWhiteSpace(c)).Distinct());
                     declaracoes.Add(new(rotulo, valor, Juntar("fonte", "arquivo", "regiao"), Campo(dado, "revisao") ?? "",
-                        Juntar("quadro", "cabecalhos", "abrangencia", "objeto", "elemento_medido"), Campo(dado, "ressalva") ?? ""));
+                        Juntar("objeto", "quadro", "cabecalhos", "abrangencia", "elemento_medido"),
+                        Campo(dado, "ressalva") ?? "", Campo(dado, "campo") ?? ""));
                 }
-        return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, secoes))
-            { Declaracoes = declaracoes, Evidencias = LerEvidencias(verificacoes, dados) };
+        return declaracoes;
     }
 
     static List<Evidencia> LerEvidencias(JsonElement linhas, JsonElement dados)

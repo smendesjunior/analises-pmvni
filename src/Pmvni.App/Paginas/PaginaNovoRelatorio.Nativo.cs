@@ -51,6 +51,87 @@ public sealed partial class PaginaNovoRelatorio
         return conteudo;
     }
 
+    StackPanel ConteudoDoInventario(ConferenciaNumerica conferencia)
+    {
+        var painel = new StackPanel { Spacing = 8 };
+        painel.Children.Add(new TextBlock
+        {
+            Text = "Dados levantados nas peças. A análise confirma as leituras nas fontes.",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        void AdicionarGrupo(string nome, IReadOnlyList<ConferenciaNumerica.Declaracao> itens, params string[] pendencias)
+        {
+            var grupo = new Expander
+            {
+                Header = $"{nome} ({itens.Count})",
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            void Preencher()
+            {
+                if (grupo.Content is not null) return;
+                var tabela = new Grid { ColumnSpacing = 12, RowSpacing = 8 };
+                foreach (var peso in new[] { 2, 2, 3 })
+                    tabela.ColumnDefinitions.Add(new() { Width = new GridLength(peso, GridUnitType.Star) });
+
+                void Linha(string estilo, params string[] valores)
+                {
+                    var linha = tabela.RowDefinitions.Count;
+                    tabela.RowDefinitions.Add(new() { Height = GridLength.Auto });
+                    for (var coluna = 0; coluna < valores.Length; coluna++)
+                    {
+                        var celula = Texto(valores[coluna], estilo);
+                        celula.TextWrapping = TextWrapping.Wrap;
+                        celula.IsTextSelectionEnabled = true;
+                        Grid.SetRow(celula, linha);
+                        Grid.SetColumn(celula, coluna);
+                        tabela.Children.Add(celula);
+                    }
+                }
+
+                Linha("MnCorpoForte", "Item", "Valor levantado", "Fonte e ressalvas");
+                foreach (var item in itens)
+                {
+                    var origem = new[] { item.Fonte, item.Revisao, item.Ressalva }.Where(s => s.Length > 0);
+                    Linha("MnSecundario",
+                        item.Contexto.Length > 0 ? item.Rotulo + Environment.NewLine + item.Contexto : item.Rotulo,
+                        item.Valor, string.Join(Environment.NewLine, origem));
+                }
+                foreach (var pendencia in pendencias) Linha("MnSecundario", pendencia, "Pendente", "");
+                grupo.Content = tabela;
+            }
+            grupo.Expanding += (_, _) => Preencher();
+            if (nome == "Identificação do imóvel")
+            {
+                Preencher();
+                grupo.IsExpanded = true;
+            }
+            painel.Children.Add(grupo);
+        }
+
+        static string Grupo(string campo) => campo switch
+        {
+            "endereco_imovel" or "zona" or "inscricao_imobiliaria" or "matricula_imovel" or "lote_imovel" or "quadra_imovel" => "Identificação do imóvel",
+            "ambiente" => "Ambientes e áreas",
+            "porta" or "janela" or "vao_livre" => "Esquadrias e vãos",
+            "to" or "ca" or "tp" => "Áreas e índices declarados",
+            _ when campo.StartsWith("area_", StringComparison.Ordinal) => "Áreas e índices declarados",
+            _ => "Outras declarações"
+        };
+        var porGrupo = conferencia.Inventario.ToLookup(item => Grupo(item.Campo));
+        var identificacao = porGrupo["Identificação do imóvel"].ToArray();
+        var faltas = new List<string>();
+        if (!identificacao.Any(item => item.Campo == "endereco_imovel")) faltas.Add("Endereço do imóvel");
+        if (!identificacao.Any(item => item.Campo == "zona")) faltas.Add("Zona");
+        AdicionarGrupo("Identificação do imóvel", identificacao, faltas.ToArray());
+        foreach (var nome in new[] { "Ambientes e áreas", "Esquadrias e vãos", "Áreas e índices declarados", "Outras declarações" })
+            if (porGrupo.Contains(nome)) AdicionarGrupo(nome, porGrupo[nome].ToArray());
+        if (conferencia.Limitacoes.Count > 0)
+            AdicionarGrupo("Páginas que exigem conferência",
+                conferencia.Limitacoes.Select(item => new ConferenciaNumerica.Declaracao(item.Fonte, item.Motivo, "", "")).ToArray());
+        return painel;
+    }
+
     readonly DispatcherTimer pulsoMonitor = new() { Interval = TimeSpan.FromMilliseconds(750) };
     readonly ThemeShadow sombraCartoes = new();
     readonly bool animacoes = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
@@ -518,13 +599,22 @@ public sealed partial class PaginaNovoRelatorio
         Adicionar(contagens, 14);
         if (ConferenciaNumericaExibida is { } numeros)
         {
+            if (numeros.TemInventario)
+            {
+                var inventario = Cartao();
+                var conteudo = new StackPanel { Margin = new Thickness(16, 12, 16, 12), Spacing = 6 };
+                conteudo.Children.Add(Texto("Inventário do preparo", "MnCorpoForte"));
+                conteudo.Children.Add(ConteudoDoInventario(numeros));
+                inventario.Child = conteudo;
+                Adicionar(Id(inventario, "inventario-preparo"), 12);
+            }
             var cartao = Cartao();
             var dados = new StackPanel { Margin = new Thickness(16, 12, 16, 12), Spacing = 6 };
             dados.Children.Add(Texto(numeros.Titulo, "MnCorpoForte"));
             dados.Children.Add(Id(Texto(numeros.Resumo, "MnSecundario"), "conferencia-numerica-resumo"));
             dados.Children.Add(new Expander { Header = "Ver índices e fontes", HorizontalAlignment = HorizontalAlignment.Stretch,
                 Content = MemoriaDeCalculo(numeros, (evidencia, recorte) => ParcelaSolicitada?.Invoke(evidencia, recorte)) });
-            if (numeros.Declaracoes.Count > 0)
+            if (!numeros.TemInventario && numeros.Declaracoes.Count > 0)
             {
                 var tabela = new Grid { ColumnSpacing = 12, RowSpacing = 6 };
                 foreach (var peso in new[] { 2, 1, 3, 1 })

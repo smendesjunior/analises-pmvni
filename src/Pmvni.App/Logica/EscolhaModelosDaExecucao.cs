@@ -39,9 +39,14 @@ internal sealed record EscolhaModelosDaExecucao(string Rota, string Perfil, stri
                 if (rota == "codex") Adicionar("Reparo de julgamento, se necessário", tabela["reparo_julgamento_da_execucao"] ?? tabela["reparo_julgamento_previsto"]);
                 if (rota is "codex" or "claude")
                 {
-                    var texto = rota == "codex" ? "Luna 6" : "Sonnet 5.5";
                     var visual = rota == "codex" ? "Terra 6.1" : "Sonnet 5.5";
-                    linhas.Add($"Preparo · documentos: {texto} alto · plantas e imagens: {visual} médio");
+                    if (rota == "codex" && tabela["preparo_codex"] is JsonObject preparo)
+                        Adicionar("Preparo · todos os documentos, plantas e imagens", preparo);
+                    else
+                    {
+                        var texto = rota == "codex" ? "Luna 6" : "Sonnet 5.5";
+                        linhas.Add($"Preparo · documentos: {texto} alto · plantas e imagens: {visual} médio");
+                    }
                     linhas.Add($"Relatório · redação: {visual} baixo · conferência final: {visual} médio · PDF montado pelo programa");
                 }
                 else linhas.Add("Preparo e montagem conforme a configuração da rota");
