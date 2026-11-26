@@ -20,6 +20,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     readonly Dictionary<string, MenuFlyout> menusDinamicos = new(StringComparer.Ordinal);
     readonly HashSet<string> marcados = new(StringComparer.Ordinal);
     DefinicaoFaixa? definicao;
+    Button? botaoEmissao;
     Button? primario;
     Button? secundario;
     bool montando;
@@ -115,6 +116,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         habilitado[id] = sim;
         if (primario is not null && primario.Tag as string == id) primario.IsEnabled = sim;
         if (secundario is not null && secundario.Tag as string == id) secundario.IsEnabled = sim;
+        if (botaoEmissao?.Tag as string == id) botaoEmissao.IsEnabled = sim;
         if (visiveis.TryGetValue(id, out var b)) b.IsEnabled = sim;
         if (alternaveis.TryGetValue(id, out var t)) t.IsEnabled = sim;
         if (itensMenu.TryGetValue(id, out var i)) i.IsEnabled = sim;
@@ -248,6 +250,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     {
         if (primario is not null && primario.Tag as string == id) Dicas.Aplicar(primario, TextoDaDica(id));
         if (secundario is not null && secundario.Tag as string == id) Dicas.Aplicar(secundario, TextoDaDica(id));
+        if (botaoEmissao?.Tag as string == id) Dicas.Aplicar(botaoEmissao, TextoDaDica(id));
         if (visiveis.TryGetValue(id, out var b)) Dicas.Aplicar(b, TextoDaDica(id));
         if (alternaveis.TryGetValue(id, out var t)) Dicas.Aplicar(t, TextoDaDica(id));
         if (itensMenu.TryGetValue(id, out var i)) Dicas.Aplicar(i, TextoDaDica(id, i.Text));
@@ -265,7 +268,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var (id, mi) in itensDoPrimario) lista.Add((id, Dicas.De(mi)));
             foreach (var e in Barra.PrimaryCommands.OfType<FrameworkElement>())
             {
-                lista.Add(((string)e.Tag, Dicas.De(e)));
+                lista.Add(((string)e.Tag, Dicas.De(e is AppBarElementContainer { Content: Button interno } ? interno : e)));
                 if (e is AppBarButton { Flyout: MenuFlyout m } && !menusDinamicos.ContainsKey((string)e.Tag))
                     foreach (var i in m.Items.OfType<MenuFlyoutItem>().Where(i => i.Tag is string))
                         lista.Add(((string)i.Tag, Dicas.De(i)));
@@ -297,6 +300,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
 
     void MontarBotoes()
     {
+        botaoEmissao = null;
         Barra.PrimaryCommands.Clear();
         visiveis.Clear();
         alternaveis.Clear();
@@ -499,6 +503,12 @@ public sealed partial class FaixaDeOpcoes : UserControl
 
     ICommandBarElement Botao(ComandoFaixa c)
     {
+        if (c.Id == ComandosApp.EmitirProcessoAprovado)
+        {
+            botaoEmissao = BotaoDaVaga(c, destaque: true);
+            return new AppBarElementContainer { Content = botaoEmissao, Tag = c.Id,
+                VerticalContentAlignment = VerticalAlignment.Center, IsTabStop = false };
+        }
         var icone = Icone(GlifoDoComando(c.Id, c.Glifo));
         if (c.Id == ComandosApp.InicioExcluirRestaurar && rotulos.TryGetValue(c.Id, out var acao) && acao == "Restaurar item")
             icone.Glyph = Glifos.Restaurar;
@@ -526,7 +536,6 @@ public sealed partial class FaixaDeOpcoes : UserControl
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
         AlinharRotulo(b);
-        if (c.Id == ComandosApp.EmitirProcessoAprovado) b.Style = (Style)Application.Current.Resources["PmvniEmissaoFaixaStyle"];
         if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
         // A dica automática do atalho (só "Ctrl+O") não pode tomar o lugar da dica do app, que já traz o atalho no título.
         b.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;

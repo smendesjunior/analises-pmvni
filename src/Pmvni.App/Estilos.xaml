@@ -297,13 +297,6 @@
 
   <!-- 3.2.2: botões no padrão do WinUI 3 em todo o editor: altura 32, texto normal (sem negrito) e o hover nativo do controle, sem brilho.
        O destaque é só a cor; tamanho, peso do texto e cantos são iguais aos dos botões comuns. -->
-  <Style x:Key="PmvniEmissaoFaixaStyle" TargetType="AppBarButton">
-    <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
-    <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}"/>
-    <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}"/>
-    <Setter Property="BorderThickness" Value="1"/>
-  </Style>
-
   <Style x:Key="PmvniBotaoPrimarioStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
     <Setter Property="MinHeight" Value="32"/>
     <Setter Property="Height" Value="32"/>
