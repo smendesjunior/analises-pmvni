@@ -9,7 +9,7 @@ public class FormularioDespachoTestes
     [Theory]
     [InlineData("ENTREGA", 7)]
     [InlineData("DEVOLUÇÃO", 9)]
-    [InlineData("GENÉRICO", 2)]
+    [InlineData("GENÉRICO", 5)]
     public void EmiteModeloComCamposPreenchidos(string tipo, int quantidade)
     {
         var caminho = Path.Combine(Ambiente.ExigirKit(), "02 - MODELOS DE DOCUMENTOS", "DESPACHO", $"MODELO DESPACHO {tipo}.docx");

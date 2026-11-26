@@ -7,7 +7,13 @@ namespace Pmvni.Revisao;
 public sealed class FormularioDespacho
 {
     static readonly XNamespace W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-    static readonly Regex Campo = new(@"\[([^\[\]\r\n]+)\]");
+    static readonly Regex Campo = new(@"\[([^\[\]\r\n]+)\]|^(?:DESPACHO|INSIRA AQUI O TEXTO DO DESPACHO)$");
+    static string NomeCampo(Match marca) => marca.Value switch
+    {
+        "DESPACHO" => "Título",
+        "INSIRA AQUI O TEXTO DO DESPACHO" => "Texto",
+        _ => marca.Groups[1].Value
+    };
     const string Parte = "word/document.xml";
     readonly byte[] modelo;
     public IReadOnlyList<string> Campos { get; }
@@ -19,7 +25,7 @@ public sealed class FormularioDespacho
         using var stream = pacote.GetEntry(Parte)!.Open();
         var xml = XDocument.Load(stream);
         Campos = xml.Descendants(W + "t").SelectMany(t => Campo.Matches(t.Value))
-            .Select(m => m.Groups[1].Value).Distinct().ToArray();
+            .Select(NomeCampo).Distinct().ToArray();
         if (Campos.Count == 0) throw new InvalidDataException("O modelo não contém campos editáveis.");
     }
 
@@ -37,7 +43,7 @@ public sealed class FormularioDespacho
             using (var entrada = parte.Open()) xml = XDocument.Load(entrada, LoadOptions.PreserveWhitespace);
             foreach (var t in xml.Descendants(W + "t").Where(t => Campo.IsMatch(t.Value)).ToList())
             {
-                var linhas = Campo.Replace(t.Value, m => valores[m.Groups[1].Value].Trim()).ReplaceLineEndings("\n").Split('\n');
+                var linhas = Campo.Replace(t.Value, m => valores[NomeCampo(m)].Trim()).ReplaceLineEndings("\n").Split('\n');
                 t.Value = linhas[0];
                 t.SetAttributeValue(XNamespace.Xml + "space", "preserve");
                 XNode anterior = t;

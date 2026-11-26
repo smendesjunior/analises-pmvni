@@ -28,9 +28,11 @@ public sealed partial class MainWindow
         {
             var caixa = new TextBox
             {
+                PlaceholderText = campo == "Texto" ? "INSIRA AQUI O TEXTO DO DESPACHO" : "",
                 Header = campo, AcceptsReturn = campo == "Texto", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
                 Text = campo switch
                 {
+                    "Título" => "DESPACHO",
                     "Data" => Etapas.DataPorExtenso(Hoje()),
                     "Prazo" => "24 horas",
                     "Encaminhamento" => "A solicitação foi atendida. Arquive-se.",
