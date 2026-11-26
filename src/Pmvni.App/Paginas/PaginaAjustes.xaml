@@ -706,15 +706,15 @@
 
           <!-- ===== 7. Kit PMVNI ===== -->
           <StackPanel x:Name="CategoriaKit" Tag="kit" Spacing="12" Visibility="Collapsed">
-            <TextBlock TextAlignment="Left" Text="Pasta do kit" Style="{StaticResource PmvniTituloSecao}"/>
+            <TextBlock TextAlignment="Left" Text="Documentos oficiais" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes x:Name="CartoesDoKit" x:FieldModifier="internal">
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
                     <local:LinhaComAcoes>
                       <StackPanel Spacing="4" VerticalAlignment="Center">
-                        <TextBlock TextAlignment="Left" Text="Pasta do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
-                        <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="De onde o Novo despacho lê os modelos oficiais (pelo registro TEMPLATES_OFICIAIS.json) e os textos fixos. O editor só lê o kit: nada é copiado nem gravado nele."/>
+                        <TextBlock TextAlignment="Left" Text="Biblioteca de modelos" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O Editor usa os modelos e textos desta pasta para emitir os despachos de correção e de aprovação."/>
                       </StackPanel>
                       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoEscolherKit" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta do kit PMVNI"
@@ -732,36 +732,30 @@
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
-            <!-- Plugins e ferramentas (Tarefa 21): cada componente do kit com a versão instalada e a disponível na fonte do kit, a situação e um
-                 "Atualizar" por linha (as linhas são montadas por MainWindow.Ajustes.cs a partir de ComponentesDoKit.Lista). Toda atualização roda
-                 fora do Editor (.cmd aberto pelo explorer.exe); com análise em andamento, nada é iniciado. -->
-            <TextBlock TextAlignment="Left" Text="Plugins e ferramentas" Style="{StaticResource PmvniTituloSecao}"/>
-            <local:PainelCartoesAjustes>
-              <Border Style="{StaticResource PmvniAjusteGrupo}">
-                <StackPanel>
-                  <local:LinhaComAcoes Margin="16,12">
-                    <StackPanel VerticalAlignment="Center" Spacing="6">
-                      <TextBlock TextAlignment="Left" Text="Componentes do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
-                      <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O plugin de análise, o servidor de PDF e os motores de PDF instalados neste computador, com a versão de cada um. As atualizações rodam fora do Editor, pelo Windows, e não começam com uma análise em andamento."/>
-                      <TextBlock TextAlignment="Left" x:Name="TextoFonteComponentes" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
-                    </StackPanel>
+            <TextBlock Text="Componentes e atualizações" Style="{StaticResource PmvniTituloSecao}"/>
+            <Border Style="{StaticResource PmvniAjusteGrupo}">
+              <local:LinhaComAcoes Margin="18">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Atualização do kit" Style="{StaticResource PmvniAjusteTitulo}"/>
+                  <TextBlock Text="A atualização completa sincroniza as fontes, os modelos de despacho e o plugin. Para atualizar apenas o plugin, use o botão do cartão abaixo." Style="{StaticResource PmvniAjusteAjuda}"/>
+                </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoVerificarComponentes" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Verificar atualizações" AutomationProperties.Name="Verificar atualizações dos plugins e ferramentas"
                                 local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Lê de novo as versões instaladas neste computador e as disponíveis na fonte do kit."/>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Gerenciar}" x:Name="BotaoRepararInstalacao" x:FieldModifier="internal" Content="Reparar instalação" AutomationProperties.Name="Reparar instalação dos plugins e ferramentas" local:Dicas.Titulo="Reparar instalação" local:Dicas.Descricao="Reinstala todos os componentes usando a cópia local do kit PMVNI."/>
-                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoAtualizarTodosComponentes" x:FieldModifier="internal" Content="Atualizar todos" AutomationProperties.Name="Atualizar todos os plugins e ferramentas"
+                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoAtualizarTodosComponentes" x:FieldModifier="internal" Content="Atualizar kit completo" AutomationProperties.Name="Atualizar todos os plugins e ferramentas"
                                 local:Dicas.Titulo="Atualizar todos" local:Dicas.Descricao="Instala a versão atual do kit, confere os componentes em uso e limpa os arquivos obsoletos das versões anteriores."/>
                     </StackPanel>
-                  </local:LinhaComAcoes>
-                  <StackPanel x:Name="ListaComponentesKit" x:FieldModifier="internal" AutomationProperties.Name="Componentes do kit PMVNI"/>
-                  <StackPanel Padding="16,12" Spacing="8">
-
-                    <TextBlock TextAlignment="Left" x:Name="TextoResultadoComponentes" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.LiveSetting="Polite"/>
-                    <TextBlock TextAlignment="Left" x:Name="TextoTarefaKit" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-            </local:PainelCartoesAjustes>
+              </local:LinhaComAcoes>
+            </Border>
+            <StackPanel x:Name="ListaComponentesKit" Spacing="8" x:FieldModifier="internal" AutomationProperties.Name="Componentes instalados"/>
+            <Expander Header="Fontes e última execução" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+              <StackPanel Spacing="8">
+                <TextBlock x:Name="TextoTarefaKit" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
+                <TextBlock x:Name="TextoFonteComponentes" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
+              </StackPanel>
+            </Expander>
+            <TextBlock x:Name="TextoResultadoComponentes" x:FieldModifier="internal" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
           </StackPanel>
 
           <!-- ===== 8. Sistema (rodapé) ===== -->

@@ -510,7 +510,12 @@ public sealed partial class MainWindow
                 await LerPecasAsync();
                 var componente = ComponentesDoKit.AnaliseChatGpt;
                 var motivo = OrquestradorAnalise.MotivoAnaliseChatGpt(pecasAgentes);
-                var versao = pecasAgentes.VersaoAnaliseChatGpt;
+                var codexHome = OrigensDoKitDoComputador().CodexHome;
+                var versao = await Task.Run(() => PluginsInstalados.NoCodex(codexHome, componente.Chave)?.Versao);
+                string? disponivel = null;
+                if (leitura.FonteAcessivel && leitura.Fonte is { } fonte)
+                    try { disponivel = await Task.Run(() => ComponentesDoKit.VersaoDoPlugin(fonte, componente.Chave)).WaitAsync(ComponentesDoKit.EsperaDaFonte); }
+                    catch (TimeoutException) { }
                 if (pecasAgentes.AnaliseChatGpt is { } skill && pecasAgentes.Node is not null)
                 {
                     var resolucao = await OrquestradorAnalise.ResolverFontesChatGptAsync(pecasAgentes, ajustes.PastaKit, CancellationToken.None);
@@ -522,8 +527,8 @@ public sealed partial class MainWindow
                         motivo = string.Join(Environment.NewLine, avisos.Select(a => a?["raiz"] + " · " + a?["motivo"]));
                     fontesAnalise += Environment.NewLine + "Plugin em uso · " + skill;
                 }
-                var estado = motivo is null ? SituacaoComponente.EmDia : versao is null ? SituacaoComponente.Ausente : SituacaoComponente.ComErro;
-                leitura = leitura with { Linhas = [new LinhaComponente(componente, versao, versao, estado, motivo ?? componente.Ajuda, true), .. leitura.Linhas] };
+                var estado = ComponentesDoKit.Comparar(versao, disponivel, versao is not null && motivo is not null);
+                leitura = leitura with { Linhas = [new LinhaComponente(componente, versao, disponivel, estado, motivo ?? componente.Ajuda, false), .. leitura.Linhas] };
             }
             if (fechada || geracao != geracaoComponentes) return;
             LeituraDoKitAtual = leitura;
@@ -549,14 +554,12 @@ public sealed partial class MainWindow
         botoesDosComponentes.Clear();
         foreach (var linha in leitura.Linhas)
         {
-            var grade = new Grid { Padding = new Thickness(16, 10, 16, 10), ColumnSpacing = 16, BorderThickness = new Thickness(0, 1, 0, 0) };
-            if (recursos.TryGetValue("CardStrokeColorDefaultBrush", out var borda) && borda is Microsoft.UI.Xaml.Media.Brush pincel) grade.BorderBrush = pincel;
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var textos = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            var grade = new LinhaComAcoes { Margin = new Thickness(18) };
+            var textos = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
             textos.Children.Add(new TextBlock { Text = linha.Componente.Nome, TextWrapping = TextWrapping.Wrap, Style = (Style)recursos["PmvniAjusteTitulo"] });
             textos.Children.Add(new TextBlock { Text = linha.TextoVersoes, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Style = (Style)recursos["PmvniAjusteAjuda"] });
-            textos.Children.Add(new TextBlock { Text = linha.Detalhe, TextWrapping = TextWrapping.Wrap, Style = (Style)recursos["PmvniAjusteAjuda"] });
+            textos.Children.Add(new TextBlock { Text = linha.Componente.Ajuda, TextWrapping = TextWrapping.Wrap, Style = (Style)recursos["PmvniAjusteAjuda"] });
+            if (linha.Detalhe != linha.Componente.Ajuda) textos.Children.Add(new TextBlock { Text = linha.Detalhe, TextWrapping = TextWrapping.Wrap });
             grade.Children.Add(textos);
             var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
             var selo = new SeloEstado();
@@ -568,9 +571,8 @@ public sealed partial class MainWindow
             Dicas.Aplicar(botao, linha.TextoBotao, linha.TextoDica);
             botao.Click += async (_, _) => await AtualizarComponenteAsync(linha);
             acoes.Children.Add(botao);
-            Grid.SetColumn(acoes, 1);
             grade.Children.Add(acoes);
-            p.ListaComponentesKit.Children.Add(grade);
+            p.ListaComponentesKit.Children.Add(new Border { Style = (Style)recursos["PmvniAjusteGrupo"], Child = grade });
             botoesDosComponentes[linha.Componente.Id] = botao;
         }
     }

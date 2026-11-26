@@ -84,8 +84,8 @@ public static class ComponentesDoKit
         new("pymupdf", "Motor de PDF PyMuPDF", "Lê o texto e as páginas dos PDFs.", OrigemComponente.MotorPdf, "PyMuPDF", "motores", "2.1"),
     ];
 
-    internal static ComponenteDoKit AnaliseChatGpt { get; } = new("analise-chatgpt", "analise-chatgpt",
-        "Plugin usado nas novas análises e na auditoria técnica.", OrigemComponente.PluginNoCodex, "analise-chatgpt", null);
+    internal static ComponenteDoKit AnaliseChatGpt { get; } = new("analise-chatgpt", "Análise de projetos · ChatGPT",
+        "O plugin analise-chatgpt confere as 28 seções em 15 grupos, consulta as fontes territoriais, audita as conclusões e gera o relatório editável (.rpmvni).", OrigemComponente.PluginNoCodex, "analise-chatgpt", "analise-chatgpt");
     internal static IReadOnlyList<ComponenteDoKit> FerramentasPdf { get; } =
         Lista.Where(c => c.Origem is OrigemComponente.ServidorPdf or OrigemComponente.MotorPdf).ToArray();
 
@@ -442,7 +442,7 @@ public static class ComponentesDoKit
         ArgumentNullException.ThrowIfNull(analisesEmAndamento);
         ArgumentNullException.ThrowIfNull(iniciar);
         if (analisesEmAndamento.Count > 0) return AtualizacaoKit.AvisoAnaliseEmAndamento(analisesEmAndamento);
-        var script = Path.Combine(pastaScripts, parte is null ? "atualizar-kit.ps1" : Script);
+        var script = Path.Combine(pastaScripts, parte is null or "analise-chatgpt" ? "atualizar-kit.ps1" : Script);
         if (!File.Exists(script)) return "O script de instalação dos plugins não foi extraído (" + script + "). Nada foi iniciado.";
         if (parte is null && !File.Exists(Path.Combine(kitLocal, InstaladorDoKit)))
             return "Não achei o instalador do kit em " + Path.Combine(kitLocal, InstaladorDoKit) + ". Nada foi iniciado.";
@@ -451,6 +451,7 @@ public static class ComponentesDoKit
         {
             null => "",
             "reparar" => "",
+            "analise-chatgpt" => " -SomentePlugin",
             _ => " -Componente " + parte,
         };
         var texto = "@echo off\r\nsetlocal DisableDelayedExpansion\r\n"
@@ -504,7 +505,7 @@ public static class ComponentesDoKit
         return d;
     }
 
-    static string? VersaoDoPlugin(string kit, string plugin) =>
+    internal static string? VersaoDoPlugin(string kit, string plugin) =>
         Texto(LerJson(Path.Combine(kit, "01 - PLUGINS", "plugins", plugin, ".codex-plugin", "plugin.json")), "version");
 
     /// <summary>SHA-256 de um arquivo (hexadecimal); null se não existe ou não dá para ler.</summary>

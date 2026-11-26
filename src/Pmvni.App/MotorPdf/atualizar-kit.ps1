@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory)][string]$KitLocal, [string]$PastaPmvni = (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PMVNI'))
+﻿param([switch]$SomentePlugin, [Parameter(Mandatory)][string]$KitLocal, [string]$PastaPmvni = (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PMVNI'))
 $ErrorActionPreference = 'Stop'
 $instalador = Join-Path $KitLocal 'INSTALAR_KIT_PMVNI.cmd'
 # O instalador da fonte conhece a nova versao fixada. O 4.6.12 local
@@ -11,6 +11,10 @@ if (Test-Path -LiteralPath $cfgPath -PathType Leaf) {
         if (!(Test-Path -LiteralPath $publicado -PathType Leaf)) { exit 41 }
         $instalador = $publicado
     }
+}
+if ($SomentePlugin) {
+    & $instalador plugins-chatgpt --sem-pausa --pasta-local $PastaPmvni
+    exit $LASTEXITCODE
 }
 $arquivoEstado = Join-Path $PastaPmvni 'estado.json'
 # O instalador antigo pode copiar seu sucessor enquanto ainda executa a versão anterior.

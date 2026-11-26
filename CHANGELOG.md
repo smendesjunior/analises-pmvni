@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.3
+
+- A página Kit PMVNI mostra os modelos de despacho, as versões instalada e disponível do plugin e o histórico da atualização. O plugin pode ser atualizado separadamente do kit completo.
+
 ## 4.7.2
 
 - O cabeçalho usa a marca vetorial nos temas claro e escuro. A renderização acompanha a largura disponível e a escala do monitor.

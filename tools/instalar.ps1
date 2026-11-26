@@ -25,6 +25,11 @@ $exe = Join-Path $pastaUso 'Editor de Relatorios PMVNI.exe'
 $manifestoUrl = 'https://github.com/smendesjunior/analises-pmvni/releases/latest/download/EditorRelatoriosPMVNI-update.json'
 $base = Join-Path $env:USERPROFILE 'OneDrive\PMVNI\SIDNEY JUNIOR'
 $kit = Join-Path $base 'KIT DE TREINAMENTO DE IA (PMVNI)'
+$configKit = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PMVNI\instalacao.json'
+if (Test-Path -LiteralPath $configKit) {
+    $config = [IO.File]::ReadAllText($configKit) | ConvertFrom-Json
+    if ($config.kit_root) { $kit = $config.kit_root }
+}
 $saida = Join-Path $PSScriptRoot 'instalar-resultado.txt'
 $log = New-Object System.Collections.Generic.List[string]
 function Registrar([string]$t) { $log.Add((Get-Date -Format 'HH:mm:ss') + ' ' + $t) }

@@ -27,7 +27,7 @@ public static class CategoriasAjustes
         new(Modulos, "Módulos", "Como Processos, Despachos, Acompanhamento e Legislação trabalham: listas, PDF dos despachos e leis anexadas.", Glifos.Lista),
         new(Ia, "Inteligência artificial", "As contas das IAs, o que o Novo relatório pergunta antes de seguir e a IA da revisão.", Glifos.Ia),
         new(Modelos, "Modelos da análise", "Veja o que cada grupo verifica e qual perfil do Codex o plugin utiliza.", Glifos.Painel),
-        new(Kit, "Kit PMVNI", "A pasta do kit e os plugins e ferramentas instalados neste computador.", Glifos.Ferramenta),
+        new(Kit, "Kit PMVNI", "Modelos de despacho, plugin de análise e atualizações desta estação.", Glifos.Ferramenta),
         new(Sobre, "Sistema", "Atualizações, suporte, restaurar os ajustes, diagnóstico e informações sobre o editor.", Glifos.Sobre, Rodape: true),
     ];
 

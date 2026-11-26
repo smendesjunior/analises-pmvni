@@ -314,8 +314,20 @@ public sealed class Ajustes
     public List<string> LeisFavoritas { get; } = [];
 
     /// <summary>O kit PMVNI neste computador (<c>%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)</c>).</summary>
-    public static string PastaKitPadrao { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)");
+    public static string PastaKitPadrao
+    {
+        get
+        {
+            var config = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI", "instalacao.json");
+            try
+            {
+                if (File.Exists(config) && JsonNode.Parse(File.ReadAllText(config))?["kit_root"]?.GetValue<string>() is { Length: > 0 } kit)
+                    return kit;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { }
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)");
+        }
+    }
 
     /// <summary>O kit que o Novo despacho lê: <c>PMVNI_KIT_RAIZ</c> (testes) se definida, senão a escolhida em Ajustes, senão a padrão.</summary>
     public string PastaKitEfetiva =>
