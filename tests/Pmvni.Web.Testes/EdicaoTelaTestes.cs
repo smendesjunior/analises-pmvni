@@ -729,6 +729,11 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         Assert.Equal(ref0, emMeio.GetProperty("ref").GetString());
         Assert.InRange(Math.Abs(emMeio.GetProperty("deslocamentoPx").GetDouble() - desl0), 0, 2);
 
+        // Se a própria seção sair do PDF, a tela volta ao ponto de leitura.
+        await RecarregarAsync(a);
+        await EstadoAsync(null, true, null, new { @ref = (string?)null, texto = "oculto", deslocamentoPx = 0, y = scroll0 });
+        Assert.InRange(Math.Abs((await Js("window.scrollY")).GetDouble() - scroll0), 0, 2);
+
         // Âncora de um item que não existe mais: ignorada, sem erro.
         await EstadoAsync(null, true, null, new { @ref = "it_sumiu", deslocamentoPx = 5 });
     }

@@ -299,7 +299,28 @@ public sealed partial class MainWindow
                         "Aplica a resposta ao campo. A alteração pode ser desfeita.");
                     ia.Click += async (_, _) => await TentarAsync(() => EditarCampoComIaAsync(id, campo, nome));
                     bloco.Children.Add(ia);
-                    if (!id.StartsWith("modelo/", StringComparison.Ordinal))
+                    if (id.StartsWith("grupo/", StringComparison.Ordinal) && TextosDoRelatorio?.GetValueOrDefault(campo) is { } membro)
+                    {
+                        visibilidade = new CheckBox { Content = "Incluir este texto", IsChecked = membro.Visivel };
+                        var controle = visibilidade;
+                        controle.Click += async (_, _) =>
+                        {
+                            if (TextosDoRelatorio?.GetValueOrDefault(campo) is { } atual)
+                                await TentarAsync(() => AplicarAsync(new DefinirTextoDoModelo(campo, atual.Atual == atual.Original ? null : atual.Atual, controle.IsChecked == true)));
+                        };
+                        bloco.Children.Add(controle);
+                    }
+                    else if (campo.StartsWith("marcacao/", StringComparison.Ordinal))
+                    {
+                        var grupo = campo[..campo.LastIndexOf('/')];
+                        if (campo.EndsWith("/elemento", StringComparison.Ordinal) || !campos.Any(c => c.Campo == grupo + "/elemento"))
+                        {
+                            var gravada = sessao?.Revisao.Projeto is { } proj && FiguraParaPropriedades(proj, id)?.Buscar(grupo[9..])?.Gravada == true;
+                            visibilidade = ControleVisibilidade(id, grupo, nome, gravada ? "Incluir legenda (marca gravada na imagem)" : "Incluir nota e marcação na imagem");
+                            bloco.Children.Add(visibilidade);
+                        }
+                    }
+                    else if (!id.StartsWith("modelo/", StringComparison.Ordinal))
                     {
                         visibilidade = ControleVisibilidade(id, campo, nome);
                         bloco.Children.Add(visibilidade);
@@ -333,7 +354,8 @@ public sealed partial class MainWindow
             c.Restaurar.IsEnabled = editavel;
             if (c.Original is not null) c.Original.Text = original(campo);
             if (c.Visibilidade is { } v && sessao?.Revisao.Projeto is { } p)
-                v.IsChecked = TextosRevisados.CampoVisivel(p, id, campo);
+                v.IsChecked = id.StartsWith("grupo/", StringComparison.Ordinal) ? TextosDoRelatorio?.GetValueOrDefault(campo)?.Visivel
+                    : TextosRevisados.CampoVisivel(p, id, campo.StartsWith("marcacao/", StringComparison.Ordinal) ? campo[..campo.LastIndexOf('/')] : campo);
         }
     }
 

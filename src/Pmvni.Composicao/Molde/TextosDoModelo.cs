@@ -6,7 +6,7 @@ using Pmvni.Composicao.Kit;
 
 namespace Pmvni.Composicao;
 
-public sealed record TextoDoModelo(string Original, string Atual, bool Visivel);
+public sealed record TextoDoModelo(string Original, string Atual, bool Visivel, string? Grupo = null);
 
 /// <summary>Endereça os textos impressos pela posição no modelo e pela identidade de cada ocorrência nas listas.</summary>
 internal sealed class TextosDoModelo(IReadOnlyDictionary<string, object?> revisoes)

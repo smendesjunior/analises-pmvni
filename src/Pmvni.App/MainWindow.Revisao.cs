@@ -246,6 +246,8 @@ public sealed partial class MainWindow
     /// O critério ilegível não é adivinhado: a edição entra sozinha e o aviso sugere «Rever com a IA».</summary>
     Comando ComandoDeEdicao(Projeto pj, string itemId, string campo, string texto)
     {
+        if (itemId.StartsWith("grupo/", StringComparison.Ordinal) && TextosDoRelatorio?.GetValueOrDefault(campo) is { } membro)
+            return new DefinirTextoDoModelo(campo, texto == membro.Original ? null : texto, membro.Visivel);
         if (itemId.StartsWith("modelo/", StringComparison.Ordinal) && TextosDoRelatorio?.GetValueOrDefault(itemId[7..]) is { } modelo)
             return new DefinirTextoDoModelo(itemId[7..], texto == modelo.Original ? null : texto, modelo.Visivel);
         if (FiguraParaPropriedades(pj, itemId) is { }) return EdicaoDeFigura(itemId, campo, texto);

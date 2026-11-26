@@ -204,6 +204,31 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             var t = TravaExecucao.Tentar(pr.Pasta, p) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
             try
             {
+                if (usarAnaliseChatGpt)
+                {
+                    var registroPlugin = registroAnterior is null ? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now)
+                        : RegistroExecucao.Abrir(registroAnterior, pr.Pasta);
+                    try
+                    {
+                        var selecao = registroPlugin.LerAnexosCategorizados();
+                        var avisos = new List<string>();
+                        if (registroAnterior is null)
+                        {
+                            var trabalho = Path.Combine(registroPlugin.Pasta, "pecas-anexadas");
+                            Directory.CreateDirectory(trabalho);
+                            var planoLocal = Arquivamento.Planejar(trabalho, anexos);
+                            selecao = Arquivamento.Arquivar(trabalho, planoLocal, CancellationToken.None);
+                            avisos.AddRange(planoLocal.Where(a => a.Recusa is not null).Select(a => a.Recusa!));
+                            registroPlugin.Atualizar(o => { o["plugin"] = OrquestradorAnalise.NomeAnaliseChatGpt; o["area_local_solicitada"] = false; });
+                            registroPlugin.GravarAnexos(selecao);
+                        }
+                        if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar)
+                            texto = registroPlugin.PedidoOriginal();
+                        registroPlugin.GravarPedido(texto ?? "");
+                        return (t, registroPlugin, selecao, avisos, registroAnterior is not null);
+                    }
+                    catch { registroPlugin.Dispose(); throw; }
+                }
                 var plano = Arquivamento.Planejar(pr.Pasta, anexos);
                 IReadOnlyList<ArquivoArquivado> feitos;
                 try { feitos = Arquivamento.Arquivar(pr.Pasta, plano, CancellationToken.None); }

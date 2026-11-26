@@ -207,17 +207,25 @@ public sealed partial class OrquestradorAnalise
                 !string.IsNullOrWhiteSpace(secao["evidencia"]?.ToString())) == 1)) == 1);
     }
 
+    static string RaizDosAnexos(PedidoExecucao pe)
+    {
+        var local = Path.Combine(pe.Registro.Pasta, "pecas-anexadas");
+        return pe.UsarAnaliseChatGpt && Directory.Exists(local) ? local : pe.Processo.Pasta;
+    }
+
     internal static string EntradaChatGpt(PedidoExecucao pe, IReadOnlyList<string> caminhos, string fontes, CancellationToken ct)
     {
-        var anexos = pe.Anexos.ToDictionary(a => a.Relativo, StringComparer.OrdinalIgnoreCase);
-        var relativos = caminhos.Select(c => Path.GetRelativePath(pe.Processo.Pasta, c)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var raizAnexos = RaizDosAnexos(pe);
+        var anexos = pe.Anexos.GroupBy(a => Path.GetFullPath(Path.Combine(raizAnexos, a.Relativo)), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var relativos = caminhos.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (anexos.Keys.FirstOrDefault(a => !relativos.Contains(a)) is { } ausente)
-            throw new InvalidDataException("O anexo arquivado está indisponível: " + ausente);
+            throw new InvalidDataException("O arquivo anexado está indisponível: " + ausente);
         var pecas = caminhos.OrderBy(caminho => caminho, StringComparer.OrdinalIgnoreCase).Select(caminho =>
         {
             ct.ThrowIfCancellationRequested();
-            var relativo = Path.GetRelativePath(pe.Processo.Pasta, caminho);
-            anexos.TryGetValue(relativo, out var anexo);
+            anexos.TryGetValue(Path.GetFullPath(caminho), out var anexo);
+            var relativo = anexo?.Relativo ?? Path.GetRelativePath(pe.Processo.Pasta, caminho);
             var disco = EstadoDisco.Ler(caminho);
             if (anexo is not null && !string.Equals(anexo.Sha256, disco.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("O anexo mudou desde o arquivamento: " + relativo);

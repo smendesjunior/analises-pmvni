@@ -20,7 +20,17 @@ public sealed class TextosDoRelatorioWebTestes(TelaFixture f) : IClassFixture<Te
         var sessao = new SessaoRevisao(pacote.Projeto, pacote.Historico, usuario);
         Assert.NotNull(sessao.Aplicar(new DefinirTextoDoModelo(titulo, "Conclusão revisada no teste", true)));
         Assert.NotNull(sessao.Aplicar(new DefinirTextoDoModelo("rodape-direita", "PÁGINA {n} DE {t} · TESTE", true)));
+        foreach (var classe in new[] { "confirm", "ic", "sec" })
+        {
+            var grupo = inicial.Render.Textos.First(t => t.Key.StartsWith("grupo-" + classe + "-", StringComparison.Ordinal)
+                && (classe != "sec" || t.Value.Atual.Contains("FONTES E REFERÊNCIAS")));
+            Assert.NotNull(sessao.Aplicar(new DefinirTextoDoModelo(grupo.Key, null, false)));
+        }
         var preparado = rec.Preparar(sessao.Projeto);
+        Assert.DoesNotContain("PONTOS A CONFIRMAR", preparado.Render.Html);
+        Assert.DoesNotContain("FONTES E REFERÊNCIAS", preparado.Render.Html);
+        Assert.DoesNotContain("<div class=\"refs\">", preparado.Render.Html);
+        Assert.Contains("CONCLUS", preparado.Render.Html.ToUpperInvariant());
         Assert.Empty(preparado.ErrosFinais);
         var comp = await rec.ComporAsync(preparado, f.Composicao);
         var previa = string.Join(" ", await f.Composicao.Documento.TextoPorFolhaAsync());

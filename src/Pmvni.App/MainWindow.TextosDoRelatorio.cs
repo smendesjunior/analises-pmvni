@@ -25,15 +25,35 @@ public sealed partial class MainWindow
         if (TextosDoRelatorio?.ContainsKey(chave) != true) return;
         selecionado = figuraSelecionada = ultimoCampo = null;
         if (sessao is { } s) s.Selecao = null;
-        textoModeloSelecionado = chave;
+        textoModeloSelecionado = TextosDoRelatorio[chave].Grupo ?? chave;
         if (!PropriedadesVisivel) MostrarPropriedades(true);
         AtualizarPropriedades();
-        if (focar && camposNoPainel.TryGetValue("texto", out var entrada))
+        if (focar && camposNoPainel.TryGetValue(textoModeloSelecionado == chave ? "texto" : chave, out var entrada))
             DispatcherQueue.TryEnqueue(() => entrada.Caixa.Focus(FocusState.Programmatic));
     }
 
     void MontarPropriedadesTextoDoModelo(string chave, TextoDoModelo texto)
     {
+        if (chave.StartsWith("grupo-", StringComparison.Ordinal) && TextosDoRelatorio is { } catalogo)
+        {
+            PrepararPropriedadesDeTexto("Grupo", texto.Atual, texto.Visivel);
+            var campos = catalogo.Where(x => x.Value.Grupo == chave && !x.Key.StartsWith("grupo-", StringComparison.Ordinal))
+                .Select(x => (x.Key, x.Value.Original)).ToList();
+            MontarCampos("grupo/" + chave, campos, Editavel, c => catalogo[c].Atual, c => catalogo[c].Original,
+                c => catalogo[c].Atual != catalogo[c].Original, "Restaurar texto original",
+                c => AplicarAsync(new DefinirTextoDoModelo(c, null, catalogo[c].Visivel)));
+            // A seção pode conter cartões com edição própria. Permite navegar em ambas as direções.
+            foreach (var antigo in R.PropCampos.Children.OfType<Button>().ToArray()) R.PropCampos.Children.Remove(antigo);
+            var destinos = catalogo.Where(x => x.Value.Grupo == chave && x.Key.StartsWith("grupo-", StringComparison.Ordinal)).Select(x => x.Key);
+            if (texto.Grupo is { } pai) destinos = destinos.Prepend(pai);
+            foreach (var destino in destinos)
+            {
+                var botao = new Button { Content = catalogo[destino].Atual };
+                botao.Click += (_, _) => { textoModeloSelecionado = destino; AtualizarPropriedades(); };
+                R.PropCampos.Children.Add(botao);
+            }
+            return;
+        }
         var nome = RotuloTextoDoModelo(chave);
         PrepararPropriedadesDeTexto(nome, chave, texto.Visivel);
         MontarCampos("modelo/" + chave, [("texto", nome)], Editavel,
@@ -120,6 +140,7 @@ public sealed partial class MainWindow
         string? Ler()
         {
             var p = s.Revisao.Projeto;
+            if (id.StartsWith("grupo/", StringComparison.Ordinal)) return TextosDoRelatorio?.GetValueOrDefault(campo)?.Atual;
             if (id.StartsWith("modelo/", StringComparison.Ordinal)) return TextosDoRelatorio?.GetValueOrDefault(id[7..])?.Atual;
             if (FiguraParaPropriedades(p, id) is { } figura) return TextoDaFigura(figura, campo);
             if (TabelasRevisao.Editavel(p, id, campo)) return TabelasRevisao.TextoEfetivo(p, id, campo);

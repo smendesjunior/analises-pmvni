@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.4
+
+- Seções e quadros podem ser editados e ocultados como grupos. A opção de cada nota controla sua legenda e a marcação editável na imagem.
+- A revisão preserva a posição de leitura ao recompor as folhas. Os anexos de uma análise ficam na área de trabalho local. O relatório é entregue na pasta de despacho do processo.
+
 ## 4.7.3
 
 - A página Kit PMVNI mostra os modelos de despacho, as versões instalada e disponível do plugin e o histórico da atualização. O plugin pode ser atualizado separadamente do kit completo.

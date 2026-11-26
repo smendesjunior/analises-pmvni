@@ -613,19 +613,20 @@ public sealed partial class OrquestradorAnalise
     {
         var raiz = Path.GetFullPath(pe.Processo.Pasta).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         var lista = new List<string>();
-        void Por(string caminho)
+        var pastaAnexos = RaizDosAnexos(pe);
+        void Por(string caminho, string permitida)
         {
             try
             {
                 var f = Path.GetFullPath(caminho);
-                if (!f.StartsWith(raiz, StringComparison.OrdinalIgnoreCase) || f[raiz.Length..].Split(Path.DirectorySeparatorChar).Contains(".pmvni-ai", StringComparer.OrdinalIgnoreCase)) return;
+                if (!f.StartsWith(permitida, StringComparison.OrdinalIgnoreCase) || f[permitida.Length..].Split(Path.DirectorySeparatorChar).Contains(".pmvni-ai", StringComparer.OrdinalIgnoreCase)) return;
                 if (File.Exists(f) && !ArquivoTransitorio(f) && !lista.Contains(f, StringComparer.OrdinalIgnoreCase)) lista.Add(f);
             }
             catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { }
         }
-        foreach (var a in pe.Anexos) Por(Path.Combine(pe.Processo.Pasta, a.Relativo));
+        foreach (var a in pe.Anexos) Por(Path.Combine(pastaAnexos, a.Relativo), Path.TrimEndingDirectorySeparator(pastaAnexos) + Path.DirectorySeparatorChar);
         var atendidas = Processos.CategoriasAtendidas(pe.Anexos);
-        foreach (var a in Processos.PecasParaAnalise(pe.Processo, atendidas, ct)) Por(a.Caminho);
+        foreach (var a in Processos.PecasParaAnalise(pe.Processo, atendidas, ct)) Por(a.Caminho, raiz);
         return lista;
     }
 

@@ -292,8 +292,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         try
         {
             var r = await tela.Tela.ChamarAsync("obterAncora", new { }, TimeSpan.FromSeconds(10));
-            if (r.TryGetProperty("ref", out var rf) && rf.ValueKind == JsonValueKind.String && r.TryGetProperty("deslocamentoPx", out var d))
-                return new { @ref = rf.GetString(), deslocamentoPx = d.GetDouble() };
+            if (r.TryGetProperty("deslocamentoPx", out _)) return r.Clone();
         }
         catch (Exception e) { Debug.WriteLine("[ancora] " + e.Message); }
         return null;

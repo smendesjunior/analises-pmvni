@@ -8,7 +8,7 @@ public sealed record DefinirVisibilidadeDoCampo(string Alvo, string Campo, bool 
 
 public static class TextosRevisados
 {
-    static readonly Regex ChaveValida = new(@"^(?:[1-9][0-9]*(?:/[A-Za-z0-9_.~%-]+)*|cabecalho|rodape-esquerda|rodape-direita)$", RegexOptions.CultureInvariant);
+    static readonly Regex ChaveValida = new(@"^(?:(?:grupo-[a-z]+-)?[1-9][0-9]*(?:/[A-Za-z0-9_.~%-]+)*|cabecalho|rodape-esquerda|rodape-direita)$", RegexOptions.CultureInvariant);
 
     internal static Efeito? Calcular(Projeto projeto, DefinirTextoDoModelo comando)
     {

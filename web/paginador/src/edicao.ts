@@ -307,34 +307,28 @@ function rolarAteLinha(ref: string): void {
 
 // ---------- âncora de rolagem ----------
 
-interface Ancora { ref: string | null; deslocamentoPx: number }
+interface Ancora { ref: string | null; deslocamentoPx: number; y?: number; texto?: string }
 
-/** O bloco `[data-ref]` que cruza o topo da janela (senão o primeiro abaixo dele) e a distância do topo do bloco ao topo da
- * janela, em px sem zoom (positiva quando o bloco começa acima do topo). Blocos em mais de uma folha: vale o 1º pedaço. */
+// Prefere o texto que está no topo da tela. Se ele sair do relatório,
+// a posição absoluta continua válida mesmo quando também desaparece sua seção.
 function medirAncora(): Ancora {
-  const blocos = Array.from(document.querySelectorAll<HTMLElement>('section.folha .area [data-ref]'))
-    .filter((e) => e.getClientRects().length > 0);
-  let atravessa: { e: HTMLElement; topo: number } | null = null;
-  let abaixo: { e: HTMLElement; topo: number } | null = null;
-  for (const e of blocos) {
-    const r = e.getBoundingClientRect();
-    if (r.top <= 0 && r.bottom > 0) { if (!atravessa || r.top > atravessa.topo) atravessa = { e, topo: r.top }; }
-    else if (r.top > 0 && (!abaixo || r.top < abaixo.topo)) abaixo = { e, topo: r.top };
-  }
-  const escolhido = atravessa ?? abaixo;
-  if (!escolhido) return { ref: null, deslocamentoPx: 0 };
-  const ref = escolhido.e.getAttribute('data-ref')!;
-  const primeiro = blocos.find((e) => e.getAttribute('data-ref') === ref) ?? escolhido.e;
-  return { ref, deslocamentoPx: -primeiro.getBoundingClientRect().top / zoomAtual() };
+  const y = window.scrollY;
+  const topo = Array.from(document.querySelectorAll<HTMLElement>('section.folha .area [data-texto-modelo], section.folha .area [data-ref]'))
+    .map(e => ({ e, r: e.getBoundingClientRect() }))
+    .filter(({ r }) => r.height > 0 && r.bottom > 0 && r.top < window.innerHeight)
+    .sort((a, b) => Math.abs(a.r.top) - Math.abs(b.r.top))[0];
+  if (!topo) return { ref: null, deslocamentoPx: 0, y };
+  return { ref: topo.e.getAttribute('data-ref'), texto: topo.e.dataset.textoModelo, deslocamentoPx: -topo.r.top / zoomAtual(), y };
 }
 
-/** Rola para que o bloco fique `deslocamentoPx` (sem zoom) acima do topo da janela; ref que não existe é ignorada. */
-function restaurarAncora(a: { ref: string; deslocamentoPx: number }): void {
-  const primeiro = Array.from(document.querySelectorAll<HTMLElement>('section.folha .area [data-ref]'))
-    .find((e) => e.getAttribute('data-ref') === a.ref && e.getClientRects().length > 0);
-  if (!primeiro) return;
-  const topo = primeiro.getBoundingClientRect().top;
-  window.scrollTo({ top: Math.max(0, window.scrollY + topo + a.deslocamentoPx * zoomAtual()), behavior: 'instant' });
+function restaurarAncora(a: Ancora): void {
+  const seletor = a.texto ? '[data-texto-modelo="' + CSS.escape(a.texto) + '"]'
+    : a.ref ? '[data-ref="' + CSS.escape(a.ref) + '"]' : null;
+  const destinos = seletor ? Array.from(document.querySelectorAll<HTMLElement>('section.folha .area ' + seletor))
+    .filter(e => e.getClientRects().length > 0) : [];
+  const posicoes = destinos.map(e => window.scrollY + e.getBoundingClientRect().top + a.deslocamentoPx * zoomAtual());
+  const y = posicoes.sort((x, z) => Math.abs(x - (a.y ?? 0)) - Math.abs(z - (a.y ?? 0)))[0] ?? a.y;
+  if (y !== undefined) window.scrollTo({ top: Math.max(0, y), behavior: 'instant' });
 }
 
 // ---------- validação do que o host manda ----------
@@ -342,7 +336,7 @@ function restaurarAncora(a: { ref: string; deslocamentoPx: number }): void {
 const ehObjeto = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const invalido = (m: string) => new ErroComposicao('estado_invalido', m);
 
-interface EstadoEditor { selecao: string | null; campos: boolean; marcas: EstadoMarcas; ancora: { ref: string; deslocamentoPx: number } | null }
+interface EstadoEditor { selecao: string | null; campos: boolean; marcas: EstadoMarcas; ancora: Ancora | null }
 
 function lerEstado(d: Record<string, unknown>): EstadoEditor {
   if (d.selecao !== null && typeof d.selecao !== 'string') throw invalido('selecao deve ser texto ou nulo.');
@@ -359,10 +353,11 @@ function lerEstado(d: Record<string, unknown>): EstadoEditor {
   let ancora: EstadoEditor['ancora'] = null;
   if (d.ancora !== undefined && d.ancora !== null) {
     const a = d.ancora;
-    if (!ehObjeto(a) || typeof a.ref !== 'string' || typeof a.deslocamentoPx !== 'number' || !Number.isFinite(a.deslocamentoPx)) {
+    if (!ehObjeto(a) || (a.ref !== null && typeof a.ref !== 'string') || typeof a.deslocamentoPx !== 'number' || !Number.isFinite(a.deslocamentoPx)) {
       throw invalido('ancora deve ter ref (texto) e deslocamentoPx (número).');
     }
-    ancora = { ref: a.ref, deslocamentoPx: a.deslocamentoPx };
+    ancora = { ref: a.ref, deslocamentoPx: a.deslocamentoPx,
+      y: typeof a.y === 'number' && Number.isFinite(a.y) ? a.y : undefined, texto: typeof a.texto === 'string' ? a.texto : undefined };
   }
   return { selecao: d.selecao, campos: d.campos, marcas: { visiveis: m.visiveis, alterados: m.alterados as string[], excluidos }, ancora };
 }
@@ -457,7 +452,7 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
       return;
     }
     aplicarSelecao(ref);
-    const textoModelo = e.target instanceof Element ? e.target.closest('[data-texto-modelo]')?.getAttribute('data-texto-modelo') : undefined;
+    const textoModelo = e.target instanceof Element ? (e.target.closest('[data-texto-modelo]') ?? e.target.closest('.ic,.confirm,.obs,.note,.att,.rf,.sign,.sec,.panel,.band,.ttl-row')?.querySelector('[data-texto-modelo]'))?.getAttribute('data-texto-modelo') : undefined;
     const vista = vistaDoDiagrama(e.target);
     if (e.target instanceof Element) {
       const campoDiagrama = e.target.closest('[data-campo-diagrama]')?.getAttribute('data-campo-diagrama');

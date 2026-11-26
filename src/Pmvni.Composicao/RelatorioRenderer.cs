@@ -120,7 +120,8 @@ public static class RelatorioRenderer
         var html = Molde.Compilar(fonte).Renderizar(ctx, Filtros.Todos, textos);
         if (temMarcacoesEditaveis)
             html = html.Replace(" <span class=\"ids\">()</span>", "", StringComparison.Ordinal);
-        return new ResultadoRender(html, erros, MontarRefs(html, itens, figuras))
+        if (textos is not null) html = GruposDoModelo.Aplicar(html, textos.Campos, revisoes);
+        return new ResultadoRender(html, erros, MontarRefs(html, html.Contains("<div class=\"card ") ? itens : [], html.Contains("<div class=\"fig\">") ? figuras : []))
         {
             Textos = textos?.Campos ?? new Dictionary<string, TextoDoModelo>(),
         };

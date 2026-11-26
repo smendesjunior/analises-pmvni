@@ -46,6 +46,29 @@ public class FigurasTestes
     }
 
     [Fact]
+    public void ocultar_nota_remove_legenda_e_marcacao_do_html_impresso()
+    {
+        var c = Importar("longo");
+        var s = Sessao(c);
+        var id = PrimeiraFigura(s);
+        s.Aplicar(new IncluirMarcacao(id, "detalhe", TiposMarcacao.Seta, Alvo: [.2, .3], Elemento: "Marca para ocultar"));
+        using var pasta = Ambiente.PastaDeTeste("ocultar-nota");
+        c.ExtrairAssets(pasta);
+        var caminho = Path.Combine(pasta, "dados.json");
+        string Html() => RelatorioRenderer.Renderizar(DadosEfetivos.Gerar(s.Projeto, true).Json, caminho, new(false, false), Modelo).Html;
+        var antes = Html();
+        Assert.Contains("Marca para ocultar", antes);
+        Assert.Contains("data:image/svg+xml;base64,", antes);
+        s.Aplicar(new DefinirVisibilidadeDoCampo(id, "marcacao/detalhe", false));
+        var depois = Html();
+        Assert.DoesNotContain("Marca para ocultar", depois);
+        var figura = depois.Split("<div class=\"fig\">")[1].Split("</div>")[0];
+        Assert.DoesNotContain("data:image/svg+xml", figura);
+        s.Desfazer();
+        Assert.Equal(antes, Html());
+    }
+
+    [Fact]
     public void sem_edicao_de_figura_o_dados_efetivo_nao_muda()
     {
         var c = Importar("longo");

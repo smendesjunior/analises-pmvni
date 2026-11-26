@@ -146,7 +146,7 @@ public static class SvgFigura
         if (marcacoes is not System.Collections.IEnumerable e || marcacoes is string) return lista;
         foreach (var o in e)
         {
-            if (o is not IReadOnlyDictionary<string, object?> d) continue;
+            if (o is not IReadOnlyDictionary<string, object?> d || d.TryGetValue("_oculto_na_revisao", out var oculto) && Equals(oculto, true)) continue;
             var tipo = d.TryGetValue("tipo", out var t) ? t as string : null;
             if (tipo is null || !TiposMarcacao.Valido(tipo)) continue;
             int? numero = d.TryGetValue("numero", out var nn) && Numero(nn) is { } dn ? (int)dn : null;

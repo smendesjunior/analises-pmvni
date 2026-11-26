@@ -656,7 +656,7 @@ public sealed partial class MainWindow
             novos.Add(completo);
         }
         var pasta = processoNR?.Pasta;
-        var base_ = pasta ?? ajustes.PastaProcessosEfetiva;   // sem processo, a conferência só lê o anexo
+        var base_ = RoteiroLegado ? pasta ?? ajustes.PastaProcessosEfetiva : Path.Combine(PastaDados.Raiz, "prever-anexos");   // sem processo, a conferência só lê o anexo
         var conferidos = await Task.Run(() =>
         {
             var padrao = pasta is null ? DestinoAnexo.ProjetoInicial : Arquivamento.Padrao(pasta);
@@ -719,6 +719,13 @@ public sealed partial class MainWindow
     async Task PreverAsync()
     {
         var minha = ++sequenciaPreviaNR;
+        if (!RoteiroLegado)
+        {
+            foreach (var a in anexosNR) a.Previa = "Anexado para leitura pela IA";
+            RenderizarAnexos();
+            AtualizarBotoesNR();
+            return;
+        }
         var p = processoNR;
         var itens = anexosNR.Select(a => (a.Origem, a.Destino)).ToList();
         IReadOnlyList<PlanoAnexo>? plano = null;
@@ -746,7 +753,7 @@ public sealed partial class MainWindow
             var grade = new Grid { ColumnSpacing = 10, Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(6),
                 Style = (Style)Application.Current.Resources["PmvniGradeCartaoStyle"] };
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = categoria == DestinoAnexo.ProjetoInicial ? new GridLength(2, GridUnitType.Star) : new GridLength(0), MaxWidth = 340 });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = RoteiroLegado && categoria == DestinoAnexo.ProjetoInicial ? new GridLength(2, GridUnitType.Star) : new GridLength(0), MaxWidth = 340 });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = semProcesso ? new GridLength(0) : new GridLength(3, GridUnitType.Star) });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var nome = new StackPanel();
@@ -757,7 +764,7 @@ public sealed partial class MainWindow
                 detalhe = "pasta " + dentro[..dentro.LastIndexOf('/')].Replace("/", " › ") + " · " + detalhe;
             nome.Children.Add(new TextBlock { Text = detalhe, TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
             grade.Children.Add(nome);
-            if (categoria == DestinoAnexo.ProjetoInicial)
+            if (RoteiroLegado && categoria == DestinoAnexo.ProjetoInicial)
             {
                 var caixa = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center };
                 AutomationPropertiesNome(caixa, "Destino de " + a.Nome);

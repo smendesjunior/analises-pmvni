@@ -1739,26 +1739,17 @@ ${CSS_MARCAS}`;
     window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 48), behavior: "instant" });
   }
   function medirAncora() {
-    const blocos = Array.from(document.querySelectorAll("section.folha .area [data-ref]")).filter((e) => e.getClientRects().length > 0);
-    let atravessa = null;
-    let abaixo = null;
-    for (const e of blocos) {
-      const r = e.getBoundingClientRect();
-      if (r.top <= 0 && r.bottom > 0) {
-        if (!atravessa || r.top > atravessa.topo) atravessa = { e, topo: r.top };
-      } else if (r.top > 0 && (!abaixo || r.top < abaixo.topo)) abaixo = { e, topo: r.top };
-    }
-    const escolhido = atravessa ?? abaixo;
-    if (!escolhido) return { ref: null, deslocamentoPx: 0 };
-    const ref = escolhido.e.getAttribute("data-ref");
-    const primeiro = blocos.find((e) => e.getAttribute("data-ref") === ref) ?? escolhido.e;
-    return { ref, deslocamentoPx: -primeiro.getBoundingClientRect().top / zoomAtual() };
+    const y = window.scrollY;
+    const topo = Array.from(document.querySelectorAll("section.folha .area [data-texto-modelo], section.folha .area [data-ref]")).map((e) => ({ e, r: e.getBoundingClientRect() })).filter(({ r }) => r.height > 0 && r.bottom > 0 && r.top < window.innerHeight).sort((a, b) => Math.abs(a.r.top) - Math.abs(b.r.top))[0];
+    if (!topo) return { ref: null, deslocamentoPx: 0, y };
+    return { ref: topo.e.getAttribute("data-ref"), texto: topo.e.dataset.textoModelo, deslocamentoPx: -topo.r.top / zoomAtual(), y };
   }
   function restaurarAncora(a) {
-    const primeiro = Array.from(document.querySelectorAll("section.folha .area [data-ref]")).find((e) => e.getAttribute("data-ref") === a.ref && e.getClientRects().length > 0);
-    if (!primeiro) return;
-    const topo = primeiro.getBoundingClientRect().top;
-    window.scrollTo({ top: Math.max(0, window.scrollY + topo + a.deslocamentoPx * zoomAtual()), behavior: "instant" });
+    const seletor = a.texto ? '[data-texto-modelo="' + CSS.escape(a.texto) + '"]' : a.ref ? '[data-ref="' + CSS.escape(a.ref) + '"]' : null;
+    const destinos = seletor ? Array.from(document.querySelectorAll("section.folha .area " + seletor)).filter((e) => e.getClientRects().length > 0) : [];
+    const posicoes = destinos.map((e) => window.scrollY + e.getBoundingClientRect().top + a.deslocamentoPx * zoomAtual());
+    const y = posicoes.sort((x, z) => Math.abs(x - (a.y ?? 0)) - Math.abs(z - (a.y ?? 0)))[0] ?? a.y;
+    if (y !== void 0) window.scrollTo({ top: Math.max(0, y), behavior: "instant" });
   }
   var ehObjeto = (x) => typeof x === "object" && x !== null && !Array.isArray(x);
   var invalido = (m) => new ErroComposicao("estado_invalido", m);
@@ -1776,10 +1767,15 @@ ${CSS_MARCAS}`;
     let ancora = null;
     if (d.ancora !== void 0 && d.ancora !== null) {
       const a = d.ancora;
-      if (!ehObjeto(a) || typeof a.ref !== "string" || typeof a.deslocamentoPx !== "number" || !Number.isFinite(a.deslocamentoPx)) {
+      if (!ehObjeto(a) || a.ref !== null && typeof a.ref !== "string" || typeof a.deslocamentoPx !== "number" || !Number.isFinite(a.deslocamentoPx)) {
         throw invalido("ancora deve ter ref (texto) e deslocamentoPx (número).");
       }
-      ancora = { ref: a.ref, deslocamentoPx: a.deslocamentoPx };
+      ancora = {
+        ref: a.ref,
+        deslocamentoPx: a.deslocamentoPx,
+        y: typeof a.y === "number" && Number.isFinite(a.y) ? a.y : void 0,
+        texto: typeof a.texto === "string" ? a.texto : void 0
+      };
     }
     return { selecao: d.selecao, campos: d.campos, marcas: { visiveis: m.visiveis, alterados: m.alterados, excluidos }, ancora };
   }
@@ -1861,7 +1857,7 @@ ${CSS_MARCAS}`;
         return;
       }
       aplicarSelecao(ref);
-      const textoModelo = e.target instanceof Element ? e.target.closest("[data-texto-modelo]")?.getAttribute("data-texto-modelo") : void 0;
+      const textoModelo = e.target instanceof Element ? (e.target.closest("[data-texto-modelo]") ?? e.target.closest(".ic,.confirm,.obs,.note,.att,.rf,.sign,.sec,.panel,.band,.ttl-row")?.querySelector("[data-texto-modelo]"))?.getAttribute("data-texto-modelo") : void 0;
       const vista = vistaDoDiagrama(e.target);
       if (e.target instanceof Element) {
         const campoDiagrama = e.target.closest("[data-campo-diagrama]")?.getAttribute("data-campo-diagrama");

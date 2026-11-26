@@ -10,6 +10,23 @@ namespace Pmvni.Agentes.Testes;
 public partial class OrquestradorTestes
 {
     [Fact]
+    public void AnaliseChatGpt_AnexoDeTrabalhoNaoArquivaDocumentoNoProcesso()
+    {
+        using var c = new Cena("entrada-local", "ok", Provedor.ChatGpt);
+        var pe = c.Pedido(Provedor.ChatGpt) with { UsarAnaliseChatGpt = true };
+        var local = Directory.CreateDirectory(Path.Combine(pe.Registro.Pasta, "pecas-anexadas")).FullName;
+        var arquivo = Path.Combine(c.Pasta, "anexo.pdf");
+        File.WriteAllText(arquivo, "%PDF-1.4 exemplo");
+        var anexos = Arquivamento.Arquivar(local, Arquivamento.Planejar(local, [(arquivo, DestinoAnexo.Bci)]), CancellationToken.None);
+        var anexo = Assert.Single(anexos);
+        var caminho = Path.Combine(local, anexo.Relativo);
+        var entrada = JsonNode.Parse(OrquestradorAnalise.EntradaChatGpt(pe with { Anexos = anexos }, [caminho], "fontes.json", CancellationToken.None))!;
+        Assert.Equal(caminho, (string?)entrada["pecas"]![0]!["caminho"]);
+        Assert.False(File.Exists(Path.Combine(c.Processo.Pasta, anexo.Relativo)));
+        Assert.True(File.Exists(arquivo));
+    }
+
+    [Fact]
     public void AnaliseChatGpt_EntradaUsaProcessoPedidoEAnexosArquivados()
     {
         using var c = new Cena("analise-chatgpt-entrada", "ok", Provedor.ChatGpt);

@@ -144,7 +144,7 @@
               <FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock Text="Anexos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <TextBlock Text="Todos os anexos são opcionais. Escolha arquivos ou arraste-os para a categoria correspondente."
+        <TextBlock Text="Anexe os arquivos para a IA consultar. O analista arquiva os originais no processo. O Editor salva o relatório na pasta de despacho."
                    Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         <StackPanel x:Name="CategoriasAnexos" x:FieldModifier="internal" Spacing="8"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -153,7 +153,7 @@
           <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoCancelarAbertura" x:FieldModifier="internal" Content="Cancelar abertura" Visibility="Collapsed"
                   local:Dicas.Descricao="Interrompe a extração deste arquivo compactado."/>
         </StackPanel>
-        <TextBlock Text="Arquivos ZIP, RAR e 7Z são descompactados na categoria escolhida. Ao analisar, o Editor copia os arquivos para o processo."
+        <TextBlock Text="O Editor extrai os anexos ZIP, RAR e 7Z para leitura pela IA."
                    Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive"
                    Style="{StaticResource PmvniTextoErroStyle}" TextAlignment="Left"/>
