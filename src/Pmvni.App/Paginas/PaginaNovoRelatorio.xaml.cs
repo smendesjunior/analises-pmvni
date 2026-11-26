@@ -282,10 +282,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     (bool Plugin, double? Global, int Confirmadas) progressoDoPlanoDesenhado;
     (double Percentual, TimeSpan DuracaoAtiva)? previsaoPeloRitmo;
 
+    internal TimeSpan? ReferenciaDeVerificacoes { get; set; }
     (int Secoes, TimeSpan Fim)? previsaoDoPlugin;
 
     internal void ReiniciarEstimativa()
     {
+        ReferenciaDeVerificacoes = null;
         previsaoDoPlugin = null;
         previsaoPeloRitmo = null;
         MostrarEstimativa(null);
@@ -306,7 +308,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         {
             var concluidas = monitor.VerificacoesInformadas;
             var total = monitor.Rodadas.Sum(r => r.Verificacoes);
-            var texto = "Aguardando dados de ritmo";
+            var texto = "Medindo a primeira verificação";
             var dica = "Estimativa pelo tempo ativo e pelas seções com resultado registrado. A auditoria e o salvamento têm duração própria.";
             if (execucaoAtivaNaBarra && concluidas > 0 && concluidas < total)
             {
@@ -319,6 +321,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 if (previsaoDoPlugin is { } previsao && previsao.Fim > ativo)
                     texto = "≈ " + FluxoNovoRelatorio.TempoLegivel(previsao.Fim - ativo, incluirSegundos: false) + " de verificações";
                 else if (previsaoDoPlugin is not null) texto = "Recalculando com a próxima seção";
+            }
+            else if (concluidas == 0 && ReferenciaDeVerificacoes is { } referencia)
+            {
+                texto = referencia > ativo
+                    ? "≈ " + FluxoNovoRelatorio.TempoLegivel(referencia - ativo, incluirSegundos: false) + " (histórico)"
+                    : "Acima do tempo histórico";
+                dica = "Estimativa inicial pela duração mediana das verificações em análises entregues neste PC.";
             }
             else if (total > 0 && concluidas == total) texto = "Verificações concluídas";
             if (!execucaoAtivaNaBarra) texto = "—";

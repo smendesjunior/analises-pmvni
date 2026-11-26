@@ -1022,6 +1022,7 @@ public sealed partial class MainWindow
         NR.ConsumoDoPlugin = null;
         NR.ArquivoDoDiario = null;
         NR.MonitorChatGpt = e.PastaAnaliseChatGpt is null ? null : MonitorAnaliseChatGpt.Aguardando;
+        if (e.PastaAnaliseChatGpt is { } pastaPlugin) _ = CarregarReferenciaAsync(e, pastaPlugin);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
         NR.MostrarExecucao(true);
@@ -1029,6 +1030,33 @@ public sealed partial class MainWindow
         ultimaMensagemLida = null;
         RenderizarExecucao(e);
         AtualizarComandosNovoRelatorio();
+    }
+
+    async Task CarregarReferenciaAsync(ExecucaoEmCurso execucao, string pasta)
+    {
+        var referencia = await Task.Run(() =>
+        {
+            var raiz = Directory.GetParent(pasta)?.Parent;
+            if (raiz is null) return (TimeSpan?)null;
+            try
+            {
+                var duracoes = new List<TimeSpan>();
+                foreach (var processo in raiz.EnumerateDirectories())
+                foreach (var anterior in processo.EnumerateDirectories("*-chatgpt"))
+                {
+                    if (string.Equals(anterior.FullName, pasta, StringComparison.OrdinalIgnoreCase)) continue;
+                    var inicio = new FileInfo(Path.Combine(anterior.FullName, "grupos.json"));
+                    var fim = new FileInfo(Path.Combine(anterior.FullName, "grupo-15.json"));
+                    if (inicio.Exists && fim.Exists && File.Exists(Path.Combine(anterior.FullName, "relatorio.rpmvni.publicacao.json"))
+                        && fim.LastWriteTimeUtc > inicio.LastWriteTimeUtc)
+                        duracoes.Add(fim.LastWriteTimeUtc - inicio.LastWriteTimeUtc);
+                }
+                duracoes.Sort();
+                return duracoes.Count == 0 ? (TimeSpan?)null : duracoes[duracoes.Count / 2];
+            }
+            catch (Exception erro) when (erro is IOException or UnauthorizedAccessException) { return null; }
+        });
+        if (!fechada && ReferenceEquals(execucaoMostrada, execucao)) NR.ReferenciaDeVerificacoes = referencia;
     }
 
     void MostrarFormularioNR()

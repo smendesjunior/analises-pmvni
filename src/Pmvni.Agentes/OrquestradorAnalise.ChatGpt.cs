@@ -510,8 +510,7 @@ public sealed partial class OrquestradorAnalise
         grupos.All(g => g is not null && g.Secoes is { Length: > 0 }) &&
         grupos.Select(g => g.Id).Order().SequenceEqual(Enumerable.Range(1, 15)) &&
         grupos.SelectMany(g => g.Secoes).Order().SequenceEqual(Enumerable.Range(1, 28)) &&
-        grupos.All(g => g.Id == 15 ? (g.Modelo, g.Esforco) == ("gpt-6.2-sol", "high") :
-            (g.Modelo, g.Esforco) is ("gpt-6.1-terra", "low" or "medium") or ("gpt-6.2-sol", "medium"));
+        grupos.All(g => !string.IsNullOrWhiteSpace(g.Modelo) && !string.IsNullOrWhiteSpace(g.Esforco));
 
     sealed record GrupoChatGpt(int Id, int[] Secoes, string Modelo, string Esforco, string? Nome);
 }
