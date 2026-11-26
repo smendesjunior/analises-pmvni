@@ -345,7 +345,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
-        MarcaPrefeitura.MaxWidth = largura < 1100 ? 369.6 : 488.4;
+        MarcaPrefeitura.MaxWidth = largura < 1100 ? 369 : 492;
         TextosAnalise.Visibility = Visibility.Visible;
         BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
         // Auditoria de interface (2026-11-17): em 1366 px a 125% os rótulos cortavam ("Próxim", "Pes"); abaixo de 1300 ficam só os

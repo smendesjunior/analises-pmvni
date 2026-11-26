@@ -4,6 +4,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 4.7.1
 
+- A marca do cabeçalho ganhou suavização de contorno nos temas claro e escuro e acompanha a escala de exibição do Windows.
 - Inteligência artificial e Modelos da análise têm entradas independentes nas configurações. Os cartões dos grupos mostram o que é conferido e qual modelo e esforço o plugin utiliza.
 
 ## 4.7.0
