@@ -359,7 +359,8 @@ public sealed partial class OrquestradorAnalise
     {
         var loc = pacote.Projeto.Documento["localizacao"] as JsonObject;
         var conferencia = Path.Combine(pasta, "conferencia.json");
-        var consulta = File.Exists(conferencia) ? JsonNode.Parse(LerJsonChatGpt(conferencia))?["consulta_qgis"] : null;
+        var registroAuditado = File.Exists(conferencia) ? JsonNode.Parse(LerJsonChatGpt(conferencia)) : null;
+        var consulta = registroAuditado?["consulta_qgis"];
         var embutida = pacote.Projeto.Documento["_conferencia_chatgpt"]?["consulta_qgis"];
         if (embutida is not null && consulta is not null && !JsonNode.DeepEquals(embutida, consulta))
             throw new InvalidDataException("A consulta QGIS da conferência diverge da incluída no pacote.");
@@ -390,11 +391,22 @@ public sealed partial class OrquestradorAnalise
                 ficha["crs"]?.ToString() != MapaLocalizacao.Crs || ficha["cotas"]?.GetValue<bool>() != true || ficha["completo"]?.GetValue<bool>() != true ||
                 ficha["sha256_png"]?.ToString() != hashMapa || !pacote.Assets.TryGetValue(imagem, out var bytes) ||
                 Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) != hashMapa ||
-                (!string.IsNullOrWhiteSpace(inscricaoConsultada) && Inscricoes.Normalizar(inscricaoConsultada) != Inscricoes.Normalizar(ficha["inscricao"]?.ToString() ?? "")) ||
-                ficha["legend"] is not JsonArray { Count: > 0 } legenda || !JsonNode.DeepEquals(loc["legenda"], legenda) ||
-                ficha["dados"] is not JsonArray { Count: > 0 } linhas || loc["dados"] is not JsonArray dadosLocais ||
-                !linhas.All(linha => dadosLocais.Any(dado => JsonNode.DeepEquals(linha, dado))))
-                throw new InvalidDataException("O mapa, a legenda ou a ficha do relatório divergem da cartografia auditada do grupo 2.");
+                (!string.IsNullOrWhiteSpace(inscricaoConsultada) && Inscricoes.Normalizar(inscricaoConsultada) != Inscricoes.Normalizar(ficha["inscricao"]?.ToString() ?? "")))
+                throw new InvalidDataException("A imagem ou a identificação da feição diverge do mapa auditado do grupo 2.");
+            var fichaOriginal = ficha["legend"] is JsonArray { Count: > 0 } legenda && JsonNode.DeepEquals(loc["legenda"], legenda)
+                && ficha["dados"] is JsonArray { Count: > 0 } linhas && loc["dados"] is JsonArray dadosLocais
+                && linhas.All(linha => dadosLocais.Any(dado => JsonNode.DeepEquals(linha, dado)));
+            if (!fichaOriginal)
+            {
+                var revisao = registroAuditado?["revisao_integral"];
+                var hashDados = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(pacote.Recebido));
+                var confirmado = JsonNode.Parse(pacote.Recebido)?["localizacao"];
+                if (revisao?["situacao"]?.ToString() != "concluida" || revisao["dados_sha256"]?.ToString() != hashDados ||
+                    revisao["mapa_sha256"]?.ToString() != hashMapa || loc["legenda"] is not JsonArray { Count: > 0 } ||
+                    loc["dados"] is not JsonArray { Count: > 0 } || !JsonNode.DeepEquals(loc["legenda"], confirmado?["legenda"]) ||
+                    !JsonNode.DeepEquals(loc["dados"], confirmado?["dados"]))
+                    throw new InvalidDataException("A legenda ou a ficha foi alterada sem confirmação da revisão final para esta versão do relatório e do mapa.");
+            }
             return pacote;
         }
         if (string.IsNullOrWhiteSpace(pastaQgis))
