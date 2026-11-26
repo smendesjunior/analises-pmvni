@@ -95,12 +95,16 @@ public sealed partial class MainWindow
             NR.MonitorChatGpt = new([rodada], null, null);
             var semPlano = NR.PercentualExibido == "0%";
             NR.MonitorChatGpt = new([rodada with { Plano = [new(1, "concluida"), new(2, "em_andamento")] }], null, null);
-            var parcial = NR.PercentualExibido == "25%";
+            // Duas seções fictícias e três marcos (preparação, auditoria e salvamento).
+            var parcial = NR.PercentualExibido == "20%";
             NR.MonitorChatGpt = new([rodada with { Plano = [new(1, "concluida"), new(2, "concluida")] }], null, null);
-            var completo = NR.PercentualExibido == "50%";
+            var completo = NR.PercentualExibido == "40%";
+            NR.MostrarResumo(false, null, etapasMonitor.Select(e => (e.Nome, EstadoEtapa.Feita)).ToArray(), "ChatGPT");
+            var entregue = NR.PercentualExibido == "100%";
+            NR.MostrarResumo(false, null, [], "ChatGPT");
             NR.MonitorChatGpt = null;
-            d["progresso_plano_chatgpt"] = semPlano && parcial && completo;
-            d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca && semPlano && parcial && completo;
+            d["progresso_plano_chatgpt"] = semPlano && parcial && completo && entregue;
+            d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca && semPlano && parcial && completo && entregue;
             if (!(bool)d["ok"]!) d["erro"] = "Confira as rotas de análise disponíveis em Novo relatório e Ajustes.";
         }
         catch (Exception e)

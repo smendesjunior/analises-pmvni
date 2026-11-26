@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Xml.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -25,7 +26,18 @@ public static class MapaParaAnalise
     public static byte[] ImagemPng(MapaGerado mapa)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("A imagem cartográfica requer o Windows.");
-        var svg = Svg.SvgDocument.FromSvg<Svg.SvgDocument>(mapa.Svg);
+        // O rasterizador ignora paint-order. Pinte o halo por baixo das letras apenas na cópia para impressão.
+        var desenho = XDocument.Parse(mapa.Svg);
+        foreach (var texto in desenho.Descendants().Where(e => (string?)e.Attribute("paint-order") == "stroke").ToList())
+        {
+            var halo = new XElement(texto);
+            halo.SetAttributeValue("fill", "none");
+            halo.Attribute("paint-order")!.Remove();
+            texto.AddBeforeSelf(halo);
+            texto.SetAttributeValue("stroke", "none");
+            texto.Attribute("paint-order")!.Remove();
+        }
+        var svg = Svg.SvgDocument.FromSvg<Svg.SvgDocument>(desenho.ToString(SaveOptions.DisableFormatting));
         using var bitmap = svg.Draw(MapaLocalizacao.Largura * 2, MapaLocalizacao.Altura * 2);
         using var saida = new MemoryStream();
         bitmap.Save(saida, System.Drawing.Imaging.ImageFormat.Png);
