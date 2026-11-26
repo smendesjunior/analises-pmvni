@@ -171,14 +171,11 @@ public class SemIaPorPadraoTestes
         Assert.False(RecalculoLinha.OfereceReverComIa("chamadas/01", "Marcar o recuo.", true));   // no diagrama o único "Rever" já é com a IA
         Assert.Throws<ArgumentException>(() => RecalculoLinha.Rever(s.Projeto, "chamadas/01"));
 
-        // Na janela: o botão principal da linha é "Rever (sem IA)" sempre que a tabela tem conta; "Rever com a IA" é outro botão.
         var propriedades = File.ReadAllText(FonteApp("MainWindow.Propriedades.cs"));
-        Assert.Contains("R.PropAjustarRotulo.Text = semIa ? \"Rever (sem IA)\" : \"Rever com a IA\";", propriedades, StringComparison.Ordinal);
-        Assert.Contains("R.PropReverComIa.Visibility = semIa && (!RoteiroLegado || RecalculoLinha.OfereceReverComIa(", propriedades, StringComparison.Ordinal);
-        var revisao = File.ReadAllText(FonteApp("MainWindow.Revisao.cs")).Replace("\r\n", "\n");
-        Assert.Contains("if (RecalculoLinha.ReveSemIa(id)) await ReverSemIaAsync(id);\n            else await RecalcularTabelaComIaAsync(id);", revisao, StringComparison.Ordinal);
-        Assert.Contains("R.PropReverComIa.Click += async (_, _) => await ReverComIaAsync();", revisao, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"PropReverComIa\"", File.ReadAllText(FonteApp("Paginas", "PaginaRelatorios.xaml")), StringComparison.Ordinal);
+        Assert.Contains("R.PropAjustarRotulo.Text = \"Rever com a IA\";", propriedades, StringComparison.Ordinal);
+        var revisao = File.ReadAllText(FonteApp("MainWindow.Revisao.cs"));
+        Assert.DoesNotContain("await ReverSemIaAsync(", revisao, StringComparison.Ordinal);
+        Assert.Contains("await RecalcularTabelaComIaAsync(id);", revisao, StringComparison.Ordinal);
     }
 
     [Fact]

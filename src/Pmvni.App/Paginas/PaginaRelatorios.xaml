@@ -280,16 +280,6 @@
                           <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar o item com a IA"/>
                         </StackPanel>
                       </Button>
-                      <!-- Tarefa 15: numa tabela de índices ou de esquadrias, o botão acima revê sem IA; este é a segunda opção, só oferecida
-                           quando há texto novo na justificativa, e só roda com clique nele. -->
-                      <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" x:Name="PropReverComIa" x:FieldModifier="internal" Visibility="Collapsed"
-                              AutomationProperties.Name="Rever a tabela com a IA, seguindo a justificativa"
-                              local:Dicas.Descricao="A IA revê a tabela seguindo o que você escreveu na justificativa; as contas das esquadrias continuam sendo do editor. Um Desfazer volta tudo.">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                          <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16"/>
-                          <TextBlock Text="Rever com a IA"/>
-                        </StackPanel>
-                      </Button>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
                               AutomationProperties.Name="Cancelar a consulta à IA"
                               local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>

@@ -99,7 +99,6 @@ public sealed partial class MainWindow
         R.PropJustificativaAviso.Visibility = Visibility.Collapsed;
         R.PropAjustarAviso.Visibility = Visibility.Collapsed;
         R.PropAjustarTexto.Visibility = Visibility.Collapsed;
-        R.PropReverComIa.Visibility = Visibility.Collapsed;
         R.PropEsquadrias.Visibility = Visibility.Collapsed;
         R.PropRestaurarOriginal.IsEnabled = false;
         assinaturaEsquadrias = "";

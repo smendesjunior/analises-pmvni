@@ -140,7 +140,6 @@ public sealed partial class MainWindow
             // Correções 2026-11-16: o botão da IA existe em todo item incluído (antes só com a situação revisada); a justificativa é a
             // instrução. Quando ela (ou a situação) muda depois dos textos, o aviso pede o reajuste — nada dispara sozinho.
             R.PropAjustarTexto.Visibility = it.Incluido ? Visibility.Visible : Visibility.Collapsed;
-            R.PropReverComIa.Visibility = Visibility.Collapsed;
             R.PropAjustarRotulo.Text = "Ajustar o item com a IA";
             R.PropAjustarIcone.Glyph = Glifos.Ia;
             Dicas.SetDescricao(R.PropAjustarTexto, "A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.");
@@ -192,22 +191,11 @@ public sealed partial class MainWindow
         R.PropJustificativaAviso.Visibility = rev is not null && TabelasRevisao.FaltaJustificativa(rev) ? Visibility.Visible : Visibility.Collapsed;
         R.PropAjustarTexto.Visibility = Visibility.Visible;
         R.PropAjustarTexto.IsEnabled = editavel && !ajustandoComIa;
-        // Tarefa 15 (correção 1): nos índices e nas esquadrias, o botão principal é SEMPRE o "Rever" sem IA (conta do editor); com texto
-        // novo na justificativa aparece a segunda opção, "Rever com a IA", que só roda com clique nela. No diagrama (sem conta), o único
-        // "Rever" é com a IA.
         var pendente = ReajustePendente(p, linha, rev?.Justificativa);
-        var semIa = RecalculoLinha.ReveSemIa(linha);
-        R.PropAjustarRotulo.Text = semIa ? "Rever (sem IA)" : "Rever com a IA";
-        R.PropAjustarIcone.Glyph = semIa ? Glifos.Conferir : Glifos.Ia;
-        Dicas.SetDescricao(R.PropAjustarTexto, semIa
-            ? "O editor refaz as contas da tabela (resultado, no projeto e situação, comparando com o limite) e mostra o que mudou, de antes e de agora. Sem IA. Um Desfazer volta tudo."
-            : "A IA revê o diagrama a partir desta linha e da justificativa. Um Desfazer volta tudo.");
-        R.PropReverComIa.Visibility = semIa && (!RoteiroLegado || RecalculoLinha.OfereceReverComIa(linha, rev?.Justificativa, pendente))
-            ? Visibility.Visible : Visibility.Collapsed;
-        R.PropReverComIa.IsEnabled = editavel && !ajustandoComIa;
-        R.PropAjustarAviso.Text = semIa
-            ? "A justificativa mudou: reveja a tabela sem IA, peça à IA que siga o que você escreveu (Rever com a IA) ou edite os textos."
-            : "A justificativa mudou: reveja a linha com a IA (o botão abaixo) ou edite os textos.";
+        R.PropAjustarRotulo.Text = "Rever com a IA";
+        R.PropAjustarIcone.Glyph = Glifos.Ia;
+        Dicas.SetDescricao(R.PropAjustarTexto, "A IA revê a tabela a partir desta linha e considera a justificativa que você escreveu. Você pode desfazer a revisão.");
+        R.PropAjustarAviso.Text = "A justificativa mudou. Você pode rever a linha com a IA ou editar os textos.";
         R.PropAjustarAviso.Visibility = pendente ? Visibility.Visible : Visibility.Collapsed;
         itemNasPropriedades = linha;
 
@@ -237,7 +225,6 @@ public sealed partial class MainWindow
         var bloqueio = Editavel ? null : MotivoRevisaoIndisponivel();
         var motivoIa = ajustandoComIa ? "Já há uma consulta à IA em andamento." : bloqueio;
         Atualizar(R.PropAjustarTexto, R.PropAjustarRotulo.Text, Dicas.GetDescricao(R.PropAjustarTexto), motivoIa);
-        Atualizar(R.PropReverComIa, "Rever com a IA", Dicas.GetDescricao(R.PropReverComIa), motivoIa);
         Atualizar(R.PropAjustarCancelar, "Cancelar", Dicas.GetDescricao(R.PropAjustarCancelar),
             "O cancelamento já foi solicitado.");
         if (!ajustandoComIa)

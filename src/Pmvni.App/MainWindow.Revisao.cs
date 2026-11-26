@@ -132,7 +132,6 @@ public sealed partial class MainWindow
             await AplicarJustificativaAsync();
         };
         R.PropAjustarTexto.Click += async (_, _) => await AjustarTextoComIaAsync();
-        R.PropReverComIa.Click += async (_, _) => await ReverComIaAsync();
         R.PropAjustarCancelar.Click += (_, _) => CancelarIa();
         R.PropRestaurarOriginal.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioRestaurarOriginal);
         BotaoDesfazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarDesfazer);
@@ -1220,7 +1219,7 @@ public sealed partial class MainWindow
         R.PropAjustarAnel.IsActive = ajustandoComIa;
         if (ajustandoComIa)
         {
-            R.PropAjustarTexto.IsEnabled = R.PropReverComIa.IsEnabled = false;
+            R.PropAjustarTexto.IsEnabled = false;
             AtualizarDicasDasAcoesDePropriedades();
         }
         R.PropAjustarEstado.Text = !ajustandoComIa ? ""
@@ -1260,11 +1259,8 @@ public sealed partial class MainWindow
         if (ajustandoComIa || itemNasPropriedades is not { } id) return;
         if (TabelasRevisao.EhLinha(id))
         {
-            // Tarefa 15 (correção 1): o botão principal de uma tabela de índices ou de esquadrias é sempre o "Rever" sem IA (conta do
-            // editor); a IA fica na segunda opção (ReverComIaAsync). No diagrama, sem conta, o "Rever" é com a IA.
             await AplicarJustificativaAsync();
-            if (RecalculoLinha.ReveSemIa(id)) await ReverSemIaAsync(id);
-            else await RecalcularTabelaComIaAsync(id);
+            await RecalcularTabelaComIaAsync(id);
             return;
         }
         await AplicarJustificativaAsync();
@@ -1463,36 +1459,6 @@ public sealed partial class MainWindow
         }
         catch (Exception e) { MostrarErroDaIa(e); }
         finally { TerminarEsperaIa(); }
-    }
-
-    /// <summary>Tarefa 15 (correção 1): a segunda opção "Rever com a IA" de uma tabela de índices ou de esquadrias, oferecida quando há texto
-    /// novo na justificativa (<see cref="RecalculoLinha.OfereceReverComIa"/>); só roda com clique nela. A IA segue o que foi escrito.</summary>
-    internal async Task ReverComIaAsync()
-    {
-        if (ajustandoComIa || itemNasPropriedades is not { } id || !TabelasRevisao.EhLinha(id)) return;
-        await AplicarJustificativaAsync();
-        await RecalcularTabelaComIaAsync(id);
-    }
-
-    /// <summary>Acessor do roteiro: a segunda opção "Rever com a IA" está à vista.</summary>
-    internal bool OpcaoReverComIaVisivel => R.PropReverComIa.Visibility == Visibility.Visible;
-
-    /// <summary>Tarefa 15: "Rever" sem IA numa tabela de índices ou de esquadrias (<see cref="RecalculoLinha.Rever"/>): as contas são
-    /// refeitas pelo editor e o aviso mostra cada valor de antes e o de agora; tudo entra como UMA alteração (um Desfazer).</summary>
-    internal async Task ReverSemIaAsync(string linha)
-    {
-        if (!Editavel || sessao is not { } s || !RecalculoLinha.ReveSemIa(linha)) return;
-        await TentarAsync(() => NaFilaAsync(async () =>
-        {
-            if (!ReferenceEquals(sessao, s) || !TabelasRevisao.Existe(s.Revisao.Projeto, linha)) return;
-            var revisao = RecalculoLinha.Rever(s.Revisao.Projeto, linha);
-            if (revisao.Lote is { } lote)
-            {
-                await AplicarAsync(lote);
-                if (ultimosErros.Count > 0) return; // recusado pela conferência: o aviso já está na tela
-            }
-            MostrarMensagem(InfoBarSeverity.Success, "Rever", revisao.Mensagem);
-        }));
     }
 
     /// <summary>"P1", "P2"…, "J3": o primeiro código da categoria que ainda não está em uso no ambiente.</summary>

@@ -5560,12 +5560,8 @@ internal static class Roteiro
             finally { j.AppWindow.Resize(antes); }
         });
 
-        await Passo("rever_tabela_sem_ia", async p =>
+        await Passo("rever_tabela_com_ia", async p =>
         {
-            // Tarefa 15: "Rever" numa tabela de índices é conta do editor, sem IA: a TO de 240,01 ÷ 300,00 escrita "80,0%" (ATENDE) passa a
-            // NÃO ATENDE (a conta exata é 80,0033%), o aviso mostra o valor de antes e o de agora, e um Desfazer volta tudo. Com uma instrução
-            // digitada na justificativa (Tarefa 15, correção 1), o botão principal continua "Rever (sem IA)" e "Rever com a IA" aparece como
-            // segunda opção (PropReverComIa; não é clicada aqui).
             const string To = "indices/02";
             var amostra = Path.Combine(pasta, "amostra-rever-sem-ia");
             if (Directory.Exists(amostra)) ApagarArvore(amostra);
@@ -5587,34 +5583,9 @@ internal static class Roteiro
                 var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
                 await j.SelecionarAsync(To);
                 var rotulo = j.RotuloDoBotaoDaIa;
-                var antes = ProjetoJson.Escrever(s.Revisao.Projeto);
-                int iniciadosAntes;
-                lock (programasIniciados) iniciadosAntes = programasIniciados.Count;
-                await j.AjustarTextoComIaAsync();
-                var aviso = j.InfoMensagemAtual;
-                p["aviso"] = aviso.Title + " · " + aviso.Message;
-                var reviu = TabelasRevisao.SituacaoEfetiva(s.Revisao.Projeto, To) == "NAO_ATENDE" && TabelasRevisao.TextoEfetivo(s.Revisao.Projeto, To, "projeto") == "80,003%"
-                    && aviso.IsOpen && aviso.Title == "Rever" && aviso.Message.StartsWith("Revisto pelo editor, sem IA: ", StringComparison.Ordinal)
-                    && aviso.Message.Contains("ÍNDICE 02 — No projeto: 80,0% → 80,003%", StringComparison.Ordinal)
-                    && aviso.Message.Contains("ÍNDICE 02 — situação: ATENDE → NÃO ATENDE", StringComparison.Ordinal);
-                int iniciadosDepois;
-                lock (programasIniciados) iniciadosDepois = programasIniciados.Count;
-                var semIa = iniciadosDepois == iniciadosAntes && !j.AjustandoComIa;
-                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "rever-sem-ia-janela-xaml.png"));
-                await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
-                var desfez = ProjetoJson.Escrever(s.Revisao.Projeto).AsSpan().SequenceEqual(antes);
-                await j.AplicarAsync(new DefinirJustificativa(To, "Considerar a projeção de 230,00 m² da prancha 02."));
+                await j.AplicarAsync(new DefinirJustificativa(To, "Considerar a projeção da prancha 02."));
                 await j.SelecionarAsync(To);
-                var rotuloComInstrucao = j.RotuloDoBotaoDaIa;
-                var opcaoComIa = j.OpcaoReverComIaVisivel;
-                await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
-                p["rotulos"] = rotulo + " / " + rotuloComInstrucao + (opcaoComIa ? " + Rever com a IA" : "");
-                p["conferencias"] = new JsonObject
-                {
-                    ["rotulo_sem_ia"] = rotulo == "Rever (sem IA)", ["reviu_com_antes_e_depois"] = reviu, ["nenhuma_ia_chamada"] = semIa, ["um_desfazer"] = desfez,
-                    ["instrucao_oferece_ia"] = rotuloComInstrucao == "Rever (sem IA)" && opcaoComIa,
-                };
-                p["ok"] = rotulo == "Rever (sem IA)" && reviu && semIa && desfez && rotuloComInstrucao == "Rever (sem IA)" && opcaoComIa;
+                p["ok"] = rotulo == "Rever com a IA" && j.BotaoDaIaVisivel && j.RotuloDoBotaoDaIa == rotulo;
             }
             finally { File.Delete(json); }
         });
