@@ -52,16 +52,34 @@ public sealed partial class OrquestradorAnalise
     async Task<FimAnalise> ExecutarAnaliseChatGptAsync(PedidoExecucao pe, DateTimeOffset inicio,
         IProgress<ProgressoAnalise> progresso, CancellationToken ct)
     {
+        var pasta = PastaAnaliseChatGpt(pe.RaizDados, pe.Processo.Pasta, pe.Registro.Pasta);
+        using var diario = new DiarioAnaliseChatGpt(pasta, pe.Processo.NomePasta, linha => Anunciar(progresso, new(linha, null)));
+        try
+        {
+            var fim = await ExecutarComDiarioAsync(pe, inicio, progresso, ct, pasta, diario).ConfigureAwait(false);
+            diario.Encerrar(fim.Situacao, fim.Mensagem ?? fim.Documento);
+            return fim;
+        }
+        catch (Exception e)
+        {
+            diario.Encerrar(ct.IsCancellationRequested ? "Interrompida" : "Falhou", e.Message);
+            throw;
+        }
+    }
+
+    async Task<FimAnalise> ExecutarComDiarioAsync(PedidoExecucao pe, DateTimeOffset inicio,
+        IProgress<ProgressoAnalise> progresso, CancellationToken ct, string pasta, DiarioAnaliseChatGpt diario)
+    {
         var registro = pe.Registro;
         var plugin = pe.Pecas.AnaliseChatGpt!;
         var codex = pe.Pecas.Codex!;
-
-        var pasta = PastaAnaliseChatGpt(pe.RaizDados, pe.Processo.Pasta, registro.Pasta);
-        Directory.CreateDirectory(pasta);
         var pacote = Path.Combine(pasta, NomePacoteChatGpt);
         var manifesto = Path.Combine(pasta, NomeEntradaChatGpt);
-        void Informar(string etapa, string texto, PerfilRodadaChatGpt? rodada = null) =>
-            Anunciar(progresso, new(texto, SituacaoDoControlador("EM_ANDAMENTO", texto, etapa) with { RodadaChatGpt = rodada }));
+        void Informar(string etapa, string texto, PerfilRodadaChatGpt? rodada = null)
+        {
+            diario.Registrar("etapa", texto, etapa);
+            Anunciar(progresso, new(null, SituacaoDoControlador("EM_ANDAMENTO", texto, etapa) with { RodadaChatGpt = rodada }));
+        }
 
         void AmbienteCodex(IDictionary<string, string?> env)
         {
@@ -106,17 +124,36 @@ public sealed partial class OrquestradorAnalise
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
             File.Delete(entrega);
-            string[] args = ["exec", "--color", "never", "--ignore-user-config", "--ephemeral",
+            string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--ephemeral",
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"",
                 "--output-last-message", resposta, "-"];
             Iniciou(pe, inicio, codex, [codex, "exec"]);
             registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = "openai"; });
             Informar("analisar_grupos", "O plugin está executando a análise e a auditoria no Codex.");
-            using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
-                _ => { }, _ => { }, TarefaCodex);
-            using var cancelamento = ct.Register(sessao.Cancelar);
-            var codigo = await sessao.Fim.ConfigureAwait(false);
+            await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            using var acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token);
+            int codigo;
+            try
+            {
+                diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
+                using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
+                    linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
+                    aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
+                        "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
+                using var cancelamento = ct.Register(sessao.Cancelar);
+                codigo = await sessao.Fim.ConfigureAwait(false);
+                diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
+            }
+            finally
+            {
+                acompanhamento.Cancel();
+                await observar.ConfigureAwait(false);
+                diario.Arquivos(pasta);
+                await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None).ConfigureAwait(false);
+            }
             ct.ThrowIfCancellationRequested();
             if (codigo != 0 || !File.Exists(entrega))
                 return Falha($"A sessão Codex encerrou com código {codigo} e sem entrega confirmada. Confira ultima-mensagem.md na pasta da execução.");

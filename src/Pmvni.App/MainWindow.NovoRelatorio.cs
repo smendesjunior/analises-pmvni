@@ -257,6 +257,8 @@ public sealed partial class MainWindow
             });
         };
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
+        n.BotaoHistoricoMonitor.Click += async (_, _) => await TentarAsync(() => ConsultarMonitorSalvoAsync(null));
+        n.ConsultarDiario += async (_, _) => await TentarAsync(() => ConsultarMonitorSalvoAsync(execucaoMostrada?.PastaAnaliseChatGpt));
         n.BotaoEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.LinkEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.RegistroDeTrabalho); };
@@ -1018,6 +1020,8 @@ public sealed partial class MainWindow
         NR.ModelosConfigurados = "";
         NR.ConferenciaNumericaExibida = null;
         NR.MostrarDetalhesDasEtapas(DetalhesDasEtapas.Vazio);
+        NR.ConsumoDoPlugin = null;
+        NR.ArquivoDoDiario = null;
         NR.MonitorChatGpt = e.PastaAnaliseChatGpt is null ? null : MonitorAnaliseChatGpt.Aguardando;
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
@@ -1049,10 +1053,13 @@ public sealed partial class MainWindow
         {
             if (e.PastaAnaliseChatGpt is { } pasta)
             {
-                var monitor = await Task.Run(() => OrquestradorAnalise.LerMonitorChatGpt(pasta));
-                if (!fechada && ReferenceEquals(e, execucaoMostrada) && monitor.Rodadas.Count > 0)
+                var (monitor, resumo) = await Task.Run(() => (OrquestradorAnalise.LerMonitorChatGpt(pasta),
+                    DiarioAnaliseChatGpt.Listar(Path.Combine(pasta, DiarioAnaliseChatGpt.Pasta)).FirstOrDefault()));
+                if (!fechada && ReferenceEquals(e, execucaoMostrada))
                 {
-                    NR.MonitorChatGpt = monitor;
+                    NR.ConsumoDoPlugin = resumo.Consumo?.Texto();
+                    NR.ArquivoDoDiario = resumo.Arquivo;
+                    if (monitor.Rodadas.Count > 0) NR.MonitorChatGpt = monitor;
                     RenderizarExecucao(e);
                 }
                 return;

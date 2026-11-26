@@ -57,7 +57,7 @@ public sealed class ExecucaoProcesso : IDisposable
 
     /// <param name="tarefa">O job em que o processo entra logo depois de partir (o Codex: encerrado junto com o editor); null = nenhum.</param>
     public static ExecucaoProcesso Iniciar(string exe, IReadOnlyList<string> args, string pastaTrabalho, string? entrada,
-        Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro, TarefaDoEditor? tarefa = null, GrupoDeProcessos? operacao = null)
+        Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro, TarefaDoEditor? tarefa = null, GrupoDeProcessos? operacao = null, int limiteLinha = LimiteLinha, Action? aoInterromperLeitura = null)
     {
         var psi = new ProcessStartInfo(exe)
         {
@@ -80,8 +80,8 @@ public sealed class ExecucaoProcesso : IDisposable
 
         // As saídas já estão sendo lidas antes de escrever a entrada: um agente que escreve muito antes de ler tudo não trava o editor.
         var sinal = new Sinal();
-        var lerSaida = Task.Run(() => Bombear(programa.StandardOutput, aoLerSaida, sinal));
-        var lerErro = Task.Run(() => Bombear(programa.StandardError, aoLerErro, sinal));
+        var lerSaida = Task.Run(() => Bombear(programa.StandardOutput, aoLerSaida, sinal, limiteLinha));
+        var lerErro = Task.Run(() => Bombear(programa.StandardError, aoLerErro, sinal, limiteLinha));
         try
         {
             if (entrada is not null) programa.StandardInput.Write(entrada);
@@ -94,8 +94,11 @@ public sealed class ExecucaoProcesso : IDisposable
             await p.WaitForExitAsync().ConfigureAwait(false);
             // Espera limitada pelo fim das saídas: um neto que herdou os canais e continua vivo não pode prender o Fim. Passado o prazo, as tarefas de leitura
             // ficam para trás (terminam sozinhas quando o neto sair; o SafeHandle cuida do fechamento) e o que ainda chegar é descartado.
-            await Task.WhenAny(Task.WhenAll(lerSaida, lerErro), Task.Delay(EsperaDasSaidas)).ConfigureAwait(false);
+            var canais = Task.WhenAll(lerSaida, lerErro);
+            var espera = aoInterromperLeitura is null ? EsperaDasSaidas : TimeSpan.FromSeconds(15);
+            await Task.WhenAny(canais, Task.Delay(espera)).ConfigureAwait(false);
             sinal.Encerrado = true;
+            if (!canais.IsCompleted || sinal.FalhaAvisada != 0) aoInterromperLeitura?.Invoke();
             try { return p.ExitCode; }
             catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException) { return -1; }
         });
@@ -109,7 +112,7 @@ public sealed class ExecucaoProcesso : IDisposable
 
     /// <summary>Lê por linhas (terminadas em "\n"; o "\r" do fim sai). Cada linha tem no máximo <see cref="LimiteLinha"/> caracteres: o excedente é descartado
     /// e a linha termina com <see cref="MarcaLinhaTruncada"/>. Assim um agente que escreve sem nunca quebrar a linha não consome a memória do editor.</summary>
-    static void Bombear(StreamReader leitor, Action<string> aoLer, Sinal sinal)
+    static void Bombear(StreamReader leitor, Action<string> aoLer, Sinal sinal, int limiteLinha)
     {
         try
         {
@@ -125,7 +128,7 @@ public sealed class ExecucaoProcesso : IDisposable
                 {
                     var i = resto.IndexOf('\n');
                     var parte = i < 0 ? resto : resto[..i];
-                    var cabe = LimiteLinha - linha.Length;
+                    var cabe = limiteLinha - linha.Length;
                     if (parte.Length <= cabe) linha.Append(parte);
                     else { linha.Append(parte[..cabe]); truncada = true; }
                     if (i < 0) break;

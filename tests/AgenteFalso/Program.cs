@@ -56,7 +56,21 @@ static class Program
     {
         if (args.TakeLast(2).SequenceEqual(new[] { "login", "status" })) return LoginStatus();
         if (args is ["--version"]) return Versao();
-        if (args[0] != "exec") return Uso();
+        if (args.LastOrDefault() == "app-server")
+        {
+            while (Console.ReadLine() is { } pedido)
+            {
+                var rpc = JsonNode.Parse(pedido)!;
+                if (rpc["method"]?.ToString() == "initialize") saida.WriteLine("""{"id":1,"result":{}}""");
+                if (rpc["method"]?.ToString() == "account/rateLimits/read")
+                {
+                    saida.WriteLine("""{"id":2,"result":{"accountId":"conta-ficticia","rateLimits":{"limitId":"codex","planType":"pro","primary":{"windowDurationMins":10080,"usedPercent":8,"resetsAt":1900000000},"secondary":null}}}""");
+                    break;
+                }
+            }
+            return 0;
+        }
+        if (args[0] != "exec" || !args.Contains("--json")) return Uso();
         var prompt = Console.In.ReadToEnd();
         if (!prompt.Contains("SKILL.md") || !prompt.Contains("entrega-plugin.rpmvni")) return Uso();
         File.AppendAllLines(dados["rodadas"]!.GetValue<string>(), ["exec"]);
@@ -64,6 +78,9 @@ static class Program
         if (File.Exists(dados["montagem_invalida"]!.GetValue<string>()))
             File.WriteAllText("entrega-plugin.rpmvni", "pacote incompleto");
         else File.Copy(dados["pacote"]!.GetValue<string>(), "entrega-plugin.rpmvni");
+        saida.WriteLine("""{"type":"item.completed","item":{"type":"command_execution","command":"ler planta fictícia","aggregated_output":"resultado integral fictício"}}""");
+        Console.Error.WriteLine("diagnóstico fictício");
+        saida.WriteLine("""{"type":"turn.completed","usage":{"input_tokens":120,"cached_input_tokens":85,"output_tokens":12}}""");
         return 0;
     }
     static int Uso()

@@ -182,6 +182,20 @@ public partial class OrquestradorTestes
         }
         finally { MensagensDeErro.Registrar = registrarAnterior; }
         Assert.True(entrega.Situacao == "concluida", entrega.Mensagem + Environment.NewLine + string.Join(Environment.NewLine, registroDeErros));
+        var tentativas = DiarioAnaliseChatGpt.Listar(Path.Combine(trabalho, DiarioAnaliseChatGpt.Pasta));
+        Assert.Equal(3, tentativas.Count);
+        var atual = tentativas[0];
+        Assert.Equal(120L, atual.Consumo.Entrada);
+        Assert.Equal(85L, atual.Consumo.Cache);
+        Assert.Equal(12L, atual.Consumo.Saida);
+        Assert.True(atual.Consumo.CotaFinal);
+        Assert.Contains("janela não informada", atual.Consumo.Texto());
+        Assert.Equal(10080, Assert.Single(atual.Consumo.Ultima!.Janelas).Minutos);
+        var log = File.ReadAllLines(DiarioAnaliseChatGpt.LogDe(atual.Arquivo)).Select(l => JsonSerializer.Deserialize<EventoDoPlugin>(l)!).ToList();
+        Assert.Contains(log, l => l.Detalhe.Contains("resultado integral fictício"));
+        Assert.Contains(log, l => l.Tipo == "stderr" && l.Detalhe == "diagnóstico fictício");
+        Assert.Contains(log, l => l.Tipo == "arquivo" && l.Titulo.Contains("entrada-editor"));
+        Assert.Equal("fim", log.Last().Tipo);
         Assert.False(Pacote.Ler(entrega.Documento!).SomenteLeitura);
         Assert.Equal(entrega.Documento, (await orq.ExecutarAsync(retomar, c.Progresso, CancellationToken.None)).Documento);
         Assert.Equal(new[] { "exec", "exec", "exec" }, File.ReadAllLines(rodadas));

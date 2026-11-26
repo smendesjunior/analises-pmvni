@@ -99,6 +99,7 @@
           </Grid.ColumnDefinitions>
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/><StackPanel Grid.Column="1" Spacing="4"><TextBlock AutomationProperties.HeadingLevel="Level1" Text="Novo relatório" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Selecione o processo e escolha como analisar." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/></StackPanel></Grid>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button x:Name="BotaoHistoricoMonitor" x:FieldModifier="internal" Content="Consumo e logs" local:Dicas.Descricao="Consulta o histórico de consumo e eventos das análises desta estação."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atividade}" x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver andamento" Visibility="Collapsed"
                     local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Voltar}" x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"

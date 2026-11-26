@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.10
+
+- A aba Log registra os eventos da sessão Codex, comandos e resultados, erros e arquivos de análise com horário. É possível consultar o conteúdo de cada registro durante a execução e pelo histórico em Novo relatório.
+- A aba Consumo apresenta os tokens informados pelo Codex e as leituras de cota no início, durante e no fim da execução. Cada tentativa mantém seu próprio histórico, inclusive em caso de pausa ou falha.
+
 ## 4.7.9
 
 - A localização inclui o mapa da base municipal, as cotas, a legenda correspondente e a ficha da feição. O Editor confere a cartografia incorporada antes de salvar a entrega.

@@ -227,11 +227,12 @@ public sealed partial class PaginaNovoRelatorio
         var aba = AbaAtual;
         var conteudo = aba switch
         {
+            "Log" when MonitorChatGpt is not null && ArquivoDoDiario is not null => ArquivoDoDiario,
             "Log" => string.Join("|", versaoLogHtml, atividades.Count, HoraUltimoEvento.Text, TituloStatus.Text, emCurso, BotaoEvidenciasPdf.Visibility),
             "Etapas" => ChaveEstruturaEtapas(trilha),
             "Detalhes" => string.Join("|", ModelosConfigurados, ChaveEtapas(), ErroDetalhes.Text, TextoUltimaMensagem.Text, PainelUltimaMensagem.Visibility,
                 string.Join(";", detalhesEtapas.Validacoes), string.Join(";", detalhesEtapas.Plano)),
-            "Consumo" => string.Join("|", ChaveConsumo(), orcamentoExibido),
+            "Consumo" => string.Join("|", ChaveConsumo(), orcamentoExibido, ConsumoDoPlugin),
             _ => string.Join("|", string.Join(";", achadosExibidos.Select(a => a.Id + a.Situacao + a.Verificado + a.Titulo)), filtroAchados, todasEvidencias,
                 BotaoEvidenciasPdf.Visibility, TotalAtende.Text, TotalNaoAtende.Text, TotalComprovar.Text, TotalDivergentes.Text),
         };
@@ -1243,8 +1244,19 @@ public sealed partial class PaginaNovoRelatorio
             SomaMedida(ia.Select(e => e.CacheLido)), cache is { } c ? (long?)c.Nova : null, ia.Any(e => Tokens(e) is null), null);
     }
 
+    internal string? ConsumoDoPlugin { get; set; }
+    internal string? ArquivoDoDiario { get; set; }
+    internal event EventHandler? ConsultarDiario;
+
     void PaginaConsumo()
     {
+        if (MonitorChatGpt is not null)
+        {
+            Adicionar(TituloDePagina(Glifos.Grafico, "Consumo da análise", "Medições da sessão Codex e das janelas de cota da conta."), 0);
+            Adicionar(CartaoChatGpt("Tentativa atual", ConsumoDoPlugin ?? "Aguardando a primeira leitura."), 12);
+            Adicionar(BotaoAcao(Glifos.Recentes, "Consultar histórico e log integral", () => ConsultarDiario?.Invoke(this, EventArgs.Empty)), 12);
+            return;
+        }
         var uso = consumoExibido ?? [];
         var ia = uso.Where(e => e.Executor != UsoDasIas.Programa).ToArray();
         var fichas = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -1540,7 +1552,12 @@ public sealed partial class PaginaNovoRelatorio
     {
         Adicionar(TituloDePagina(Glifos.Recentes, "Log de execução", "Registros cronológicos por hora do evento e ações realizadas durante a análise.",
             emCurso ? TagAoVivo("Em execução") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
-        Adicionar(CabecalhoDeSecao(atividades.Count == 1 ? "1 evento registrado" : $"{atividades.Count} eventos registrados", HoraUltimoEvento.Text, null, idTitulo: "count"), 18);
+        if (MonitorChatGpt is not null && ArquivoDoDiario is { } arquivo)
+        {
+            Adicionar(MainWindow.LeitorDoDiario(arquivo, ConsumoDoPlugin ?? ""), 12);
+            return;
+        }
+        Adicionar(CabecalhoDeSecao(MonitorChatGpt is not null ? "Eventos recentes" : atividades.Count == 1 ? "1 evento registrado" : $"{atividades.Count} eventos registrados", HoraUltimoEvento.Text, null, idTitulo: "count"), 18);
         var lista = Cartao();
         Elevar(lista, levantar: false);
         var pilha = new StackPanel();
@@ -1558,7 +1575,7 @@ public sealed partial class PaginaNovoRelatorio
             cab.Children.Add(t);
         }
         pilha.Children.Add(cab);
-        foreach (var item in atividades)
+        foreach (var item in MonitorChatGpt is null ? atividades.AsEnumerable() : atividades.TakeLast(80))
         {
             var a = item.Atividade;
             var tipo = LinhaAndamento.Classificar(a).Nome;
