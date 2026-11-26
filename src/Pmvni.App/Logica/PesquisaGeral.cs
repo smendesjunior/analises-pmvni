@@ -276,7 +276,6 @@ public static class PesquisaGeral
     public static IReadOnlyList<ItemPesquisaGeral> Ajustes(IEnumerable<OpcaoAjusteTela> opcoes)
     {
         var lista = new List<ItemPesquisaGeral>();
-        // Uma subpágina (Modelos da análise) mostra a categoria-mãe no "onde".
         static string Raiz(CategoriaAjustes c) => c.Pai is { } pai ? $"Ajustes › {CategoriasAjustes.De(pai).Titulo}" : "Ajustes";
         foreach (var c in CategoriasAjustes.Menu)
             lista.Add(new ItemPesquisaGeral(TipoResultadoGeral.Ajuste, c.Titulo, Raiz(c), c.Glifo, "ajuste:" + c.Tag,

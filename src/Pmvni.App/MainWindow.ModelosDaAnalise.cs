@@ -87,6 +87,7 @@ public sealed partial class MainWindow
         var p = PaginaDeAjustes;
         if (!RoteiroLegado)
         {
+            p.GruposDoPlugin.SizeChanged += (_, e) => DistribuirCartoes(p.GruposDoPlugin, e.NewSize.Width, 255, 3);
             p.CategoriaMostrada += async tag =>
             {
                 if (tag != CategoriasAjustes.Modelos) return;
@@ -146,11 +147,12 @@ public sealed partial class MainWindow
         p.BotaoAtualizarModelosIa.Click += async (_, _) => { await AtualizarModelosIaAsync(); MostrarModelosDaAnalise(); };
     }
 
-    static void DistribuirCartoes(Grid grade, double largura)
+    static void DistribuirCartoes(Grid grade, double largura, int larguraPorCartao = 134, int maximoColunas = int.MaxValue)
     {
         var total = grade.Children.Count;
-        var colunas = Math.Min(total, Math.Max(1, (int)((largura + 6) / 134)));
-        if (colunas == 0) return;
+        var colunas = Math.Clamp((int)((largura + grade.ColumnSpacing) / larguraPorCartao), 0, Math.Min(total, maximoColunas));
+        if (total == 0) return;
+        colunas = Math.Max(1, colunas);
         grade.ColumnDefinitions.Clear();
         grade.RowDefinitions.Clear();
         for (var i = 0; i < colunas; i++) grade.ColumnDefinitions.Add(new ColumnDefinition());
@@ -189,7 +191,7 @@ public sealed partial class MainWindow
         var p = PaginaDeAjustes;
         if (!RoteiroLegado)
         {
-            p.TextoPerfisDoPlugin.Text = TextoDosPerfisDoPlugin();
+            MostrarGruposDoPlugin(p);
             return;
         }
         var (kit, etapas) = TabelaDoKitInstalado();
@@ -315,21 +317,41 @@ public sealed partial class MainWindow
         finally { montandoModelosAnalise = false; }
     }
 
-    string TextoDosPerfisDoPlugin()
+    void MostrarGruposDoPlugin(PaginaAjustes pagina)
     {
-        if (pecasAgentes.AnaliseChatGpt is not { } skill) return "Instale o kit PMVNI para consultar os perfis do plugin.";
+        pagina.GruposDoPlugin.Children.Clear();
+        if (pecasAgentes.AnaliseChatGpt is not { } skill)
+        {
+            pagina.ResumoGrupos.Text = "Instale o kit PMVNI para consultar os grupos da análise.";
+            return;
+        }
         try
         {
             using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(Path.Combine(skill, "references", "grupos.json")));
-            var perfis = json.RootElement.EnumerateArray()
-                .Select(g => (Id: g.GetProperty("id").GetInt32(), Modelo: g.GetProperty("modelo").GetString(), Esforco: g.GetProperty("esforco").GetString()))
-                .GroupBy(g => (g.Modelo, g.Esforco, Auditoria: g.Id == 15));
-            return string.Join(Environment.NewLine, perfis.Select(g =>
-                $"{g.Key.Modelo} · {ModelosDaAnalise.NomeDoNivel(g.Key.Esforco ?? "")} · {(g.Key.Auditoria ? "Auditoria e consolidação" : "Grupos " + string.Join(", ", g.Select(x => x.Id)))}"));
+            var cartoes = new List<CartaoGrupoAnalise>();
+            var secoes = new HashSet<int>();
+            foreach (var grupo in json.RootElement.EnumerateArray().OrderBy(g => g.GetProperty("id").GetInt32()))
+            {
+                var id = grupo.GetProperty("id").GetInt32();
+                var nome = grupo.GetProperty("nome").GetString() ?? throw new InvalidDataException();
+                var numeros = grupo.GetProperty("secoes").EnumerateArray().Select(s => s.GetInt32()).ToArray();
+                secoes.UnionWith(numeros);
+                var modelo = grupo.GetProperty("modelo").GetString();
+                var nivel = ModelosDaAnalise.NomeDoNivel(grupo.GetProperty("esforco").GetString() ?? "");
+                var (icone, descricao) = CartaoGrupoAnalise.Explicar(nome, numeros);
+                cartoes.Add(new($"Grupo {id:00}", nome, descricao, $"{modelo} · esforço {nivel.ToLowerInvariant()}", icone));
+            }
+            if (cartoes.Count == 0) throw new InvalidDataException();
+            pagina.ResumoGrupos.Text = $"{cartoes.Count} grupos · {secoes.Count} verificações";
+            var modeloCartao = (DataTemplate)pagina.Resources["ModeloGrupoAnalise"];
+            foreach (var cartao in cartoes)
+                pagina.GruposDoPlugin.Children.Add(new ContentPresenter { Content = cartao, ContentTemplate = modeloCartao,
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch });
+            DistribuirCartoes(pagina.GruposDoPlugin, pagina.GruposDoPlugin.ActualWidth, 255, 3);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException or FormatException or InvalidDataException)
         {
-            return "Não foi possível ler os perfis do plugin. Verifique a instalação em Kit PMVNI.";
+            pagina.ResumoGrupos.Text = "Não foi possível ler os grupos do plugin. Confira a instalação em Kit PMVNI.";
         }
     }
 

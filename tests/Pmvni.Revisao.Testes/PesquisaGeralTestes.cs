@@ -78,8 +78,8 @@ public class PesquisaGeralTestes
         Assert.Equal("Ajustes", fontes.Onde);
         // A frase de ajuda também casa ("planilha" está na ajuda de Pastas e fontes de dados).
         Assert.Contains(Achados("planilha", itens), i => i.Titulo == "Pastas e fontes de dados");
-        // A subpágina mostra a categoria-mãe.
-        Assert.Equal("Ajustes › Inteligência artificial", itens.Single(i => i.Titulo == "Modelos da análise").Onde);
+        // Modelos tem entrada própria no menu.
+        Assert.Equal("Ajustes", itens.Single(i => i.Titulo == "Modelos da análise").Onde);
     }
 
     [Fact]

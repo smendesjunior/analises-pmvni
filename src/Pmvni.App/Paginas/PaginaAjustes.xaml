@@ -3,10 +3,27 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
   <!-- Módulo Ajustes (desenho §9, §10.10, §12.8; auditoria da interface §3): no padrão do WinStatusBar, um menu de categorias
-       (CategoriasAjustes.Menu; "Sistema" no rodapé, "Modelos da análise" dentro de Inteligência artificial) e, em cada página, título, frase de ajuda e grupos de cartões. Cada linha tem o
+       (CategoriasAjustes.Menu; "Sistema" no rodapé) e, em cada página, título, frase de ajuda e grupos de cartões. Cada linha tem o
        título e a ajuda à esquerda e o controle numa coluna de 240 à direita (empilha abaixo de 540 px: LinhaAjuste). Tudo grava na hora
        (barra "Alterações salvas automaticamente"). Quem preenche e reage é a janela (MainWindow.Ajustes.cs e as outras partes). -->
   <UserControl.Resources>
+    <DataTemplate x:Key="ModeloGrupoAnalise" x:DataType="local:CartaoGrupoAnalise">
+      <Border Style="{StaticResource PmvniAjusteGrupo}" Padding="16">
+        <Grid RowSpacing="10">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <StackPanel Orientation="Horizontal" Spacing="9">
+            <FontIcon Glyph="{x:Bind Icone}" Style="{StaticResource PmvniIconeDestaqueStyle}" FontSize="18"/>
+            <TextBlock Text="{x:Bind Numero}" Style="{StaticResource PmvniAjusteAjuda}"/>
+          </StackPanel>
+          <TextBlock Grid.Row="1" Text="{x:Bind Nome}" Style="{StaticResource PmvniAjusteTitulo}" FontSize="16"/>
+          <TextBlock Grid.Row="2" Text="{x:Bind Descricao}" TextWrapping="Wrap" FontSize="14" LineHeight="20"/>
+          <StackPanel Grid.Row="3" Spacing="8">
+            <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
+            <TextBlock Text="{x:Bind Perfil}" Style="{StaticResource PmvniAjusteAjuda}"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </DataTemplate>
     <!-- Uma linha por anexo (LinhaAnexo): o título vale ao sair da caixa ou com Enter; a esfera, ao escolher. -->
     <DataTemplate x:Key="ModeloLinhaAnexo" x:DataType="local:LinhaAnexo">
       <Grid Padding="12,10" RowSpacing="6" ColumnSpacing="8" CornerRadius="6" BorderThickness="1"
@@ -606,14 +623,12 @@
             </local:PainelCartoesAjustes>
           </StackPanel>
 
-          <!-- ===== 6.1 Inteligência artificial › Modelos da análise ===== -->
+          <!-- ===== Modelos da análise ===== -->
           <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
-            <Border x:Name="CartaoPerfisDoPlugin" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteGrupo}">
-              <StackPanel Padding="16,12" Spacing="8">
-                <TextBlock Text="Perfis do analise-chatgpt" Style="{StaticResource PmvniAjusteTitulo}"/>
-                <TextBlock x:Name="TextoPerfisDoPlugin" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
-              </StackPanel>
-            </Border>
+            <StackPanel x:Name="CartaoPerfisDoPlugin" x:FieldModifier="internal" Spacing="12">
+              <TextBlock x:Name="ResumoGrupos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+              <Grid x:Name="GruposDoPlugin" x:FieldModifier="internal" ColumnSpacing="10" RowSpacing="10"/>
+            </StackPanel>
             <StackPanel x:Name="AjustesLegadosDosModelos" x:FieldModifier="internal" Spacing="12" Visibility="Collapsed">
             <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="Na análise, o kit escolhe o modelo conforme a tarefa. O Monitor mostra qual está em atividade. Na auditoria técnica, você escolhe o modelo e o esforço que este computador usará nas novas análises."/>
             <TextBlock Text="ROTAS DE EXECUÇÃO" Style="{StaticResource PmvniAjusteTitulo}"/>

@@ -12,8 +12,7 @@ public class CategoriasAjustesTestes
     {
         Assert.Equal(new[] { "Geral", "Profissional e assinatura", "Pastas e fontes de dados", "Relatórios e revisão", "Módulos", "Inteligência artificial", "Modelos da análise", "Kit PMVNI", "Sistema" },
             CategoriasAjustes.Menu.Select(c => c.Titulo));
-        // Modelos da análise é subpágina de Inteligência artificial e vem logo depois dela; nenhuma outra tem mãe.
-        Assert.Equal(new[] { (CategoriasAjustes.Modelos, CategoriasAjustes.Ia) }, CategoriasAjustes.Menu.Where(c => c.Pai is not null).Select(c => (c.Tag, c.Pai!)));
+        Assert.Null(CategoriasAjustes.De(CategoriasAjustes.Modelos).Pai);
         Assert.Equal(CategoriasAjustes.Ia, CategoriasAjustes.Menu[CategoriasAjustes.Menu.ToList().FindIndex(c => c.Tag == CategoriasAjustes.Modelos) - 1].Tag);
         Assert.Equal(CategoriasAjustes.Menu.Count, CategoriasAjustes.Menu.Select(c => c.Tag).Distinct().Count());
         Assert.Equal(new[] { CategoriasAjustes.Sobre }, CategoriasAjustes.Menu.Where(c => c.Rodape).Select(c => c.Tag));

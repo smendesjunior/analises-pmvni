@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.1
+
+- Inteligência artificial e Modelos da análise têm entradas independentes nas configurações. Os cartões dos grupos mostram o que é conferido e qual modelo e esforço o plugin utiliza.
+
 ## 4.7.0
 
 - Novas análises usam o analise-chatgpt com a conta ChatGPT. Uma única sessão do Codex conduz os grupos, consulta as fontes, audita e gera o .rpmvni com o plugin 0.3.6. O Editor acompanha a matriz e abre o arquivo para revisão.

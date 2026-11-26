@@ -23,7 +23,6 @@ public sealed partial class PaginaAjustes : UserControl
         {
             var item = new NavigationViewItem { Content = c.Titulo, Tag = c.Tag, Icon = new FontIcon { Glyph = c.Glifo } };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, c.Titulo);
-            // Uma subpágina (Modelos da análise) fica dentro da categoria-mãe, aberta (sem esconder a opção atrás de um clique).
             if (c.Pai is { } pai && itensMenu.TryGetValue(pai, out var mae)) { mae.MenuItems.Add(item); mae.IsExpanded = true; }
             else (c.Rodape ? Menu.FooterMenuItems : Menu.MenuItems).Add(item);
             itensMenu[c.Tag] = item;
