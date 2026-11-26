@@ -126,6 +126,8 @@ public sealed partial class OrquestradorAnalise
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
                 Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Refaça os grupos sem comprovação, inclusive o grupo 15 e a auditoria final em Sol 6.2 high.
+                Para atualizar o monitor, ao identificar o perfil em turn_context de um agente em atividade, grave perfil-ativo.json nesta pasta com id_execucao, modelo e esforco efetivos.
+                Havendo agentes simultâneos, mostre o perfil confirmado mais recente entre os ativos. Atualize ao mudar e remova o arquivo quando nenhum estiver em atividade.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Para um lote candidato ou confirmado, use o gerador do Editor antes da auditoria:
@@ -157,6 +159,7 @@ public sealed partial class OrquestradorAnalise
                 while (true)
                 {
                     ct.ThrowIfCancellationRequested();
+                    File.Delete(Path.Combine(pasta, "perfil-ativo.json"));
                     File.Delete(resposta);
                     diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
                     using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,

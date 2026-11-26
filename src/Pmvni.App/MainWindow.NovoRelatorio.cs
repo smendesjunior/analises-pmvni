@@ -1213,7 +1213,7 @@ public sealed partial class MainWindow
         if (chatgpt)
         {
             var fimChatGpt = e.Fim is { IsCompletedSuccessfully: true } terminou ? terminou.Result : null;
-            n.PerfilChatGptAtivo = rodando ? e.Situacao?.RodadaChatGpt : null;
+            n.PerfilChatGptAtivo = rodando ? n.MonitorChatGpt?.PerfilAtivo ?? e.Situacao?.RodadaChatGpt : null;
             n.AtividadeChatGpt = fimChatGpt?.Mensagem ?? e.Situacao?.Rotulo;
             if (fimChatGpt?.Situacao == "falhou")
             {

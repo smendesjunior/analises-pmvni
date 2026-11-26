@@ -21,6 +21,7 @@ internal sealed record RodadaDoMonitorChatGpt(PerfilRodadaChatGpt Perfil, IReadO
 internal sealed record MonitorAnaliseChatGpt(IReadOnlyList<RodadaDoMonitorChatGpt> Rodadas, string? Qgis, int? Candidatos)
 {
     public static MonitorAnaliseChatGpt Aguardando { get; } = new([], null, null);
+    public PerfilRodadaChatGpt? PerfilAtivo { get; init; }
     public int RodadasConcluidas => Rodadas.Count(r => r.Confirmada);
     public int GruposConcluidos => Rodadas.Where(r => r.Confirmada).Sum(r => r.Grupos.Count);
     public int VerificacoesConcluidas => Rodadas.Where(r => r.Confirmada).Sum(r => r.Verificacoes);
@@ -77,7 +78,12 @@ public sealed partial class OrquestradorAnalise
                     Plano = grupo.Secoes.Select(s => new PassoDoPlanoChatGpt(s, confirmado || realizadas.Contains(s) ? "concluida" : "pendente")).ToArray()
                 });
             }
-            return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count);
+            var ativo = LerRegistroParcial(Path.Combine(pasta, "perfil-ativo.json"));
+            PerfilRodadaChatGpt? perfil = null;
+            if (idAtual is not null && ativo?["id_execucao"]?.ToString() == idAtual &&
+                ativo["modelo"]?.ToString() is { Length: > 0 } modelo && ativo["esforco"]?.ToString() is { Length: > 0 } esforco)
+                perfil = new(0, modelo, esforco);
+            return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count) { PerfilAtivo = perfil };
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {

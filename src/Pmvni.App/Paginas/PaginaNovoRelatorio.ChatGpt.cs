@@ -65,7 +65,7 @@ public sealed partial class PaginaNovoRelatorio
         return cartao;
     }
 
-    FrameworkElement CartoesDosGrupos(IEnumerable<RodadaDoMonitorChatGpt> rodadas)
+    FrameworkElement CartoesDosGrupos(IEnumerable<RodadaDoMonitorChatGpt> rodadas, bool mostrarModelo, EstadoEtapa estadoEtapa)
     {
         var grade = new PainelQuebra { Espaco = 8, EspacoLinhas = 8 };
         foreach (var rodada in rodadas)
@@ -82,6 +82,23 @@ public sealed partial class PaginaNovoRelatorio
             ToolTipService.SetToolTip(cartao, $"Seções {string.Join(", ", grupo.Secoes)} · Perfil previsto: {rodada.Perfil.Texto}");
             grade.Children.Add(cartao);
         }
+        if (mostrarModelo)
+        {
+            var perfil = PerfilChatGptAtivo;
+            var bloco = Cartao();
+            bloco.Width = 260;
+            var linha = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(16, 12, 16, 12) };
+            var logo = new Image { Width = 26, Height = 26, Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("ms-appx:///Recursos/Provedores/openai.svg")) };
+            linha.Children.Add(new Border { Child = logo, Width = 38, Height = 38, CornerRadius = new CornerRadius(19),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White), VerticalAlignment = VerticalAlignment.Center });
+            var rotulo = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            rotulo.Children.Add(Texto(perfil?.Modelo ?? "OpenAI", "MnCorpoForte"));
+            rotulo.Children.Add(Texto(perfil is null ? (estadoEtapa == EstadoEtapa.Agora ? "Aguardando perfil ativo" : "Sem modelo ativo")
+                : "Esforço " + DetalhesDasEtapas.NomeDoEsforco(perfil.Esforco), "MnSecundario"));
+            linha.Children.Add(rotulo);
+            bloco.Child = linha;
+            grade.Children.Add(bloco);
+        }
         return grade;
     }
 
@@ -90,13 +107,25 @@ public sealed partial class PaginaNovoRelatorio
         var corpo = new StackPanel { Padding = new Thickness(62, 0, 16, 16), Spacing = 10 };
         if (estado is EstadoEtapa.Agora or EstadoEtapa.Erro && AtividadeChatGpt is { Length: > 0 } atividade)
             corpo.Children.Add(Texto(atividade, "MnSecundario"));
+        Border? qgis = null;
         if (etapa == "analisar_grupos")
-            corpo.Children.Add(CartaoChatGpt("Consulta QGIS", TextoQgisChatGpt(dados)));
+        {
+            qgis = CartaoChatGpt("Consulta QGIS", TextoQgisChatGpt(dados));
+            qgis.HorizontalAlignment = HorizontalAlignment.Left;
+            var barra = new ProgressBar { Minimum = 0, Maximum = 100, Value = dados.Qgis == "CONSULTADA" ? 100 : 0 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(barra, "Consulta QGIS. " + TextoQgisChatGpt(dados));
+            ((StackPanel)qgis.Child).Children.Add(barra);
+            corpo.Children.Add(qgis);
+        }
         if (etapa is "analisar_grupos" or "auditar_relatorio")
         {
             if (dados.Rodadas.Count == 0)
                 corpo.Children.Add(Texto("Aguardando a leitura do plano do plugin.", "MnLegenda"));
-            corpo.Children.Add(CartoesDosGrupos(dados.Rodadas.Where(r => (r.Perfil.Numero == 15) == (etapa == "auditar_relatorio"))));
+            var grade = CartoesDosGrupos(dados.Rodadas.Where(r => (r.Perfil.Numero == 15) == (etapa == "auditar_relatorio")), qgis is not null, estado);
+            grade.HorizontalAlignment = HorizontalAlignment.Left;
+            if (qgis is not null)
+                grade.SizeChanged += (_, e) => qgis.Width = e.NewSize.Width;
+            corpo.Children.Add(grade);
         }
         else
         {
