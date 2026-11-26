@@ -1076,7 +1076,7 @@ public sealed partial class PaginaNovoRelatorio
         modelos.Child = grade;
         Adicionar(modelos, 12);
         if (MonitorChatGpt is { Rodadas.Count: > 0 } monitor)
-            Adicionar(CartoesDosGrupos(monitor.Rodadas), 12);
+            Adicionar(CartoesDosGrupos(monitor.Rodadas, false, default), 12);
         var lista = Cartao();
         Elevar(lista, levantar: false);
         var pilha = new StackPanel();
