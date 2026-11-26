@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "1.0.1";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.0.2";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -117,7 +117,7 @@ public sealed partial class OrquestradorAnalise
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. O grupo 15 e a auditoria final exigem Sol 6.2 high. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Para o grupo 15 e a auditoria final, use o modelo e o esforço do grupo 15 no plano vigente do plugin. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Para um lote candidato ou confirmado, use o gerador do Editor antes da auditoria:
@@ -613,8 +613,8 @@ public sealed partial class OrquestradorAnalise
         if (anterior is null || novo is null) return false;
         if (JsonNode.DeepEquals(anterior, novo)) return true;
         foreach (var grupo in anterior.OfType<JsonObject>())
-            if (grupo["id"]?.ToString() == "15" && grupo["modelo"]?.ToString() == "gpt-6.2-sol" && grupo["esforco"]?.ToString() == "medium")
-                grupo["esforco"] = "high";
+            if (grupo["id"]?.ToString() == "15" && grupo["modelo"]?.ToString() == "gpt-6.2-sol" && grupo["esforco"]?.ToString() == "high")
+                grupo["esforco"] = "medium";
         return JsonNode.DeepEquals(anterior, novo);
     }
 
