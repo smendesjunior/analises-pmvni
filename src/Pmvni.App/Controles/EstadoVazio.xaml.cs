@@ -63,6 +63,7 @@ public sealed partial class EstadoVazio : UserControl
         AtualizarIcone();
         Titulo.Text = titulo;
         DefinirFrase(frase);
+        Botoes.Visibility = primario.HasValue || secundario.HasValue ? Visibility.Visible : Visibility.Collapsed;
         idPrimario = primario?.Id;
         if (primario is { } p)
         {
@@ -89,6 +90,8 @@ public sealed partial class EstadoVazio : UserControl
         else BotaoSecundario.Visibility = Visibility.Collapsed;
     }
 
+    internal IEnumerable<string> RotulosDasAcoes => AcoesAdicionais.Children.OfType<Button>().Select(b => AutomationProperties.GetName(b));
+
     internal void DefinirAcoesAdicionais(Modulo modulo, IEnumerable<ComandoFaixa> comandos)
     {
         AcoesAdicionais.Children.Clear();
@@ -97,7 +100,7 @@ public sealed partial class EstadoVazio : UserControl
             var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             conteudo.Children.Add(new FontIcon { Glyph = Glifos.Adicionar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] });
             conteudo.Children.Add(new TextBlock { Text = comando.Rotulo });
-            var botao = new Button { Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var botao = new Button { Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
             AutomationProperties.SetName(botao, comando.Rotulo);
             Dicas.AplicarComando(botao, comando.Id, comando.Rotulo, modulo);
             botao.Click += (_, _) => ComandoEscolhido?.Invoke(comando.Id);

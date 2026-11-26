@@ -4993,7 +4993,7 @@ internal static class Roteiro
             var fraseSegue = j.EstadoVazioProcessos.TextoFrase == "Frase de teste do roteiro";
             j.TextoListaVaziaProcessos.Text = textoVazio;
             var telasVazias = j.EstadoVazioProcessos.TextoTitulo == "Nenhum processo" && j.EstadoVazioProcessos.TextoPrimario == "Atualizar lista"
-                && j.EstadoVazioDespachos.TextoTitulo == "Criar um despacho" && j.EstadoVazioDespachos.TextoPrimario == "Despacho de correção" && fraseSegue; // Despachos só cria (correções 2026-11-15)
+                && j.EstadoVazioDespachos.TextoTitulo == "Criar um despacho" && j.EstadoVazioDespachos.RotulosDasAcoes.SequenceEqual(["Correção", "Aprovação", "Retirada de processos/projetos", "Devolução de processos/projetos", "Uso geral"]) && fraseSegue; // Despachos só cria (correções 2026-11-15)
             p["telas_vazias_de_processos_e_despachos"] = telasVazias;
             tudoOk &= telasVazias;
             // Captura do trilho nos dois temas (o roteiro não muda o tema guardado).

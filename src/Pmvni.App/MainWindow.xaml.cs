@@ -1100,10 +1100,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             ("Atualizar lista", Glifos.Atualizar, ComandosApp.ProcessosAtualizar), ("Abrir Ajustes", ComandosApp.ModuloAjustes));
         PaginaDeDespachos.Vazio.Definir(Modulo.Despachos, "Criar um despacho",
             "Escolha o tipo de despacho. Para correção ou aprovação, você pode anexar um relatório. Consulte os despachos já emitidos em Processos.",
-            ("Despacho de correção", Glifos.Adicionar, ComandosApp.DespachosNovoCorrecao), ("Despacho de aprovação", ComandosApp.DespachosNovoAprovacao), Glifos.Adicionar);
+            null, null);
         var menuDespachos = Faixas.Comandos(Faixas.Para(Modulo.Despachos)).Single(c => c.Id == ComandosApp.DespachosNovo);
         PaginaDeDespachos.Vazio.DefinirAcoesAdicionais(Modulo.Despachos, menuDespachos.Itens!.Where(c =>
-            c.Id is ComandosApp.DespachosNovoEntrega or ComandosApp.DespachosNovoDevolucao or ComandosApp.DespachosNovoGenerico));
+            c.Id != ComandosApp.DespachosNovoCorrecaoAutomatica));
         PaginaDeProcessos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
         PaginaDeDespachos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
     }
