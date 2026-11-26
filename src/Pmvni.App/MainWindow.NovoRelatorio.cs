@@ -1068,6 +1068,7 @@ public sealed partial class MainWindow
     }
 
     ConsumoSessaoCodex? consumoSessao;
+    readonly PerfilAoVivoCodex perfilAoVivo = new();
     bool lendoAchados;
 
     /// <summary>Tarefa 13: o progresso, a previsão e o consumo saem dos arquivos do kit (manifesto, engine_state e uso-das-IAs.json), lidos pelo Editor; a IA
@@ -1080,7 +1081,8 @@ public sealed partial class MainWindow
         {
             if (e.PastaAnaliseChatGpt is { } pasta)
             {
-                var (monitor, resumo) = await Task.Run(() => (OrquestradorAnalise.LerMonitorChatGpt(pasta),
+                var casaCodex = OpcoesAgentes().CodexHome;
+                var (monitor, resumo) = await Task.Run(() => (OrquestradorAnalise.LerMonitorChatGpt(pasta) with { PerfilAtivo = perfilAoVivo.Ler(pasta, casaCodex) },
                     DiarioAnaliseChatGpt.Listar(Path.Combine(pasta, DiarioAnaliseChatGpt.Pasta)).FirstOrDefault()));
                 if (!fechada && ReferenceEquals(e, execucaoMostrada))
                 {

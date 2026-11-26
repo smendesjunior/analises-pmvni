@@ -59,6 +59,24 @@ public sealed partial class MainWindow
         painel.Children.Add(seguir);
         var terminal = TerminalDoMonitor();
         painel.Children.Add(terminal);
+        ScrollViewer? rolagem = null;
+        void IrAoFim()
+        {
+            if (seguir.IsChecked != true || !terminal.IsLoaded || terminal.Items.Count == 0) return;
+            terminal.ScrollIntoView(terminal.Items[terminal.Items.Count - 1]);
+            rolagem ??= LocalizarRolagem(terminal);
+            rolagem?.ChangeView(null, rolagem.ScrollableHeight, null, true);
+        }
+        double ultimaAltura = -1;
+        terminal.LayoutUpdated += (_, _) =>
+        {
+            if (seguir.IsChecked == true && rolagem is not null && ultimaAltura != rolagem.ScrollableHeight)
+            {
+                ultimaAltura = rolagem.ScrollableHeight;
+                rolagem.ChangeView(null, ultimaAltura, null, true);
+            }
+        };
+        seguir.Checked += (_, _) => IrAoFim();
         long posicao = 0;
         bool lendo = false;
         async Task Atualizar()
@@ -67,12 +85,17 @@ public sealed partial class MainWindow
             lendo = true;
             try
             {
-                var lote = await Task.Run(() => LerTrechoDoLog(DiarioAnaliseChatGpt.LogDe(arquivo), posicao));
-                if (!painel.IsLoaded) return;
-                if (lote.Reiniciar) terminal.Items.Clear();
-                foreach (var linha in lote.Linhas) terminal.Items.Add(linha);
-                posicao = lote.Proxima;
-                if (seguir.IsChecked == true && lote.Linhas.Count > 0) terminal.ScrollIntoView(terminal.Items.Last());
+                while (painel.IsLoaded)
+                {
+                    var lote = await Task.Run(() => LerTrechoDoLog(DiarioAnaliseChatGpt.LogDe(arquivo), posicao));
+                    if (!painel.IsLoaded) return;
+                    if (lote.Reiniciar) terminal.Items.Clear();
+                    foreach (var linha in lote.Linhas) terminal.Items.Add(linha);
+                    posicao = lote.Proxima;
+                    if (lote.Linhas.Count > 0) IrAoFim();
+                    if (lote.Linhas.Count < 64) break;
+                    await Task.Yield();
+                }
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
@@ -81,11 +104,19 @@ public sealed partial class MainWindow
             }
             finally { lendo = false; }
         }
-        var pulso = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        var pulso = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         pulso.Tick += async (_, _) => await Atualizar();
         painel.Loaded += async (_, _) => { pulso.Start(); await Atualizar(); };
         painel.Unloaded += (_, _) => pulso.Stop();
         return painel;
+    }
+
+    static ScrollViewer? LocalizarRolagem(DependencyObject raiz)
+    {
+        if (raiz is ScrollViewer rolagem) return rolagem;
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(raiz); i++)
+            if (LocalizarRolagem(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(raiz, i)) is { } encontrada) return encontrada;
+        return null;
     }
 
     static (long Proxima, bool Reiniciar, List<string> Linhas) LerTrechoDoLog(string caminho, long posicao)
@@ -112,8 +143,13 @@ public sealed partial class MainWindow
                         texto = $"[{e.Hora.LocalDateTime:T}] {e.Titulo}" + (e.Detalhe.Length == 0 ? "" : Environment.NewLine + e.Detalhe);
                 }
                 catch (JsonException) { }
-                for (int j = 0; j < texto.Length; j += 4096)
-                    linhas.Add(texto.Substring(j, Math.Min(4096, texto.Length - j)));
+                using var leitor = new StringReader(texto);
+                while (leitor.ReadLine() is { } linha)
+                {
+                    if (linha.Length == 0) linhas.Add("");
+                    for (int j = 0; j < linha.Length; j += 1024)
+                        linhas.Add(linha.Substring(j, Math.Min(1024, linha.Length - j)));
+                }
                 proxima = arquivo.Position - lidos + i + 1;
                 if (linhas.Count >= 64) return (proxima, reiniciar, linhas);
                 evento.SetLength(0);

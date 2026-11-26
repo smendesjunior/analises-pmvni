@@ -40,6 +40,11 @@ internal static class AutotesteConsumo
             await Esperar(() => Valor("weeklyPercent") == "11%" && Valor("shortPercent") == "—" && Valor("cachePercent") == "25%");
             Abrir("Log");
             await Esperar(() => Controles(pagina.ConteudoMonitor).OfType<ListView>().Any(t => t.Items.Count > 200 && t.Items[0].ToString()!.Contains("Evento grande")));
+            File.AppendAllText(DiarioAnaliseChatGpt.LogDe(arquivo), JsonSerializer.Serialize(
+                new EventoDoPlugin(agora, "teste", "Última linha", "Fim do terminal")) + "\n");
+            await Esperar(() => Controles(pagina.ConteudoMonitor).OfType<ListView>().Any(t =>
+                Equals(t.Items.LastOrDefault(), "Fim do terminal") && Controles(t).OfType<ScrollViewer>()
+                    .Any(v => v.ScrollableHeight > 0 && v.VerticalOffset >= v.ScrollableHeight - 2)));
             Abrir("Consumo");
             await Esperar(() => Valor("weeklyPercent") == "11%");
         }

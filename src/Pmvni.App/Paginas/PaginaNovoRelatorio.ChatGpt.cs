@@ -94,7 +94,7 @@ public sealed partial class PaginaNovoRelatorio
             var rotulo = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
             rotulo.Children.Add(Texto(perfil?.Modelo ?? "OpenAI", "MnCorpoForte"));
             rotulo.Children.Add(Texto(perfil is null ? (estadoEtapa == EstadoEtapa.Agora ? "Aguardando perfil ativo" : "Sem modelo ativo")
-                : "Esforço " + DetalhesDasEtapas.NomeDoEsforco(perfil.Esforco), "MnSecundario"));
+                : DetalhesDasEtapas.NomeDoEsforco(perfil.Esforco) is { } nivel ? "Esforço " + nivel : "Esforço não informado", "MnSecundario"));
             linha.Children.Add(rotulo);
             bloco.Child = linha;
             grade.Children.Add(bloco);

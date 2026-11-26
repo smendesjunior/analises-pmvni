@@ -78,12 +78,7 @@ public sealed partial class OrquestradorAnalise
                     Plano = grupo.Secoes.Select(s => new PassoDoPlanoChatGpt(s, confirmado || realizadas.Contains(s) ? "concluida" : "pendente")).ToArray()
                 });
             }
-            var ativo = LerRegistroParcial(Path.Combine(pasta, "perfil-ativo.json"));
-            PerfilRodadaChatGpt? perfil = null;
-            if (idAtual is not null && ativo?["id_execucao"]?.ToString() == idAtual &&
-                ativo["modelo"]?.ToString() is { Length: > 0 } modelo && ativo["esforco"]?.ToString() is { Length: > 0 } esforco)
-                perfil = new(0, modelo, esforco);
-            return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count) { PerfilAtivo = perfil };
+            return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
