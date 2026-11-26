@@ -236,7 +236,7 @@ public sealed partial class PaginaNovoRelatorio
                 BotaoEvidenciasPdf.Visibility, TotalAtende.Text, TotalNaoAtende.Text, TotalComprovar.Text, TotalDivergentes.Text),
         };
         if (aba == "Resumo") conteudo += "|" + versaoConferenciaNumerica;
-        if (MonitorChatGpt is { } chatGpt && aba is "Resumo" or "Etapas")
+        if (MonitorChatGpt is { } chatGpt && aba is "Resumo" or "Etapas" or "Detalhes")
             conteudo += $"|chatgpt|{chatGpt.Rodadas.Count}|{string.Join(",", chatGpt.Rodadas.Where(r => r.Confirmada).Select(r => r.Perfil.Numero))}|{chatGpt.Qgis}|{chatGpt.Candidatos}|{AtividadeChatGpt}|{PerfilChatGptAtivo}|"
                 + string.Join(";", chatGpt.Rodadas.SelectMany(r => r.Plano).Select(p => p.Secao + ":" + p.Estado));
         conteudo = aba + "|" + execucaoHtml + "|" + conteudo;
@@ -371,7 +371,7 @@ public sealed partial class PaginaNovoRelatorio
         }
         if (MonitorChatGpt is not null)
         {
-            var rotuloPlano = Texto("confirmado", "MnLegenda");
+            var rotuloPlano = Texto("do fluxo", "MnLegenda");
             rotuloPlano.HorizontalAlignment = HorizontalAlignment.Center;
             centro.Children.Add(rotuloPlano);
         }
@@ -413,12 +413,7 @@ public sealed partial class PaginaNovoRelatorio
         topo.Children.Add(info);
 
         var tempos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-        var duracoes = new StackPanel { Spacing = 2 };
-        duracoes.Children.Add(LadrilhoDeTempo(Glifos.Relogio, "Tempo decorrido", relogio.Decorrido, relogio.Decorrido, out valorDecorrido));
-        var atividade = LegendaGrafico("");
-        atividade.SetBinding(TextBlock.TextProperty, new Microsoft.UI.Xaml.Data.Binding { Source = TextoTempoAtivo, Path = new PropertyPath("Text") });
-        duracoes.Children.Add(atividade);
-        tempos.Children.Add(duracoes);
+        tempos.Children.Add(LadrilhoDeTempo(Glifos.Relogio, "Tempo decorrido", relogio.Decorrido, relogio.Decorrido, out valorDecorrido));
         Id(valorDecorrido, "elapsed");
         tempos.Children.Add(LadrilhoDeTempo(Glifos.Ano, MonitorChatGpt is null ? "Previsão de término" : "Tempo restante das verificações", relogio.Previsao,
             string.IsNullOrEmpty(dicaPrevisao) ? relogio.Previsao : dicaPrevisao, out valorPrevisao));
@@ -1078,6 +1073,8 @@ public sealed partial class PaginaNovoRelatorio
         grade.Children.Add(Texto(emCurso ? ExecutorAtual() ?? "Aguardando registro" : string.IsNullOrEmpty(ModelosConfigurados) ? "Lendo a configuração desta execução…" : ModelosConfigurados, "MnSecundario"));
         modelos.Child = grade;
         Adicionar(modelos, 12);
+        if (MonitorChatGpt is { Rodadas.Count: > 0 } monitor)
+            Adicionar(CartoesDosGrupos(monitor.Rodadas), 12);
         var lista = Cartao();
         Elevar(lista, levantar: false);
         var pilha = new StackPanel();

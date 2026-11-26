@@ -39,8 +39,8 @@ public sealed partial class PaginaNovoRelatorio
         Adicionar(TituloDePagina(Glifos.Painel, "Resumo da análise", "analise-chatgpt · Conta ChatGPT"), 0);
         var plano = dados.Rodadas.Count > 0;
         var progresso = dados.Percentual is { } percentual
-            ? $"{percentual:0.#}% · {dados.VerificacoesInformadas} de {dados.Rodadas.Sum(r => r.Verificacoes)} verificações concluídas no plano"
-            : "Aguardando o primeiro grupo conferido pelo plugin.";
+            ? $"{percentual:0.#}% · {dados.VerificacoesInformadas} de {dados.Rodadas.Sum(r => r.Verificacoes)} verificações com resultado registrado"
+            : "Aguardando o plano de grupos do plugin.";
         var confirmadas = plano
             ? $"{dados.GruposConcluidos} de {dados.Rodadas.Sum(r => r.Grupos.Count)} grupos conferidos na matriz do plugin."
             : null;
@@ -65,6 +65,26 @@ public sealed partial class PaginaNovoRelatorio
         return cartao;
     }
 
+    FrameworkElement CartoesDosGrupos(IEnumerable<RodadaDoMonitorChatGpt> rodadas)
+    {
+        var grade = new PainelQuebra { Espaco = 8, EspacoLinhas = 8 };
+        foreach (var rodada in rodadas)
+        {
+            var grupo = rodada.Grupos[0];
+            var estado = rodada.Confirmada ? "Auditoria conferida" : rodada.Realizadas == rodada.Verificacoes
+                ? "Aguardando auditoria" : rodada.Realizadas > 0 ? "Em análise" : "Aguardando evidências";
+            var cartao = CartaoChatGpt($"{grupo.Id:00} · {grupo.Nome}", $"{rodada.Realizadas}/{rodada.Verificacoes} seções · {estado}");
+            cartao.Width = 260;
+            var corpo = (StackPanel)cartao.Child;
+            var barra = new ProgressBar { Minimum = 0, Maximum = 100, Value = rodada.Percentual };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(barra, $"Progresso de {grupo.Nome}");
+            corpo.Children.Add(barra);
+            ToolTipService.SetToolTip(cartao, $"Seções {string.Join(", ", grupo.Secoes)} · Perfil previsto: {rodada.Perfil.Texto}");
+            grade.Children.Add(cartao);
+        }
+        return grade;
+    }
+
     FrameworkElement FaixaDaEtapaChatGpt(MonitorAnaliseChatGpt dados, string? etapa, EstadoEtapa estado)
     {
         var corpo = new StackPanel { Padding = new Thickness(62, 0, 16, 16), Spacing = 10 };
@@ -76,22 +96,7 @@ public sealed partial class PaginaNovoRelatorio
         {
             if (dados.Rodadas.Count == 0)
                 corpo.Children.Add(Texto("Aguardando a leitura do plano do plugin.", "MnLegenda"));
-            foreach (var rodada in dados.Rodadas.Where(r => r.Grupos.Any(g => g.Id == 15) == (etapa == "auditar_relatorio")))
-            {
-                var perfil = rodada.Perfil;
-                var status = rodada.Confirmada ? "Concluída" :
-                    "Aguardando confirmação";
-                var rotulo = $"{rodada.Grupos[0].Nome} · {status}";
-                var grupos = string.Join(Environment.NewLine, rodada.Grupos.Select(g =>
-                    $"{g.Id:00} · {g.Nome} · verificações {string.Join(", ", g.Secoes)}"));
-                if (rodada.Percentual is { } percentual)
-                    grupos += $"{Environment.NewLine}{percentual:0.#}% · {rodada.Realizadas} de {rodada.Verificacoes} verificações do plano";
-                var emAndamento = rodada.Plano.Where(p => p.Estado == "em_andamento").Select(p => p.Secao).Order().ToArray();
-                if (emAndamento.Length > 0)
-                    grupos += $"{Environment.NewLine}Em andamento · verificações {string.Join(", ", emAndamento)}";
-                var perfilExibido = !rodada.Confirmada ? "Perfil previsto · " + perfil.Texto : perfil.Texto;
-                corpo.Children.Add(CartaoChatGpt(rotulo, perfilExibido, grupos));
-            }
+            corpo.Children.Add(CartoesDosGrupos(dados.Rodadas.Where(r => (r.Perfil.Numero == 15) == (etapa == "auditar_relatorio"))));
         }
         else
         {

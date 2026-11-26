@@ -9,28 +9,52 @@ public static class MapaParaAnalise
 {
     public const string Comando = "--mapa-qgis";
 
+    public static MapaGerado Gerar(string pastaBase, int indice, bool confirmado, CancellationToken ct = default, bool exigirCompleto = true)
+    {
+        var b = BaseQgis.Carregar(pastaBase, ct: ct);
+        var lote = b[Camada.Lotes]?.Feicoes.FirstOrDefault(f => f.Indice == indice);
+        if (lote?.Geometria is not { IsEmpty: false } geometria)
+            throw new InvalidDataException($"A feição {indice} não foi encontrada na camada Lotes.");
+        var obrigatorias = new[] { Camada.Edificacoes, Camada.Zoneamento, Camada.Logradouros, Camada.HidroApp };
+        var ausentes = obrigatorias.Where(c => b[c] is null).Select(FontesQgis.Rotulo).ToArray();
+        if (exigirCompleto && ausentes.Length > 0)
+            throw new InvalidDataException("Base incompleta para o mapa de localização. Confira as camadas: " + string.Join(", ", ausentes));
+        return MapaLocalizacao.Gerar(b, geometria, [lote], new OpcoesMapa { Candidato = !confirmado, Cotas = true, ComDonos = false });
+    }
+
+    public static byte[] ImagemPng(MapaGerado mapa)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("A imagem cartográfica requer o Windows.");
+        var svg = Svg.SvgDocument.FromSvg<Svg.SvgDocument>(mapa.Svg);
+        using var bitmap = svg.Draw(MapaLocalizacao.Largura * 2, MapaLocalizacao.Altura * 2);
+        using var saida = new MemoryStream();
+        bitmap.Save(saida, System.Drawing.Imaging.ImageFormat.Png);
+        return saida.ToArray();
+    }
+
     public static int Executar(string[] args, TextWriter erros)
     {
-        if (args.Length is not (4 or 5) || args.Length == 5 && args[4] != "--confirmado" ||
+        var opcoes = args.Skip(4).ToArray();
+        var confirmado = opcoes.Contains("--confirmado");
+        var completo = opcoes.Contains("--completo");
+        if (args.Length < 4 || opcoes.Any(o => o is not ("--confirmado" or "--completo")) || opcoes.Distinct().Count() != opcoes.Length ||
             args[0] != Comando || string.IsNullOrWhiteSpace(args[1]) || string.IsNullOrWhiteSpace(args[3])
             || !int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out var indice))
         {
-            erros.WriteLine("Uso: --mapa-qgis <pasta da base> <índice da feição Lotes> <pasta de saída vazia> [--confirmado]");
+            erros.WriteLine("Uso: --mapa-qgis <pasta da base> <índice da feição Lotes> <pasta de saída vazia> [--confirmado] [--completo]");
             return 2;
         }
         try
         {
             var pasta = Directory.CreateDirectory(args[3]);
             if (pasta.EnumerateFileSystemInfos().Any()) throw new IOException("A pasta de saída precisa estar vazia.");
-            var b = BaseQgis.Carregar(args[1]);
-            var lote = b[Camada.Lotes]?.Feicoes.FirstOrDefault(f => f.Indice == indice);
-            if (lote?.Geometria is not { IsEmpty: false } geometria)
-                throw new InvalidDataException($"A feição {indice} não foi encontrada na camada Lotes.");
-            var mapa = MapaLocalizacao.Gerar(b, geometria, [lote], new OpcoesMapa { Candidato = args.Length == 4, Cotas = true, ComDonos = false });
+            var mapa = Gerar(args[1], indice, confirmado, exigirCompleto: completo);
             var ext = mapa.Extensao;
+            var png = ImagemPng(mapa);
             var ficha = JsonSerializer.Serialize(new
             {
-                feicao = lote.Indice, extent = new[] { ext.MinX, ext.MinY, ext.MaxX, ext.MaxY }, crs = MapaLocalizacao.Crs,
+                feicao = indice, inscricao = mapa.Inscricao, completo, resultado = confirmado ? "CONFIRMADO" : "CANDIDATO",
+                sha256_png = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(png)), extent = new[] { ext.MinX, ext.MinY, ext.MaxX, ext.MaxY }, crs = MapaLocalizacao.Crs,
                 legend = mapa.Legenda, layers = mapa.Camadas, dados = mapa.Dados, cotas = true
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = true });
@@ -48,6 +72,10 @@ public static class MapaParaAnalise
                 }
                 Gravar("MAPA.SVG", mapa.Svg);
                 Gravar("FICHA.JSON", ficha);
+                var caminhoPng = Path.Combine(pasta.FullName, "MAPA.PNG");
+                using var imagem = new FileStream(caminhoPng, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                criados.Add(caminhoPng);
+                imagem.Write(png);
             }
             catch
             {

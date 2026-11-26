@@ -282,12 +282,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     (bool Plugin, double? Global, int Confirmadas) progressoDoPlanoDesenhado;
     (double Percentual, TimeSpan DuracaoAtiva)? previsaoPeloRitmo;
 
-    (int Secoes, TimeSpan Ativo)? primeiraMedicao;
     (int Secoes, TimeSpan Fim)? previsaoDoPlugin;
 
     internal void ReiniciarEstimativa()
     {
-        primeiraMedicao = null;
         previsaoDoPlugin = null;
         previsaoPeloRitmo = null;
         MostrarEstimativa(null);
@@ -306,26 +304,21 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         TextoTempoAtivo.Text = "Em atividade por " + FluxoNovoRelatorio.TempoLegivel(ativo, incluirSegundos: true);
         if (MonitorChatGpt is { } monitor)
         {
-            var concluidas = monitor.VerificacoesConcluidas;
+            var concluidas = monitor.VerificacoesInformadas;
             var total = monitor.Rodadas.Sum(r => r.Verificacoes);
             var texto = "Aguardando dados de ritmo";
-            var dica = "A previsão das verificações usa o intervalo observado entre dois fechamentos de grupos.";
+            var dica = "Estimativa pelo tempo ativo e pelas seções com resultado registrado. A auditoria e o salvamento têm duração própria.";
             if (execucaoAtivaNaBarra && concluidas > 0 && concluidas < total)
             {
-                if (primeiraMedicao is not { } baseRitmo || concluidas < baseRitmo.Secoes || ativo < baseRitmo.Ativo)
+                if (previsaoDoPlugin?.Secoes != concluidas && ativo > TimeSpan.Zero)
                 {
-                    primeiraMedicao = (concluidas, ativo);
-                    previsaoDoPlugin = null;
-                }
-                else if (concluidas > baseRitmo.Secoes && previsaoDoPlugin?.Secoes != concluidas)
-                {
-                    var segundos = (ativo - baseRitmo.Ativo).TotalSeconds * (total - concluidas) / (concluidas - baseRitmo.Secoes);
-                    if (segundos > 0 && segundos < (TimeSpan.MaxValue - ativo).TotalSeconds)
-                        previsaoDoPlugin = (concluidas, ativo + TimeSpan.FromSeconds(segundos));
+                    var segundos = ativo.TotalSeconds * total / concluidas;
+                    if (segundos < TimeSpan.MaxValue.TotalSeconds)
+                        previsaoDoPlugin = (concluidas, TimeSpan.FromSeconds(segundos));
                 }
                 if (previsaoDoPlugin is { } previsao && previsao.Fim > ativo)
                     texto = "≈ " + FluxoNovoRelatorio.TempoLegivel(previsao.Fim - ativo, incluirSegundos: false) + " de verificações";
-                else if (previsaoDoPlugin is not null) texto = "Aguardando novo fechamento";
+                else if (previsaoDoPlugin is not null) texto = "Recalculando com a próxima seção";
             }
             else if (total > 0 && concluidas == total) texto = "Verificações concluídas";
             if (!execucaoAtivaNaBarra) texto = "—";
@@ -642,7 +635,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var concluiu = etapas.Count > 0 && feitas == etapas.Count;
         double? percentualPorEtapas = etapas.Count > 0 ? 100d * feitas / etapas.Count : null;
         var percentual = concluiu ? 100d : MonitorChatGpt is { } monitor
-            ? monitor.Rodadas.Count == 0 ? null : 100d * (monitor.VerificacoesInformadas + (feitas > 0 ? 1 : 0)) / (monitor.Rodadas.Sum(r => r.Verificacoes) + 2)
+            ? 100d * (monitor.VerificacoesInformadas + (feitas > 0 ? 1 : 0) + (monitor.GruposConcluidos == 15 ? 1 : 0)) /
+                ((monitor.Rodadas.Count == 0 ? 28 : monitor.Rodadas.Sum(r => r.Verificacoes)) + 3)
             : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
         if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor, 1), 0, concluiu || MonitorChatGpt is not null ? 100 : 99);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
@@ -749,7 +743,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var etapaPlugin = IdDaEtapa(nome);
             if (etapaPlugin is not ("analisar_grupos" or "auditar_relatorio")) return (null, false);
             var rodadas = monitor.Rodadas.Where(r => r.Grupos.Any(g => g.Id == 15) == (etapaPlugin == "auditar_relatorio")).ToArray();
-            return rodadas.Any(r => r.Percentual.HasValue)
+            return rodadas.Length > 0
                 ? (100d * rodadas.Sum(r => r.Realizadas) / rodadas.Sum(r => r.Verificacoes), false)
                 : (null, false);
         }

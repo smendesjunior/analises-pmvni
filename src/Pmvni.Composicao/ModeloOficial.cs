@@ -37,7 +37,7 @@ public static class ModeloOficial
         {
             ["gerar_relatorio.py"] = "60b831a5a3d4abe2edf7df2f8a8034d5972bf38a054999b3d9530802bbb57683",
             ["modelo_relatorio.html"] = "2e595fd33aa687fe25e99c784536d7c1709de91eb80097c27d04cb177380566c",
-            ["relatorio.css"] = "b59b97a59892a33060bb71cdd4c0ae4f93063a01b8e09f004be49e522628a62a",
+            ["relatorio.css"] = "fe1bfeacf68ce7ccc19200491107e4d89020a50e980057c40ae0cc6d22cfaa19",
             ["brasao.png"] = "93f35890bd35ddd405ee407f05e5cea059301c7e62634415f19d5c4d9b4092cd",
             ["dados_modelo.json"] = "c56df9e6aec479887b028ce86e8f2962937a244cefabf5b8a308aca93f1ff816",
             ["exemplo_figura.png"] = "cbbf837e4eb816a42b642bf7e139090364ea98d6e9f603edcfc8e42a65a2244e",

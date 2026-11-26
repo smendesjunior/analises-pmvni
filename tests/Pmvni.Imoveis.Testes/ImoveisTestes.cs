@@ -320,6 +320,8 @@ public class MapaLocalizacaoTestes : IDisposable
         var raiz = ficha.RootElement;
         Assert.Equal(indice, raiz.GetProperty("feicao").GetInt32());
         Assert.True(raiz.GetProperty("cotas").GetBoolean());
+        var png = File.ReadAllBytes(Path.Combine(saida, "MAPA.PNG"));
+        Assert.Equal(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(png)), raiz.GetProperty("sha256_png").GetString());
         Assert.Equal(MapaLocalizacao.Crs, raiz.GetProperty("crs").GetString());
         var ext = raiz.GetProperty("extent").EnumerateArray().Select(x => x.GetDouble()).ToArray();
         Assert.True(ext.Length == 4 && ext[0] < ext[2] && ext[1] < ext[3]);
@@ -343,6 +345,8 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.NotEqual(0, MapaParaAnalise.Executar(["--mapa-qgis", pasta, "999", saida], erros));
         Assert.Empty(Directory.EnumerateFileSystemEntries(saida));
         File.Delete(Path.Combine(pasta, "shapes", "Hidro_app.shp"));
+        Assert.NotEqual(0, MapaParaAnalise.Executar(["--mapa-qgis", pasta, "0", saida, "--completo"], erros));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(saida));
         Assert.Equal(0, MapaParaAnalise.Executar(["--mapa-qgis", pasta, "0", saida], erros));
         using var ficha = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(saida, "FICHA.JSON")));
         var dados = ficha.RootElement.GetProperty("dados").EnumerateArray();

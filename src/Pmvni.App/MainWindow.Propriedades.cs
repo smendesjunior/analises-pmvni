@@ -266,6 +266,7 @@ public sealed partial class MainWindow
             assinaturaCampos = assinatura;
             camposNoPainel.Clear();
             R.PropCampos.Children.Clear();
+            var gruposDeMarcacao = new Dictionary<string, StackPanel>();
             foreach (var (campo, nome) in campos)
             {
                 var caixa = CartoesDePainel.Caixa("", nome, editavel);
@@ -278,8 +279,30 @@ public sealed partial class MainWindow
                     else if (e.Key == Windows.System.VirtualKey.Escape) { e.Handled = true; caixa.Text = caixa.Tag as string ?? ""; }
                 };
                 caixa.LostFocus += async (_, _) => await AplicarCampoDoPainelAsync(id, campo, caixa);
-                var bloco = CartoesDePainel.Campo(nome, caixa, marca, restaurar);
-                CheckBox? visibilidade = null;
+                var destino = R.PropCampos;
+                var rotulo = nome;
+                var chaveNota = campo.StartsWith("marcacao/", StringComparison.Ordinal) ? campo[..campo.LastIndexOf('/')] : null;
+                CheckBox? inclusaoDaNota = null;
+                if (chaveNota is not null)
+                {
+                    var titulo = nome.Split(" · ")[0];
+                    rotulo = campo.EndsWith("/elemento", StringComparison.Ordinal) ? "Título" : "Texto";
+                    if (!gruposDeMarcacao.TryGetValue(chaveNota, out var corpo))
+                    {
+                        var cartao = CartoesDePainel.Cartao(titulo, Glifos.Figuras, out corpo);
+                        gruposDeMarcacao.Add(chaveNota, corpo);
+                        R.PropCampos.Children.Add(cartao);
+                        if (editavel && !RoteiroLegado)
+                        {
+                            var gravada = sessao?.Revisao.Projeto is { } proj && FiguraParaPropriedades(proj, id)?.Buscar(chaveNota[9..])?.Gravada == true;
+                            inclusaoDaNota = ControleVisibilidade(id, chaveNota, titulo, gravada ? "Incluir legenda (marca gravada na imagem)" : "Incluir no relatório");
+                            corpo.Children.Add(inclusaoDaNota);
+                        }
+                    }
+                    destino = corpo;
+                }
+                var bloco = CartoesDePainel.Campo(rotulo, caixa, marca, restaurar);
+                CheckBox? visibilidade = inclusaoDaNota;
                 if (editavel && !RoteiroLegado)
                 {
                     var ia = CartoesDePainel.BotaoPequeno(Glifos.Ia, "Editar com a IA", "Editar " + nome + " com a IA",
@@ -297,17 +320,7 @@ public sealed partial class MainWindow
                         };
                         bloco.Children.Add(controle);
                     }
-                    else if (campo.StartsWith("marcacao/", StringComparison.Ordinal))
-                    {
-                        var grupo = campo[..campo.LastIndexOf('/')];
-                        if (campo.EndsWith("/elemento", StringComparison.Ordinal) || !campos.Any(c => c.Campo == grupo + "/elemento"))
-                        {
-                            var gravada = sessao?.Revisao.Projeto is { } proj && FiguraParaPropriedades(proj, id)?.Buscar(grupo[9..])?.Gravada == true;
-                            visibilidade = ControleVisibilidade(id, grupo, nome, gravada ? "Incluir legenda (marca gravada na imagem)" : "Incluir nota e marcação na imagem");
-                            bloco.Children.Add(visibilidade);
-                        }
-                    }
-                    else if (!id.StartsWith("modelo/", StringComparison.Ordinal))
+                    else if (chaveNota is null && !id.StartsWith("modelo/", StringComparison.Ordinal))
                     {
                         visibilidade = ControleVisibilidade(id, campo, nome);
                         bloco.Children.Add(visibilidade);
@@ -325,7 +338,7 @@ public sealed partial class MainWindow
                     bloco.Children.Add(blocoOriginal);
                 }
                 camposNoPainel[campo] = new CampoNoPainel(caixa, marca, restaurar, textoOriginal, visibilidade);
-                R.PropCampos.Children.Add(bloco);
+                destino.Children.Add(bloco);
             }
         }
         // Os valores, no lugar: a caixa em que o usuário está digitando fica como está.

@@ -74,23 +74,20 @@ public static class DadosEfetivos
                 {
                     var partes = campo.Split('/');
                     if (figura.f.Buscar(partes[1]) is not { } marca) continue;
+                    var pos = p.Figuras is null ? marca.PosicaoNoDesenhoOriginal : CamadaFiguras.Desenho(figura.f).ToList().FindIndex(m => m.Id == marca.Id);
+                    var nota = p.Figuras is null ? figura.f.Marcacoes.IndexOf(marca) : CamadaFiguras.Numero(figura.f, marca.Id) - 1;
                     if (partes.Length == 2)
                     {
-                        var desenho = CamadaFiguras.Desenho(figura.f).ToList();
-                        var pos = p.Figuras is null ? figura.f.Marcacoes.IndexOf(marca) : desenho.FindIndex(m => m.Id == marca.Id);
                         if (!marca.Gravada && pos >= 0) caminhos.Add($"{baseCampo}/marcacoes/{pos}");
                         if (marca.Numerada)
-                        {
-                            var nota = p.Figuras is null ? figura.f.Marcacoes.IndexOf(marca) : CamadaFiguras.Numero(figura.f, marca.Id) - 1;
                             caminhos.Add($"{baseCampo}/notas/{nota}");
-                        }
                         continue;
                     }
                     if (partes.Length != 3) continue;
                     if (marca.Tipo == "texto")
-                        propriedade = $"marcacoes/{figura.f.Marcacoes.IndexOf(marca)}/{partes[2]}";
+                        propriedade = $"marcacoes/{pos}/{partes[2]}";
                     else
-                        propriedade = $"notas/{figura.f.Marcacoes.Where(m => m.Tipo != "texto").ToList().IndexOf(marca)}/{partes[2]}";
+                        propriedade = $"notas/{nota}/{partes[2]}";
                 }
                 else if (!CamadaFiguras.CamposTexto.Contains(campo)) continue;
             }

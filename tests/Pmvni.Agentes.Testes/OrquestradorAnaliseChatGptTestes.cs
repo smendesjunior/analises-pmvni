@@ -126,6 +126,14 @@ public partial class OrquestradorTestes
         Assert.Equal(1, monitor.GruposConcluidos);
         Assert.Equal(2, monitor.VerificacoesConcluidas);
         Assert.True(monitor.Rodadas.Single(r => r.Perfil.Numero == grupo.id).Confirmada);
+        var parcial = new { id = grupos[0].id, secoes = new[] { new { numero = 1, estado = "ANALISADO", evidencia = "Página fictícia 4" } } };
+        File.WriteAllText(Path.Combine(fontesMonitor, "grupo-01.json"), JsonSerializer.Serialize(parcial));
+        File.WriteAllText(Path.Combine(fontesMonitor, "grupo-02.json"), "{");
+        File.WriteAllText(Path.Combine(fontesMonitor, "consulta-qgis.json"), "{");
+        monitor = OrquestradorAnalise.LerMonitorChatGpt(fontesMonitor);
+        Assert.Equal(3, monitor.VerificacoesInformadas);
+        Assert.Equal(1, monitor.GruposConcluidos);
+        Assert.Equal(50d, monitor.Rodadas[0].Percentual);
         var recebido = Path.Combine(c.Pasta, "fixture.rpmvni");
         var modelo = ModeloOficial.Carregar();
         var exemplo = Ambiente.Corpus("curto.json");

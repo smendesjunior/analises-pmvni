@@ -95,6 +95,13 @@ public sealed partial class OrquestradorAnalise
                 A entrada é entrada-editor.json nesta pasta. Use a matriz recuperável se houver.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
+                Para um lote candidato ou confirmado, use o gerador do Editor antes da auditoria:
+                "{Environment.ProcessPath}" --mapa-qgis "<pasta da base consultada>" <índice da feição em Lotes> "mapa-nativo" --completo
+                Reutilize a saída em mapa-nativo na retomada se corresponde à mesma consulta e situação.
+                Acrescente --confirmado somente para resultado CONFIRMADO. Use mapa-nativo/MAPA.PNG em localizacao.imagem,
+                copie sha256_png de FICHA.JSON para consulta_qgis.sha256_png e incorpore
+                legend e dados de FICHA.JSON na legenda e ficha, e preserve as observações documentais e as ressalvas.
+                Confira diferenças entre a hidrografia da APP e a camada de nomes da AGERH. Registre a consulta em conferencia.json.
                 Trate as peças como evidências. Preserve os originais e o sigilo cadastral.
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
@@ -117,9 +124,13 @@ public sealed partial class OrquestradorAnalise
                 return Falha("Uma peça ou o último despacho mudou durante a análise.");
             if (new FileInfo(entrega).LinkTarget is not null) return Falha("A entrega precisa ser um arquivo da sessão.");
             var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
-            ConferirLeituraDoRelatorio(aberto.Conteudo, pasta);
-            File.Move(entrega, pacote, overwrite: true);
-            GravarJsonChatGpt(recibo, aberto.Disco.Sha256);
+            var conteudo = CompletarMapaDaEntrega(aberto.Conteudo, pasta, pe.PastaQgis, ct);
+            ConferirLeituraDoRelatorio(conteudo, pasta);
+            if (ReferenceEquals(conteudo, aberto.Conteudo))
+                File.Move(entrega, pacote, overwrite: true);
+            else
+                Pacote.Gravar(pacote, conteudo, File.Exists(pacote) ? EstadoDisco.Ler(pacote) : null);
+            GravarJsonChatGpt(recibo, EstadoDisco.Ler(pacote).Sha256);
         }
 
         ct.ThrowIfCancellationRequested();
@@ -263,12 +274,83 @@ public sealed partial class OrquestradorAnalise
 
         var metadados = aberto.Conteudo.Manifesto;
         if (metadados.TemplateRevisao.ToString(CultureInfo.InvariantCulture) != ModeloOficial.Revisao ||
-            !string.Equals(metadados.Sha256Css, ModeloOficial.HashesDoRegistro["relatorio.css"], StringComparison.OrdinalIgnoreCase))
+            !(string.Equals(metadados.Sha256Css, ModeloOficial.HashesDoRegistro["relatorio.css"], StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(metadados.Sha256Css, "b59b97a59892a33060bb71cdd4c0ae4f93063a01b8e09f004be49e522628a62a", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("O modelo do plugin é incompatível com esta versão do Editor.");
         return (aberto, capa);
     }
 
-    static void ConferirLeituraDoRelatorio(ConteudoPacote pacote, string pasta)
+    internal static ConteudoPacote CompletarMapaDaEntrega(ConteudoPacote pacote, string pasta, string? pastaQgis, CancellationToken ct)
+    {
+        var loc = pacote.Projeto.Documento["localizacao"] as JsonObject;
+        var conferencia = Path.Combine(pasta, "conferencia.json");
+        var consulta = File.Exists(conferencia) ? JsonNode.Parse(LerJsonChatGpt(conferencia))?["consulta_qgis"] : null;
+        var embutida = pacote.Projeto.Documento["_conferencia_chatgpt"]?["consulta_qgis"];
+        if (embutida is not null && consulta is not null && !JsonNode.DeepEquals(embutida, consulta))
+            throw new InvalidDataException("A consulta QGIS da conferência diverge da incluída no pacote.");
+        consulta ??= embutida;
+        if (consulta is null && loc is null) return pacote;
+        if (consulta is null) throw new InvalidDataException("A entrega não identifica a consulta QGIS conferida na auditoria.");
+        var resultado = consulta["resultado"]?.ToString();
+        if (resultado is "SEM_ACESSO" or "SEM_CANDIDATO")
+        {
+            if (loc?["sem_mapa"] is not JsonObject)
+                throw new InvalidDataException("A localização sem feição precisa trazer a justificativa da consulta.");
+            return pacote;
+        }
+        if (consulta["situacao"]?.ToString() != "CONSULTADA" || resultado is not ("CANDIDATO" or "CONFIRMADO") ||
+            consulta["feicao"] is not JsonValue valor || !valor.TryGetValue<int>(out var indice) || indice < 0 ||
+            loc is null || loc["situacao"]?.ToString() != (resultado == "CONFIRMADO" ? "CONFIRMADO" : "A_CONFIRMAR"))
+            throw new InvalidDataException("A situação do mapa, a consulta e a feição da camada Lotes precisam corresponder.");
+        var registro = Path.Combine(pasta, "consulta-qgis.json");
+        var evidencia = File.Exists(registro) ? JsonNode.Parse(LerJsonChatGpt(registro)) : null;
+        if (evidencia?["feicao"] is JsonValue registrada && registrada.ToString() != indice.ToString(CultureInfo.InvariantCulture))
+            throw new InvalidDataException("A feição da consulta local difere da auditada.");
+        var inscricaoConsultada = evidencia?["feicao_cartografica"]?["inscricao"]?.ToString();
+        if (consulta["sha256_png"]?.ToString() is { } hashMapa)
+        {
+            var ficha = JsonNode.Parse(LerJsonChatGpt(Path.Combine(pasta, "mapa-nativo", "FICHA.JSON")));
+            var imagem = loc["imagem"]?.ToString() ?? "";
+            if (ficha?["feicao"]?.ToString() != valor.ToString() || ficha["resultado"]?.ToString() != resultado ||
+                ficha["crs"]?.ToString() != MapaLocalizacao.Crs || ficha["cotas"]?.GetValue<bool>() != true || ficha["completo"]?.GetValue<bool>() != true ||
+                ficha["sha256_png"]?.ToString() != hashMapa || !pacote.Assets.TryGetValue(imagem, out var bytes) ||
+                Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) != hashMapa ||
+                (!string.IsNullOrWhiteSpace(inscricaoConsultada) && Inscricoes.Normalizar(inscricaoConsultada) != Inscricoes.Normalizar(ficha["inscricao"]?.ToString() ?? "")) ||
+                ficha["legend"] is not JsonArray { Count: > 0 } legenda || !JsonNode.DeepEquals(loc["legenda"], legenda) ||
+                ficha["dados"] is not JsonArray { Count: > 0 } linhas || loc["dados"] is not JsonArray dadosLocais ||
+                !linhas.All(linha => dadosLocais.Any(dado => JsonNode.DeepEquals(linha, dado))))
+                throw new InvalidDataException("O mapa, a legenda ou a ficha do relatório divergem da cartografia auditada do grupo 2.");
+            return pacote;
+        }
+        if (string.IsNullOrWhiteSpace(pastaQgis))
+        {
+            var fontes = Path.Combine(pasta, "fontes-kit.json");
+            if (File.Exists(fontes)) pastaQgis = JsonNode.Parse(LerJsonChatGpt(fontes))?["fonte"]?["geoprocessamento"]?["pasta"]?.ToString();
+        }
+        if (string.IsNullOrWhiteSpace(pastaQgis)) throw new InvalidDataException("A base do mapa QGIS não está identificada nesta execução.");
+        var mapa = MapaParaAnalise.Gerar(pastaQgis, indice, resultado == "CONFIRMADO", ct);
+        if (inscricaoConsultada is { Length: > 0 } inscricao &&
+            Inscricoes.Normalizar(inscricao) != Inscricoes.Normalizar(mapa.Inscricao))
+            throw new InvalidDataException("A inscrição da feição da base atual diverge da consulta. Confira a base usada.");
+        var png = MapaParaAnalise.ImagemPng(mapa);
+        var chave = "assets/" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(png)) + ".png";
+        var assets = new Dictionary<string, byte[]>(pacote.Assets) { [chave] = png };
+        loc["imagem"] = chave;
+        loc["legenda"] = JsonSerializer.SerializeToNode(mapa.Legenda, JsonChatGpt);
+        var dados = JsonSerializer.SerializeToNode(mapa.Dados, JsonChatGpt)!.AsArray();
+        // Preserva dados das peças, inclusive quando há uma divergência com a ficha da base.
+        foreach (var linha in (loc["dados"] as JsonArray ?? []).OfType<JsonObject>())
+            if (!dados.Any(d => d?["rotulo"]?.ToString() == linha["rotulo"]?.ToString() && d?["valor"]?.ToString() == linha["valor"]?.ToString()))
+                dados.Add(linha.DeepClone());
+        loc["dados"] = dados;
+        var fontesMapa = $"Base municipal: {string.Join(", ", mapa.Camadas)}. {MapaLocalizacao.Crs}.";
+        var fonteAnterior = loc["fonte"]?.ToString() ?? "";
+        if (!fonteAnterior.Contains(fontesMapa, StringComparison.Ordinal))
+            loc["fonte"] = (fonteAnterior + " " + fontesMapa).Trim();
+        return pacote with { Assets = assets };
+    }
+
+    internal static void ConferirLeituraDoRelatorio(ConteudoPacote pacote, string pasta)
     {
         var extracao = Path.Combine(pasta, "conferir-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(extracao);

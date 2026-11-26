@@ -1157,7 +1157,7 @@ public sealed partial class MainWindow
             erro = string.IsNullOrWhiteSpace(s?.Erro) ? null : s!.Erro;
             var etapa = s?.Etapa ?? n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa;
             if (chatgpt && etapa == "analisar_grupos" && n.MonitorChatGpt is { Rodadas.Count: > 0 } monitor &&
-                monitor.Rodadas.Where(r => r.Perfil.Numero < 15).All(r => r.Confirmada))
+                monitor.Rodadas.Where(r => r.Perfil.Numero < 15).All(r => r.Realizadas == r.Verificacoes))
                 etapa = "auditar_relatorio";
             etapas = FluxoNovoRelatorio.Etapas(etapa, s?.Codigo ?? "",
                 ordem);

@@ -71,11 +71,15 @@ public sealed partial class MainWindow
         {
             ("titulo", "Título"), ("prancha", "Prancha"), ("fonte", "Fonte"), ("texto", "Legenda"),
         };
-        foreach (var (marcacao, i) in figura.Marcacoes.Select((m, i) => (m, i + 1)))
+        var numeradas = figura.Marcacoes.Where(m => m.Numerada);
+        if (projeto.Figuras is not null) numeradas = CamadaFiguras.Numeradas(figura).Select(x => x.Marcacao);
+        foreach (var (marca, indice) in numeradas.Select((marca, indice) => (marca, indice + 1)))
         {
-            if (marcacao.Tipo != "texto") campos.Add(($"marcacao/{marcacao.Id}/elemento", $"Nota {i} · título"));
-            campos.Add(($"marcacao/{marcacao.Id}/texto", marcacao.Tipo == "texto" ? $"Marcação {i} · texto" : $"Nota {i} · texto"));
+            campos.Add(($"marcacao/{marca.Id}/elemento", $"Nota {indice} · título"));
+            campos.Add(($"marcacao/{marca.Id}/texto", $"Nota {indice} · texto"));
         }
+        foreach (var (marca, indice) in figura.Marcacoes.Where(m => !m.Numerada).Select((marca, indice) => (marca, indice + 1)))
+            campos.Add(($"marcacao/{marca.Id}/texto", $"Marcação de texto {indice} · texto"));
         MontarCampos(figura.Id, campos, Editavel, c => TextoDaFigura(figura, c), c => TextoDaFigura(inicial, c),
             c => inicial is not null && TextoDaFigura(figura, c) != TextoDaFigura(inicial, c),
             "Restaura o texto recebido para esta figura.",

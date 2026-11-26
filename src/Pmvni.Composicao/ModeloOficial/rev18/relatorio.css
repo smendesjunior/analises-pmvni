@@ -146,9 +146,9 @@ p.m { color: var(--mu); font-size: 7.5pt; }
 /* iluminação: bloco de resultado */
 .vres { margin-top: 5px; border-radius: 8px; padding: 5px 8px; background: #F6F8FB; border-left: 3px solid var(--line); }
 .vres.g { border-left-color: var(--g-b); } .vres.r { border-left-color: var(--r-b); } .vres.a { border-left-color: var(--a-b); }
-.vrt { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
-.vrt span { font-size: 5.9pt; letter-spacing: .4px; color: var(--mu); font-weight: bold; }
-.vrt b { font-size: 9.2pt; color: var(--navy); }
+.vrt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; }
+.vrt span { flex: none; white-space: nowrap; word-break: normal; overflow-wrap: normal; font-size: 5.9pt; letter-spacing: .4px; color: var(--mu); font-weight: bold; }
+.vrt b { flex: 1 1 9ch; min-width: 0; word-break: normal; overflow-wrap: break-word; font-size: 9.2pt; color: var(--navy); }
 .vrc { font-size: 6.9pt; color: var(--mu); }
 .vrm { font-size: 7.1pt; font-weight: bold; margin-top: 2px; }
 .vres.g .vrm { color: var(--g); } .vres.r .vrm { color: var(--r); } .vres.a .vrm { color: var(--a); }

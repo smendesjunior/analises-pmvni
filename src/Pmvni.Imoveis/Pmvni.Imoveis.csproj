@@ -8,6 +8,7 @@
     <RootNamespace>Pmvni.Imoveis</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Svg" Version="3.4.8" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <InternalsVisibleTo Include="Pmvni.Imoveis.Testes" />

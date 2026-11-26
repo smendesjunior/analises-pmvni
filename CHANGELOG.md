@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.9
+
+- A localização inclui o mapa da base municipal, as cotas, a legenda correspondente e a ficha da feição. O Editor confere a cartografia incorporada antes de salvar a entrega.
+- Cada nota de figura tem título e texto editáveis e uma única seleção para incluir a nota e sua marcação no relatório.
+- A análise mostra o progresso de cada grupo e estima o tempo das verificações a partir das seções registradas. O cartão de duração mostra o tempo decorrido uma vez.
+- O rótulo “VÃO TOTAL” permanece inteiro na tabela impressa.
+
 ## 4.7.6
 
 - O atualizador do kit usa sua própria pasta. A instalação e a verificação do Editor usam o mesmo pacote de atualização em desenvolvimento e na versão distribuída.

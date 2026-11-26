@@ -28,6 +28,8 @@ public sealed partial class Marcacao
     /// <summary>A nota como veio do kit (marcação gravada): as chaves que o editor não modela saem como vieram.</summary>
     public JsonObject? NotaOriginal { get; set; }
 
+    internal int PosicaoNoDesenhoOriginal { get; init; } = -1;
+
     public bool Numerada => TiposMarcacao.Numerada(Tipo);
 
     /// <summary>Um id novo, curto e aleatório (<c>mk_</c> + 10 caracteres).</summary>
@@ -349,6 +351,7 @@ public static partial class CamadaFiguras
             lista.Add(new Marcacao
             {
                 Tipo = tipo,
+                PosicaoNoDesenhoOriginal = a.IndexOf(x),
                 Alvo = Marcacao.LerVetor(x["alvo"]),
                 Caixa = Marcacao.LerVetor(x["caixa"]),
                 Lado = TextoDe(x["lado"]) == "direita" ? "direita" : "esquerda",

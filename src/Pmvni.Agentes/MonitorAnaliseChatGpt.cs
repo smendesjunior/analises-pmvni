@@ -15,7 +15,7 @@ internal sealed record RodadaDoMonitorChatGpt(PerfilRodadaChatGpt Perfil, IReadO
     public int Verificacoes => Grupos.Sum(g => g.Secoes.Length);
     public IReadOnlyList<PassoDoPlanoChatGpt> Plano { get; init; } = [];
     public int Realizadas => Confirmada ? Verificacoes : Plano.Count(p => p.Estado == "concluida");
-    public double? Percentual => Confirmada || Plano.Count > 0 ? 100d * Realizadas / Verificacoes : null;
+    public double Percentual => 100d * Realizadas / Verificacoes;
 }
 
 internal sealed record MonitorAnaliseChatGpt(IReadOnlyList<RodadaDoMonitorChatGpt> Rodadas, string? Qgis, int? Candidatos)
@@ -25,7 +25,7 @@ internal sealed record MonitorAnaliseChatGpt(IReadOnlyList<RodadaDoMonitorChatGp
     public int GruposConcluidos => Rodadas.Where(r => r.Confirmada).Sum(r => r.Grupos.Count);
     public int VerificacoesConcluidas => Rodadas.Where(r => r.Confirmada).Sum(r => r.Verificacoes);
     public int VerificacoesInformadas => Rodadas.Sum(r => r.Realizadas);
-    public double? Percentual => Rodadas.Any(r => r.Percentual.HasValue) ? 100d * VerificacoesInformadas / Rodadas.Sum(r => r.Verificacoes) : null;
+    public double? Percentual => Rodadas.Count > 0 ? 100d * VerificacoesInformadas / Rodadas.Sum(r => r.Verificacoes) : null;
 }
 
 public sealed partial class OrquestradorAnalise
@@ -41,17 +41,35 @@ public sealed partial class OrquestradorAnalise
                 !GruposChatGptValidos(grupos)) return MonitorAnaliseChatGpt.Aguardando;
 
             var consulta = Path.Combine(pasta, "consulta-qgis.json");
-            var resultadoQgis = File.Exists(consulta) ? LerJsonChatGpt(consulta) : null;
+            var qgis = LerRegistroParcial(consulta);
             var rodadas = new List<RodadaDoMonitorChatGpt>();
             var caminho = Path.Combine(pasta, "matriz-evidencias.json");
-            var matriz = File.Exists(caminho) ? JsonNode.Parse(LerJsonChatGpt(caminho))?["grupos"] as JsonArray : null;
+            var matriz = LerRegistroParcial(caminho)?["grupos"] as JsonArray;
             foreach (var grupo in grupos.OrderBy(g => g.Id))
             {
                 var confirmado = matriz is not null && MatrizConfirmaGrupo(matriz, grupo);
+                var registro = matriz?.OfType<JsonObject>().FirstOrDefault(g => g["id"]?.ToString() == grupo.Id.ToString());
+                var resultado = registro?["resultado"] as JsonObject;
+                var realizadas = SecoesComEvidencia(registro).Concat(SecoesComEvidencia(resultado)).ToHashSet();
+                if (!confirmado && realizadas.Count < grupo.Secoes.Length)
+                {
+                    var individual = LerRegistroParcial(Path.Combine(pasta, $"grupo-{grupo.Id:00}.json"));
+                    if ((individual?["id"] ?? individual?["grupo"])?.ToString() == grupo.Id.ToString())
+                    {
+                        resultado = individual;
+                        realizadas.UnionWith(SecoesComEvidencia(resultado));
+                    }
+                }
+                // Alguns grupos salvam as seções como números e as evidências uma vez para o grupo.
+                if (resultado?["evidencias"] is JsonArray { Count: > 0 } && resultado["secoes"] is JsonArray numeros)
+                    foreach (var valor in numeros.OfType<JsonValue>())
+                        if (valor.TryGetValue<int>(out var numero)) realizadas.Add(numero);
                 rodadas.Add(new(new(grupo.Id, grupo.Modelo, grupo.Esforco),
-                    [new GrupoDoMonitorChatGpt(grupo.Id, grupo.Nome ?? $"Grupo {grupo.Id}", grupo.Secoes)], confirmado));
+                    [new GrupoDoMonitorChatGpt(grupo.Id, grupo.Nome ?? $"Grupo {grupo.Id}", grupo.Secoes)], confirmado)
+                {
+                    Plano = grupo.Secoes.Select(s => new PassoDoPlanoChatGpt(s, confirmado || realizadas.Contains(s) ? "concluida" : "pendente")).ToArray()
+                });
             }
-            var qgis = resultadoQgis is null ? null : JsonNode.Parse(resultadoQgis);
             return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
@@ -60,22 +78,24 @@ public sealed partial class OrquestradorAnalise
         }
     }
 
-    static IReadOnlyList<PassoDoPlanoChatGpt> LerPlanoDaRodada(string pasta, int numero, IEnumerable<int> secoes)
+    static IEnumerable<int> SecoesComEvidencia(JsonObject? grupo)
     {
-        try
+        if (grupo?["secoes"] is not JsonArray secoes) yield break;
+        foreach (var secao in secoes.OfType<JsonObject>())
         {
-            var arquivo = new FileInfo(Path.Combine(pasta, NomePlanoDaRodada(numero)));
-            if (!arquivo.Exists || arquivo.LinkTarget is not null || arquivo.Length > 16 * 1024) return [];
-            var plano = JsonSerializer.Deserialize<PlanoChatGpt>(LerJsonChatGpt(arquivo.FullName), JsonChatGpt);
-            if (plano?.Rodada != numero || plano.Passos is not { } passos ||
-                passos.Any(p => p is null || p.Estado is not ("pendente" or "em_andamento" or "concluida")) ||
-                !passos.Select(p => p.Secao).Order().SequenceEqual(secoes.Order())) return [];
-            return passos;
+            var estado = (secao["estado"] ?? secao["situacao"])?.ToString();
+            if (estado is "ANALISADO" or "NÃO APLICÁVEL" or "NÃO VERIFICÁVEL" &&
+                secao["numero"] is JsonValue valor && valor.TryGetValue<int>(out var numero) &&
+                (!string.IsNullOrWhiteSpace(secao["evidencia"]?.ToString()) || secao["evidencias"] is JsonArray { Count: > 0 }))
+                yield return numero;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return [];
-        }
+    }
+
+    static JsonObject? LerRegistroParcial(string arquivo)
+    {
+        if (!File.Exists(arquivo)) return null;
+        try { return JsonNode.Parse(LerJsonChatGpt(arquivo)) as JsonObject; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { return null; }
     }
 
     static string LerJsonChatGpt(string arquivo)
@@ -85,5 +105,4 @@ public sealed partial class OrquestradorAnalise
         return leitor.ReadToEnd();
     }
 
-    sealed record PlanoChatGpt(int Rodada, PassoDoPlanoChatGpt[] Passos);
 }

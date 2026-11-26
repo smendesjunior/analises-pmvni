@@ -69,6 +69,18 @@ public class FigurasTestes
     }
 
     [Fact]
+    public void nota_original_oculta_o_desenho_correto_com_marcas_fora_de_ordem()
+    {
+        var s = Sessao(Importar("longo"));
+        var figura = s.Projeto.Documento["figuras"]![0]!;
+        figura["marcacoes"] = JsonNode.Parse("""[{"tipo":"seta","numero":2},{"tipo":"texto","texto":"livre"},{"tipo":"seta","numero":1}]""");
+        var camada = CamadaFiguras.Inicial(s.Projeto)[0];
+        s.Aplicar(new DefinirVisibilidadeDoCampo(camada.Id, "marcacao/" + camada.Marcacoes[0].Id, false));
+        var caminhos = JsonFiel.Ler(DadosEfetivos.Gerar(s.Projeto).Json)["_campos_ocultos"]!.AsArray();
+        Assert.Equal(new[] { "figuras/0/marcacoes/2", "figuras/0/notas/0" }, caminhos.Select(x => x!.ToString()));
+    }
+
+    [Fact]
     public void sem_edicao_de_figura_o_dados_efetivo_nao_muda()
     {
         var c = Importar("longo");

@@ -232,7 +232,11 @@ public static class MapaSvg
             var peso = negrito ? " font-weight=\"700\"" : "";
             var linhaBase = c.Y + (cima - baixo) / 2;
             if (fundo is null)
-                saida.Append($"<text x=\"{N(c.X)}\" y=\"{N(linhaBase)}\" font-size=\"{N(tam)}\"{peso} text-anchor=\"middle\" fill=\"{corTxt}\" stroke=\"#FFFFFF\" stroke-opacity=\".92\" stroke-width=\"{2 * Math.Max(3, (int)h / 5)}\" stroke-linejoin=\"round\" paint-order=\"stroke\"{giro}>{Html.E(texto)}</text>");
+            {
+                var rotulo = $"<text x=\"{N(c.X)}\" y=\"{N(linhaBase)}\" font-size=\"{N(tam)}\"{peso} text-anchor=\"middle\"{giro}";
+                saida.Append($"{rotulo} fill=\"none\" stroke=\"#FFFFFF\" stroke-opacity=\".92\" stroke-width=\"{2 * Math.Max(3, (int)h / 5)}\" stroke-linejoin=\"round\">{Html.E(texto)}</text>");
+                saida.Append($"{rotulo} fill=\"{corTxt}\">{Html.E(texto)}</text>");
+            }
             else
             {
                 var py = (int)(h * .45);
@@ -618,7 +622,9 @@ public static class MapaSvg
             var poli = Rotulagem.CaixaGirada(q, w + 2 * S, h + 2 * S, 0);
             if (!quadro.Cabe(poli)) continue;
             quadro.Ocupar(poli);
-            s.Append($"<text x=\"{N(q.X)}\" y=\"{N(q.Y + (cima - baixo) / 2)}\" font-size=\"{16 * S}\" text-anchor=\"middle\" fill=\"{Texto2}\" stroke=\"{Fundo}\" stroke-width=\"{2 * S}\" stroke-linejoin=\"round\" paint-order=\"stroke\">{Html.E(t)}</text>");
+            var rotulo = $"<text x=\"{N(q.X)}\" y=\"{N(q.Y + (cima - baixo) / 2)}\" font-size=\"{16 * S}\" text-anchor=\"middle\"";
+            s.Append($"{rotulo} fill=\"none\" stroke=\"{Fundo}\" stroke-width=\"{2 * S}\" stroke-linejoin=\"round\">{Html.E(t)}</text>");
+            s.Append($"{rotulo} fill=\"{Texto2}\">{Html.E(t)}</text>");
         }
 
         // proprietários dos lotes confrontantes (nome curto, com halo branco): abaixo do número do lote, no centro do maior círculo que cabe
