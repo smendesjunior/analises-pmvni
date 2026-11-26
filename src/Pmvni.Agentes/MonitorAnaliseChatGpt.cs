@@ -45,16 +45,23 @@ public sealed partial class OrquestradorAnalise
             var rodadas = new List<RodadaDoMonitorChatGpt>();
             var caminho = Path.Combine(pasta, "matriz-evidencias.json");
             var matriz = LerRegistroParcial(caminho)?["grupos"] as JsonArray;
+            var marca = Path.Combine(pasta, "id-execucao.txt");
+            var idAtual = File.Exists(marca) ? LerJsonChatGpt(marca) : null;
+            bool DaExecucao(JsonObject? item) => item is not null &&
+                (idAtual is null || item["id_execucao"]?.ToString() == idAtual) &&
+                !(item["auditoria"]?.ToString().Contains("sujeita a reconferência", StringComparison.OrdinalIgnoreCase) ?? false);
             foreach (var grupo in grupos.OrderBy(g => g.Id))
             {
-                var confirmado = matriz is not null && MatrizConfirmaGrupo(matriz, grupo);
+
                 var registro = matriz?.OfType<JsonObject>().FirstOrDefault(g => g["id"]?.ToString() == grupo.Id.ToString());
+                if (!DaExecucao(registro)) registro = null;
+                var confirmado = registro is not null && MatrizConfirmaGrupo(matriz!, grupo);
                 var resultado = registro?["resultado"] as JsonObject;
                 var realizadas = SecoesComEvidencia(registro).Concat(SecoesComEvidencia(resultado)).ToHashSet();
                 if (!confirmado && realizadas.Count < grupo.Secoes.Length)
                 {
                     var individual = LerRegistroParcial(Path.Combine(pasta, $"grupo-{grupo.Id:00}.json"));
-                    if ((individual?["id"] ?? individual?["grupo"])?.ToString() == grupo.Id.ToString())
+                    if (DaExecucao(individual) && (individual?["id"] ?? individual?["grupo"])?.ToString() == grupo.Id.ToString())
                     {
                         resultado = individual;
                         realizadas.UnionWith(SecoesComEvidencia(resultado));

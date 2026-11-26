@@ -173,6 +173,8 @@ public partial class OrquestradorTestes
         Assert.Equal(3, monitor.VerificacoesInformadas);
         Assert.Equal(1, monitor.GruposConcluidos);
         Assert.Equal(50d, monitor.Rodadas[0].Percentual);
+        File.WriteAllText(Path.Combine(fontesMonitor, "id-execucao.txt"), Guid.NewGuid().ToString());
+        Assert.Equal(0, OrquestradorAnalise.LerMonitorChatGpt(fontesMonitor).VerificacoesInformadas);
         var recebido = Path.Combine(c.Pasta, "fixture.rpmvni");
         var modelo = ModeloOficial.Carregar();
         var exemplo = Ambiente.Corpus("curto.json");

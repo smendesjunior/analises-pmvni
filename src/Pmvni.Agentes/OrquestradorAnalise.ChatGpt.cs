@@ -91,6 +91,12 @@ public sealed partial class OrquestradorAnalise
             LimparAmbienteChatGpt(env, pe.Pecas.CodexHome);
         }
 
+        var arquivoId = Path.Combine(pasta, "id-execucao.txt");
+        if (!pe.Retomar && (File.Exists(manifesto) || File.Exists(arquivoId)))
+            return Falha("Uma nova análise precisa de uma pasta de execução inédita.");
+        if (!File.Exists(arquivoId))
+            GravarJsonChatGpt(arquivoId, Guid.NewGuid().ToString("D"));
+        var idExecucao = File.ReadAllText(arquivoId);
         var caminhos = EntradasDoProcesso(pe, ct);
         if (caminhos.Count == 0) return Falha("O processo escolhido não tem peças para analisar.");
         var fontes = Path.Combine(pasta, "fontes-kit.json");
@@ -113,7 +119,12 @@ public sealed partial class OrquestradorAnalise
             var resposta = Path.Combine(pasta, "ultima-mensagem.md");
             var prompt = $"""
                 Execute o plugin analise-chatgpt seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
-                A entrada é entrada-editor.json nesta pasta. Use a matriz recuperável se houver.
+                A entrada é entrada-editor.json nesta pasta. Esta execução independente tem ID {idExecucao}.
+                {(pe.Retomar ? "Retomada explícita: aproveite exclusivamente registros produzidos nesta execução." : "Nova análise: comece do zero. Abra as peças originais e faça todas as verificações novamente.")}
+                Nunca procure, leia, copie ou adapte produtos técnicos de outras execuções, mesmo do mesmo processo e com hashes idênticos.
+                Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
+                Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
+                e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
                 Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Refaça os grupos sem comprovação, inclusive o grupo 15 e a auditoria final em Sol 6.2 high.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
@@ -182,6 +193,11 @@ public sealed partial class OrquestradorAnalise
             if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
                 return Falha("Uma peça ou o último despacho mudou durante a análise.");
             if (new FileInfo(entrega).LinkTarget is not null) return Falha("A entrega precisa ser um arquivo da sessão.");
+            var conferenciaAtual = LerRegistroParcial(Path.Combine(pasta, "conferencia.json"));
+            if (conferenciaAtual?["grupos"] is not JsonArray { Count: 15 } gruposAtuais ||
+                gruposAtuais.Any(g => g?["id_execucao"]?.ToString() != idExecucao) ||
+                conferenciaAtual["auditoria"]?["id_execucao"]?.ToString() != idExecucao)
+                return Falha("A conferência não identifica todos os grupos e a auditoria como produzidos nesta execução.");
             var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
             var conteudo = CompletarMapaDaEntrega(aberto.Conteudo, pasta, pe.PastaQgis, ct);
             ConferirLeituraDoRelatorio(conteudo, pasta);
