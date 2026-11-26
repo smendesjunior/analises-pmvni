@@ -529,8 +529,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 var analisesNaAbertura = ProcessosComAnaliseEmAndamento();
                 _ = Task.Run(() => InstalacaoMotorPdf.PrimeiraAberturaAsync(analisesNaAbertura));
             }
+#if !PMVNI_DISTRIBUICAO
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
-            else if (demoMonitor)
+            else
+#endif
+            if (demoMonitor)
             {
                 // Desenvolvimento (2026-11-17): a pílula da análise, o brilho e o log descritivo com linhas de exemplo, para conferir o visual
                 // na janela real (o brilho é do compositor e não sai na captura XAML). Nada é executado.

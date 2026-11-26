@@ -8,7 +8,7 @@ namespace Pmvni.Composicao;
 /// <see cref="ImagensSoNaPasta"/>: as imagens só podem estar dentro da pasta do dados.json (sem <c>..</c>; a pasta de trabalho de um
 /// pacote aberto). Caminho absoluto ou de rede é recusado sempre, e <c>..</c> só dentro da pasta do processo (<see cref="CaminhoImagem"/>);
 /// só <c>.png .jpg .jpeg .webp .gif</c> com assinatura conferida; recusado conta como imagem não encontrada.</summary>
-public sealed record OpcoesRender(bool Instrucoes, bool Rascunho, bool ImagensSoNaPasta = false, bool UsarProfissionalLocal = true);
+public sealed record OpcoesRender(bool Instrucoes, bool Rascunho, bool ImagensSoNaPasta = false, bool UsarProfissionalLocal = true, bool EditarTextos = false);
 
 /// <summary>Elemento do HTML que o paginador (Tarefa 6+) precisa reconhecer: seletor CSS, posição (0 = primeiro) entre os
 /// elementos do mesmo seletor, id estável e, nas seções, o texto do h2. Os refs NÃO alteram o HTML.</summary>
@@ -18,6 +18,7 @@ public sealed record RefElemento(string Seletor, int Indice, string Id, string? 
 public sealed record ResultadoRender(string Html, IReadOnlyList<string> Erros, IReadOnlyList<RefElemento> Refs)
 {
     public bool Ok => Erros.Count == 0;
+    public IReadOnlyDictionary<string, TextoDoModelo> Textos { get; init; } = new Dictionary<string, TextoDoModelo>();
 }
 
 /// <summary>Dados (dados.json) → HTML do relatório, byte a byte igual ao <c>texto</c> que <c>main()</c> do gerar_relatorio.py do kit
@@ -40,6 +41,7 @@ public static class RelatorioRenderer
         // read_text(encoding='utf-8-sig'): UTF-8 estrito, sem o BOM.
         var json = new UTF8Encoding(false, true).GetString(bytesDados);
         var d = new Dictionary<string, object?>(Dados.Dict(JsonModelo.Ler(json)));
+        var editarTextos = op.EditarTextos || Equals(Dados.Obter(d, "_edicao_do_relatorio"), true);
         if (op.UsarProfissionalLocal && Profissional.Atual is { } pro)
             d["assinatura"] = new Dictionary<string, object?>
             {
@@ -50,6 +52,7 @@ public static class RelatorioRenderer
         var estrito = op.ImagensSoNaPasta;
         var erros = Conferencia.Conferir(d, rel => CaminhoImagem.Resolver(baseDir, rel, estrito) is { } c && CaminhoImagem.ImagemAceita(rel, c), op.Rascunho || op.Instrucoes);
         if (erros.Count > 0) return new ResultadoRender("", erros, Array.Empty<RefElemento>());
+        AplicarCamposOcultos(d);
 
         var ctx = new Dictionary<string, object?>();
         foreach (var par in d) ctx[par.Key] = par.Value;
@@ -88,12 +91,65 @@ public static class RelatorioRenderer
         }).ToList();
 
         var diagrama = Dados.Obter(d, "diagrama");
-        if (PythonTexto.Verdadeiro(diagrama)) ctx["diagrama"] = Diagrama.MontarDiagrama(Dados.Dict(diagrama));
+        if (PythonTexto.Verdadeiro(diagrama))
+        {
+            var dadosDiagrama = Dados.Dict(diagrama);
+            if (Dados.Obter(dadosDiagrama, "sem_calculo") is IReadOnlyDictionary<string, object?> falta
+                && !PythonTexto.Verdadeiro(Dados.Obter(dadosDiagrama, "chamadas")))
+            {
+                ctx["diagrama"] = new Dictionary<string, object?>
+                {
+                    ["planta_svg"] = new Seguro(""),
+                    ["volumetria_svg"] = new Seguro(""),
+                    ["chamadas_planta"] = Array.Empty<object>(),
+                    ["chamadas_volumetria"] = Array.Empty<object>(),
+                    ["nota"] = Dados.Txt(Dados.Exigir(falta, "motivo")) + " " + Dados.Txt(Dados.Exigir(falta, "evidencia")),
+                };
+            }
+            else ctx["diagrama"] = Diagrama.MontarDiagrama(dadosDiagrama, editarTextos);
+        }
 
-        var html = Molde.Compilar(NovasLinhas(m.Html)).Renderizar(ctx, Filtros.Todos);
+        var revisoes = Dados.Obter(d, "_textos_da_revisao") as IReadOnlyDictionary<string, object?> ?? new Dictionary<string, object?>();
+        var textos = editarTextos || revisoes.Count > 0 ? new TextosDoModelo(revisoes) : null;
+        var fonte = NovasLinhas(m.Html);
+        if (editarTextos)
+            fonte = fonte.Replace("{{ a.situacao|pill_vao }}", """
+                {% if a._situacao_nominal %}{{ a._situacao_nominal|pill_vao }}{% if a._situacao_tecnica %} {{ a._situacao_tecnica|pill }}{% endif %}{% else %}{{ a.situacao|pill_vao }}{% endif %}{% if a._pendencia_nominal %}<div class="st">{{ a._pendencia_nominal }}</div>{% endif %}
+                """, StringComparison.Ordinal);
+        if (textos is not null) fonte = TextosDoModelo.Instrumentar(fonte);
+        var html = Molde.Compilar(fonte).Renderizar(ctx, Filtros.Todos, textos);
         if (temMarcacoesEditaveis)
             html = html.Replace(" <span class=\"ids\">()</span>", "", StringComparison.Ordinal);
-        return new ResultadoRender(html, erros, MontarRefs(html, itens, figuras));
+        return new ResultadoRender(html, erros, MontarRefs(html, itens, figuras))
+        {
+            Textos = textos?.Campos ?? new Dictionary<string, TextoDoModelo>(),
+        };
+    }
+
+    static void AplicarCamposOcultos(Dictionary<string, object?> dados)
+    {
+        if (Dados.Obter(dados, "_campos_ocultos") is not List<object?> caminhos) return;
+        foreach (var caminho in caminhos.OfType<string>())
+        {
+            var partes = caminho.Split('/');
+            object? no = dados;
+            for (var i = 0; i < partes.Length; i++)
+            {
+                var ultimo = i == partes.Length - 1;
+                if (no is Dictionary<string, object?> objeto && objeto.TryGetValue(partes[i], out var filho))
+                {
+                    if (ultimo && filho is string) objeto[partes[i]] = "";
+                    no = filho;
+                }
+                else if (no is List<object?> lista && int.TryParse(partes[i], out var indice) && indice >= 0 && indice < lista.Count)
+                {
+                    no = lista[indice];
+                    if (ultimo && no is string) lista[indice] = "";
+                }
+                else break;
+                if (ultimo && no is Dictionary<string, object?> oculto) oculto["_oculto_na_revisao"] = true;
+            }
+        }
     }
 
     // A situação técnica original fica nos dados. O gerador do kit usa a apresentação na tabela impressa.
@@ -105,8 +161,11 @@ public static class RelatorioRenderer
         for (var i = 0; i < linhas.Count; i++)
         {
             var apresentacao = Dados.Obter(linhas[i], "apresentacao");
-            if (!PythonTexto.Verdadeiro(apresentacao)) continue;
             var linha = new Dictionary<string, object?>(Dados.Dict(linhas[i]));
+            if (Dados.Obter(linha, "icone") is not string { Length: > 0 })
+                linha["icone"] = grupo == "iluminacao" ? "bed" : "plot";
+            linhas[i] = linha;
+            if (!PythonTexto.Verdadeiro(apresentacao)) continue;
             var situacao = Dados.Obter(apresentacao, "situacao") as string;
             if (grupo == "iluminacao" && Equals(Dados.Obter(linha, "situacao"), "DIVERGENCIA") &&
                 (situacao == "DECISAO_DO_ANALISTA" || Equals(Dados.Obter(apresentacao, "situacao_adicional"), "DECISAO_DO_ANALISTA")))
@@ -124,7 +183,6 @@ public static class RelatorioRenderer
                     linha["textos"] = textos;
                 }
             }
-            linhas[i] = linha;
         }
         contexto[grupo] = new Dictionary<string, object?>(Dados.Dict(tabela)) { [chave] = linhas };
     }
@@ -160,7 +218,8 @@ public static class RelatorioRenderer
         var n = 0;
         foreach (Match s in Secao.Matches(html))
         {
-            refs.Add(new RefElemento(".sec", n, "secao-" + (n + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), s.Groups[1].Value));
+            var rotulo = Regex.Replace(s.Groups[1].Value, "</?pmvni-texto[^>]*>", "", RegexOptions.CultureInvariant);
+            refs.Add(new RefElemento(".sec", n, "secao-" + (n + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), System.Net.WebUtility.HtmlDecode(rotulo)));
             n++;
         }
         return refs;

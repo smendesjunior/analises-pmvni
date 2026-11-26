@@ -17,7 +17,7 @@ namespace Pmvni.App;
 public sealed partial class MainWindow
 {
     /// <summary>Um campo de texto do cartão Conteúdo.</summary>
-    sealed record CampoNoPainel(TextBox Caixa, Border Marca, Button Restaurar, TextBlock? Original);
+    sealed record CampoNoPainel(TextBox Caixa, Border Marca, Button Restaurar, TextBlock? Original, CheckBox? Visibilidade);
 
     readonly Dictionary<string, CampoNoPainel> camposNoPainel = new(StringComparer.Ordinal);
     string assinaturaCampos = "";
@@ -84,7 +84,21 @@ public sealed partial class MainWindow
         {
             var p = sessao?.Revisao.Projeto;
             var it = sessao?.Atual is null ? null : ItemSelecionado;
+            R.PropTextosOcultos.Visibility = p is not null &&
+                (TextosDoRelatorio?.Values.Any(t => !t.Visivel) == true || p.Figuras?.Any(f => !f.Incluida) == true ||
+                    TextosRevisados.CamposOcultos(p).Count > 0)
+                ? Visibility.Visible : Visibility.Collapsed;
             AjustarPropriedadesALargura(); // antes do retorno da linha de tabela: escolher um ambiente também reabre o painel
+            if (textoModeloSelecionado is { } chave && TextosDoRelatorio?.GetValueOrDefault(chave) is { } texto)
+            {
+                MontarPropriedadesTextoDoModelo(chave, texto);
+                return;
+            }
+            if (p is not null && FiguraParaPropriedades(p, figuraSelecionada) is { } figura)
+            {
+                MontarPropriedadesFigura(p, figura);
+                return;
+            }
             if (p is not null && sessao?.Atual is not null && LinhaSelecionada is { } linha)
             {
                 MontarPropriedadesLinha(p, linha);
@@ -161,8 +175,9 @@ public sealed partial class MainWindow
         R.PropRolagem.Visibility = Visibility.Visible;
         R.PropTitulo.Text = TabelasRevisao.Rotulo(linha);
         R.PropId.Text = TabelasRevisao.TextoEfetivo(p, linha, "nome") is { Length: > 0 } nome ? nome + " · " + linha : linha;
-        R.PropNoPdf.IsChecked = true;
-        R.PropNoPdf.IsEnabled = false;
+        R.PropNoPdf.IsChecked = TextosRevisados.CampoVisivel(p, linha, "");
+        R.PropNoPdf.IsEnabled = editavel && !RoteiroLegado &&
+            TabelasRevisao.TentarLer(linha, out var bloco, out _) && bloco is TabelasRevisao.Ambientes or TabelasRevisao.Indices or TabelasRevisao.Chamadas;
 
         var efetiva = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, linha));
         R.PropSituacao.SelectedIndex = efetiva is null ? -1 : Faixas.OrdemSituacoes.ToList().IndexOf(efetiva);
@@ -187,7 +202,8 @@ public sealed partial class MainWindow
         Dicas.SetDescricao(R.PropAjustarTexto, semIa
             ? "O editor refaz as contas da tabela (resultado, no projeto e situação, comparando com o limite) e mostra o que mudou, de antes e de agora. Sem IA. Um Desfazer volta tudo."
             : "A IA revê o diagrama a partir desta linha e da justificativa. Um Desfazer volta tudo.");
-        R.PropReverComIa.Visibility = RecalculoLinha.OfereceReverComIa(linha, rev?.Justificativa, pendente) ? Visibility.Visible : Visibility.Collapsed;
+        R.PropReverComIa.Visibility = semIa && (!RoteiroLegado || RecalculoLinha.OfereceReverComIa(linha, rev?.Justificativa, pendente))
+            ? Visibility.Visible : Visibility.Collapsed;
         R.PropReverComIa.IsEnabled = editavel && !ajustandoComIa;
         R.PropAjustarAviso.Text = semIa
             ? "A justificativa mudou: reveja a tabela sem IA, peça à IA que siga o que você escreveu (Rever com a IA) ou edite os textos."
@@ -255,7 +271,7 @@ public sealed partial class MainWindow
     /// mesmo: Enter ou sair da caixa aplica, Esc desiste; passa pela mesma rota da edição na folha (<see cref="EditarTextoAsync"/>), com
     /// o recálculo e o Desfazer de sempre — e, com Original ⇄ ligado, o texto original embaixo.</summary>
     void MontarCampos(string id, IReadOnlyList<(string Campo, string Nome)> campos, bool editavel, Func<string, string> efetivo, Func<string, string> original,
-        Func<string, bool> alterado, string dicaRestaurar)
+        Func<string, bool> alterado, string dicaRestaurar, Func<string, Task>? restaurarCampo = null)
     {
         var assinatura = id + "|" + editavel + "|" + mostrarOriginal + "|" + string.Join(",", campos.Select(c => c.Campo));
         if (assinatura != assinaturaCampos)
@@ -268,7 +284,7 @@ public sealed partial class MainWindow
                 var caixa = CartoesDePainel.Caixa("", nome, editavel);
                 var marca = CartoesDePainel.Marca("alterado");
                 var restaurar = CartoesDePainel.BotaoPequeno(Glifos.Restaurar, "Restaurar", "Restaurar o campo " + nome, dicaRestaurar);
-                restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(id, campo)));
+                restaurar.Click += async (_, _) => await TentarAsync(() => restaurarCampo?.Invoke(campo) ?? AplicarAsync(new RestaurarCampo(id, campo)));
                 caixa.KeyDown += async (_, e) =>
                 {
                     if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; await AplicarCampoDoPainelAsync(id, campo, caixa); }
@@ -276,6 +292,19 @@ public sealed partial class MainWindow
                 };
                 caixa.LostFocus += async (_, _) => await AplicarCampoDoPainelAsync(id, campo, caixa);
                 var bloco = CartoesDePainel.Campo(nome, caixa, marca, restaurar);
+                CheckBox? visibilidade = null;
+                if (editavel && !RoteiroLegado)
+                {
+                    var ia = CartoesDePainel.BotaoPequeno(Glifos.Ia, "Editar com a IA", "Editar " + nome + " com a IA",
+                        "Aplica a resposta ao campo. A alteração pode ser desfeita.");
+                    ia.Click += async (_, _) => await TentarAsync(() => EditarCampoComIaAsync(id, campo, nome));
+                    bloco.Children.Add(ia);
+                    if (!id.StartsWith("modelo/", StringComparison.Ordinal))
+                    {
+                        visibilidade = ControleVisibilidade(id, campo, nome);
+                        bloco.Children.Add(visibilidade);
+                    }
+                }
                 TextBlock? textoOriginal = null;
                 if (mostrarOriginal)
                 {
@@ -287,7 +316,7 @@ public sealed partial class MainWindow
                     blocoOriginal.Children.Add(textoOriginal);
                     bloco.Children.Add(blocoOriginal);
                 }
-                camposNoPainel[campo] = new CampoNoPainel(caixa, marca, restaurar, textoOriginal);
+                camposNoPainel[campo] = new CampoNoPainel(caixa, marca, restaurar, textoOriginal, visibilidade);
                 R.PropCampos.Children.Add(bloco);
             }
         }
@@ -303,6 +332,8 @@ public sealed partial class MainWindow
             c.Restaurar.Visibility = mudou ? Visibility.Visible : Visibility.Collapsed;
             c.Restaurar.IsEnabled = editavel;
             if (c.Original is not null) c.Original.Text = original(campo);
+            if (c.Visibilidade is { } v && sessao?.Revisao.Projeto is { } p)
+                v.IsChecked = TextosRevisados.CampoVisivel(p, id, campo);
         }
     }
 
@@ -357,6 +388,7 @@ public sealed partial class MainWindow
         var ultimo = conta.Esquadrias.Count - 1;
         var assinatura = linha + "|" + editavel + "|" + (caminhoDoMinimo ?? "-") + "|"
                          + string.Join(";", conta.Esquadrias.Select(e => $"{e.Indice},{e.Categoria},{e.Acrescentada},{e.Largura is not null},{e.TemCampoDeArea}"));
+        assinatura += "|" + string.Join(",", TextosRevisados.CamposOcultos(p).Where(c => c.Alvo == linha).Select(c => c.Campo));
         if (assinatura != assinaturaEsquadrias)
         {
             assinaturaEsquadrias = assinatura;
@@ -499,7 +531,7 @@ public sealed partial class MainWindow
         grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        for (var r = 0; r < 4; r++) grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (var r = 0; r < 5; r++) grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         void Por(FrameworkElement el, int linhaGrade, int coluna, int vao = 1)
         {
             Grid.SetRow(el, linhaGrade);
@@ -578,6 +610,28 @@ public sealed partial class MainWindow
         alerta.Children.Add(n.Nota);
         n.NotaBloco = alerta;
         Por(alerta, 2, 1, 2);
+        if (editavel && !RoteiroLegado && sessao?.Revisao.Projeto is { } projeto)
+        {
+            var caminho = $"vaos/{e.Indice}";
+            var acoes = new StackPanel { Spacing = 2 };
+            acoes.Children.Add(ControleVisibilidade(linha, caminho, $"Esquadria {ordinal}"));
+            var detalhes = new Expander { Header = "Campos da esquadria" };
+            var opcoes = new StackPanel { Spacing = 4 };
+            foreach (var (parte, nome) in new[] { ("codigo", "Código"), ("tipo", "Tipo"), ("medidas", "Medidas"), ("area", "Área"), ("sem_area", "Aviso") })
+            {
+                var campo = caminho + "/" + parte;
+                if (!TabelasRevisao.Editavel(projeto, linha, campo)) continue;
+                var botoes = new StackPanel { Spacing = 2 };
+                botoes.Children.Add(ControleVisibilidade(linha, campo, nome, "Exibir " + nome.ToLowerInvariant()));
+                var ia = CartoesDePainel.BotaoPequeno(Glifos.Ia, "Rever " + nome.ToLowerInvariant() + " com a IA", nome, "Edita o campo da esquadria.");
+                ia.Click += async (_, _) => await TentarAsync(() => EditarCampoComIaAsync(linha, campo, nome));
+                botoes.Children.Add(ia);
+                opcoes.Children.Add(botoes);
+            }
+            detalhes.Content = opcoes;
+            acoes.Children.Add(detalhes);
+            Por(acoes, 4, 1, 2);
+        }
 
         esquadriasNoPainel.Add(n);
         return new Border
@@ -743,8 +797,8 @@ public sealed partial class MainWindow
         esqResultado.Text = conta.Situacao == "PENDENTE" ? "FALTA COMPROVAR (falta " + conta.TextoPendencia + ")"
             : conta.Atende is not { } atende || conta.Total is not { } total || conta.Minimo is not { } minimo
             ? "Sem como comparar"
-            : atende ? (total == minimo ? "ATENDE (no limite)" : "ATENDE (sobram " + Esquadrias.TextoArea(total - minimo) + ")")
-            : "NÃO ATENDE (faltam " + conta.TextoFalta + ")";
+            : atende ? (total == minimo ? "Conta nominal confere (no limite)" : "Conta nominal confere (sobram " + Esquadrias.TextoArea(total - minimo) + ")")
+            : "Conta nominal não confere (faltam " + conta.TextoFalta + ")";
         var gravada = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, linha));
         esqAviso!.Text = pendente ? "Conta com o que está digitado. Enter (ou sair da caixa) aplica; Esc desiste."
             : conta.Atende is { } r && gravada is not null && (gravada == "ATENDE") != r

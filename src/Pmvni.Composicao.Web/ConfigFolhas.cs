@@ -19,7 +19,7 @@ public sealed record ConfigFolhas(string CabecalhoUri, string RodapeEsquerda, st
         PadraoDeBytes(m, File.ReadAllBytes(caminhoDados));
 
     /// <summary>Como <see cref="PadraoDeDados"/>, com os bytes do dados.json já lidos (o efetivo gerado a partir do pacote não é um arquivo).</summary>
-    public static ConfigFolhas PadraoDeBytes(ModeloCarregado m, byte[] dados)
+    public static ConfigFolhas PadraoDeBytes(ModeloCarregado m, byte[] dados, IDictionary<string, TextoDoModelo>? textos = null)
     {
         ArgumentNullException.ThrowIfNull(dados);
         using var doc = JsonDocument.Parse(dados);
@@ -28,6 +28,25 @@ public sealed record ConfigFolhas(string CabecalhoUri, string RodapeEsquerda, st
             && doc.RootElement.TryGetProperty("config", out var config) && config.ValueKind == JsonValueKind.Object
             && config.TryGetProperty("orgao", out var o) && o.ValueKind == JsonValueKind.String)
             orgao = o.GetString()!;
-        return Padrao(m, orgao);
+        var revisoes = doc.RootElement.TryGetProperty("_textos_da_revisao", out var revisao) ? revisao : default;
+        var cabecalho = Campo("cabecalho", orgao);
+        var esquerda = Campo("rodape-esquerda", RodapeEsquerdaPadrao);
+        var direita = Campo("rodape-direita", RodapeDireitaPadrao);
+        return new ConfigFolhas(Cabecalho.CabecalhoUri(cabecalho.Visivel ? cabecalho.Atual : "", m.Brasao),
+            esquerda.Visivel ? esquerda.Atual : "", direita.Visivel ? direita.Atual : "");
+
+        TextoDoModelo Campo(string chave, string original)
+        {
+            var atual = original;
+            var visivel = true;
+            if (revisoes.ValueKind == JsonValueKind.Object && revisoes.TryGetProperty(chave, out var c) && c.ValueKind == JsonValueKind.Object)
+            {
+                if (c.TryGetProperty("texto", out var texto) && texto.ValueKind == JsonValueKind.String) atual = texto.GetString()!;
+                if (c.TryGetProperty("visivel", out var visao) && visao.ValueKind == JsonValueKind.False) visivel = false;
+            }
+            var campo = new TextoDoModelo(original, atual, visivel);
+            if (textos is not null) textos[chave] = campo;
+            return campo;
+        }
     }
 }

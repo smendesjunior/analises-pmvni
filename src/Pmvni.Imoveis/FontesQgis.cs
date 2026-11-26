@@ -74,7 +74,12 @@ public static class FontesQgis
             {
                 foreach (var e in new DirectoryInfo(atual).EnumerateFileSystemInfos())
                 {
-                    if ((e.Attributes & FileAttributes.ReparsePoint) != 0 && e is DirectoryInfo) { avisos.Add($"Atalho de pasta não percorrido: {Relativo(raiz, e.FullName)}"); continue; }
+                    // Os marcadores do OneDrive também são pontos de nova análise. LinkTarget só aponta para links de verdade.
+                    if ((e.Attributes & FileAttributes.ReparsePoint) != 0 && e.LinkTarget is not null)
+                    {
+                        avisos.Add($"Atalho não percorrido: {Relativo(raiz, e.FullName)}");
+                        continue;
+                    }
                     if (e is DirectoryInfo && nivel < 6) pendentes.Push((e.FullName, nivel + 1));
                     else if (e is FileInfo f && Extensoes.Contains(f.Extension))
                         arquivos.Add(new ArquivoFonte(f.FullName, Relativo(raiz, f.FullName), f.Length, f.LastWriteTimeUtc));

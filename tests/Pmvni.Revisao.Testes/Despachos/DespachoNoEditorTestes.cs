@@ -81,6 +81,21 @@ public sealed class DespachoNoEditorTestes
     }
 
     [Fact]
+    public void Modelos_manuais_vem_do_registro_e_das_referencias_do_kit_atual()
+    {
+        var fonte = FontesModelos.DoKitAtual(Ambiente.ExigirKit());
+        var disponiveis = RegistroModelos.Ler([fonte], fonte.Raiz);
+        Assert.Empty(disponiveis.Indisponiveis);
+        Assert.Equal(2, disponiveis.Modelos.Count);
+        foreach (var modelo in disponiveis.Modelos)
+        {
+            var docx = PreenchimentoDocx.LerModelo(File.ReadAllBytes(modelo.Caminho), modelo.Tipo);
+            Assert.NotNull(docx);
+            Assert.NotEmpty(TextosFixos.Ler(fonte, modelo.Tipo).Paragrafos);
+        }
+    }
+
+    [Fact]
     public void Fontes_dos_modelos_na_ordem_com_o_kit_antigo_compativel()
     {
         using var pasta = Ambiente.PastaDeTeste("t22-fontes");
@@ -141,8 +156,7 @@ public sealed class DespachoNoEditorTestes
         var nada = RegistroModelos.Ler(FontesModelos.Candidatas(null, null, kitVazio), kitVazio);
         Assert.Empty(nada.Modelos);
         Assert.Null(nada.Fonte);
-        var msg = "Os modelos de despacho não foram encontrados: a pasta do kit (" + kitVazio + ") não tem os modelos de despacho, e o plugin "
-                  + "analise instalado não traz os modelos. " + FontesModelos.AtualizeOKit;
+        var msg = "Os modelos de despacho não foram encontrados: a pasta do kit (" + kitVazio + ") não tem os modelos de despacho. " + FontesModelos.AtualizeOKit;
         Assert.Equal(msg, nada.Indisponiveis[TipoDespacho.Correcao]);
         Assert.Equal(msg, nada.Indisponiveis[TipoDespacho.Aprovacao]);
         Assert.Contains("Atualize o kit PMVNI", msg, StringComparison.Ordinal);

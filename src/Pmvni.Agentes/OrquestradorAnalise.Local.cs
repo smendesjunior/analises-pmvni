@@ -15,6 +15,7 @@ public sealed partial class OrquestradorAnalise
         AreaAnaliseLocal.LocalExistente(origem, ControlesDoProcesso.RegistroAtual(origem, registro))
         ?? Path.GetDirectoryName(ControlesDoProcesso.RaizLegada(origem))!;
 
+#if !PMVNI_DISTRIBUICAO
     // Entrada sem janela, usada também pelo controlador destacado depois de o Editor fechar.
     internal static int SalvarRetomada(string[] args, TextWriter erro)
     {
@@ -184,4 +185,5 @@ public sealed partial class OrquestradorAnalise
                 if (dados.ContainsKey(chave)) o[chave] = dados[chave]?.DeepClone();
         });
     }
+#endif
 }

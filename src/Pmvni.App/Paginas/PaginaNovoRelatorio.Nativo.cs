@@ -236,6 +236,9 @@ public sealed partial class PaginaNovoRelatorio
                 BotaoEvidenciasPdf.Visibility, TotalAtende.Text, TotalNaoAtende.Text, TotalComprovar.Text, TotalDivergentes.Text),
         };
         if (aba == "Resumo") conteudo += "|" + versaoConferenciaNumerica;
+        if (MonitorChatGpt is { } chatGpt && aba is "Resumo" or "Etapas")
+            conteudo += $"|chatgpt|{chatGpt.Rodadas.Count}|{chatGpt.RodadasConcluidas}|{chatGpt.Qgis}|{chatGpt.Candidatos}|{AtividadeChatGpt}|{PerfilChatGptAtivo}|"
+                + string.Join(";", chatGpt.Rodadas.SelectMany(r => r.Plano).Select(p => p.Secao + ":" + p.Estado));
         conteudo = aba + "|" + execucaoHtml + "|" + conteudo;
         if (!forcar && conteudo == chaveConteudo)
         {
@@ -365,6 +368,12 @@ public sealed partial class PaginaNovoRelatorio
             var est = Texto("estimado", "MnLegenda");
             est.HorizontalAlignment = HorizontalAlignment.Center;
             centro.Children.Add(est);
+        }
+        if (MonitorChatGpt is not null)
+        {
+            var rotuloPlano = Texto("do plano", "MnLegenda");
+            rotuloPlano.HorizontalAlignment = HorizontalAlignment.Center;
+            centro.Children.Add(rotuloPlano);
         }
         anel.Children.Add(centro);
         AutomationProperties.SetName(anel, "Progresso global da análise: " + TextoPercentual.Text);
@@ -555,6 +564,11 @@ public sealed partial class PaginaNovoRelatorio
 
     void PaginaResumo()
     {
+        if (MonitorChatGpt is { } estadoChatGpt)
+        {
+            MostrarResumoChatGpt(estadoChatGpt);
+            return;
+        }
         Adicionar(TituloDePagina(Glifos.Painel, "Principais descobertas", "Constatações preliminares até a auditoria cruzada."), 0);
 
         var contagens = new Grid { ColumnSpacing = 12 };
@@ -727,7 +741,9 @@ public sealed partial class PaginaNovoRelatorio
 
     void PaginaEtapas()
     {
-        Adicionar(TituloDePagina(Glifos.Lista, "Atividades da análise", "Acompanhe as etapas e os registros de execução.",
+        var subtitulo = MonitorChatGpt is null ? "Acompanhe as etapas e os registros de execução."
+            : "Acompanhe as rodadas do analise-chatgpt e a conferência do relatório.";
+        Adicionar(TituloDePagina(Glifos.Lista, "Etapas da análise", subtitulo,
             emCurso ? TagAoVivo("Em andamento") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
         var atual = IndiceEtapaAberta;
         var lista = Cartao();
@@ -746,7 +762,7 @@ public sealed partial class PaginaNovoRelatorio
             cabeca.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
             cabeca.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
             cabeca.Children.Add(IconeDaEtapa(nome, estado));
-            var textos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
+            var textos = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
             textos.Children.Add(Texto(nome, "MnCorpoForte"));
             textos.Children.Add(Texto(DescricaoDaEtapa(nome), "MnSecundario"));
             Grid.SetColumn(textos, 1);
@@ -767,7 +783,7 @@ public sealed partial class PaginaNovoRelatorio
                 cabeca.Children.Add(pct);
             }
             var selo = SeloDaEtapa(estado);
-            if (estado == EstadoEtapa.Agora && execucaoAtivaNaBarra && emCurso)
+            if (estado == EstadoEtapa.Agora && execucaoAtivaNaBarra && emCurso && MonitorChatGpt is null)
                 selo = SituacaoEModeloDaEtapa(selo, nome);
             Grid.SetColumn(selo, 3);
             cabeca.Children.Add(selo);
@@ -775,7 +791,9 @@ public sealed partial class PaginaNovoRelatorio
             Grid.SetColumn(seta, 4);
             cabeca.Children.Add(seta);
             linha.Children.Add(cabeca);
-            if (aberta) linha.Children.Add(FaixaDaEtapaAberta(i, nome, estado, p));
+            if (aberta) linha.Children.Add(MonitorChatGpt is { } chatGpt
+                ? FaixaDaEtapaChatGpt(chatGpt, IdDaEtapa(nome), estado)
+                : FaixaDaEtapaAberta(i, nome, estado, p));
             var indice = i;
             var botao = LinhaClicavel(linha, $"{nome} · {SituacaoDaEtapa(estado, execucaoAtivaNaBarra)}", i > 0, () =>
             {
@@ -803,9 +821,9 @@ public sealed partial class PaginaNovoRelatorio
     {
         var glifo = estado == EstadoEtapa.Feita ? Glifos.Concluido : IdDaEtapa(nome) switch
         {
-            "prepare" => Glifos.Pasta,
-            "analyze" => Glifos.Relatorio,
-            "final_review" => Glifos.Marca,
+            "prepare" or "preparar_fontes" => Glifos.Pasta,
+            "analyze" or "analisar_grupos" => Glifos.Relatorio,
+            "final_review" or "auditar_relatorio" => Glifos.Marca,
             _ => Glifos.EmitirProcessoAprovado,
         };
         var estilo = estado switch

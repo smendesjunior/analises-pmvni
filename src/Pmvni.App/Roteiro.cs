@@ -22,6 +22,7 @@ using Windows.Storage.Streams;
 
 namespace Pmvni.App;
 
+#if !PMVNI_DISTRIBUICAO
 /// <summary>Respostas fixas do roteiro: nenhum seletor nem diálogo abre (ninguém está olhando a janela). Confirmar responde
 /// <see cref="Confirmar"/>; cada pergunta fica registrada.</summary>
 internal sealed class PerguntasFixas : IPerguntas
@@ -139,8 +140,10 @@ internal sealed class ConversorMedido(IConversorPdf real) : IConversorPdf
 /// nomes sem sobrescrever e bloqueios, sobre outra cópia da árvore fictícia, com o kit real só lido e o LibreOffice real) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
 /// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
 /// independente: falha num não impede os seguintes.</summary>
+#endif
 internal static class Roteiro
 {
+#if !PMVNI_DISTRIBUICAO
     internal static IReadOnlyList<string> EtapasDaAnaliseDeTeste { get; } =
         ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
 
@@ -6268,6 +6271,7 @@ internal static class Roteiro
         await File.WriteAllBytesAsync(arquivo, bytes);
     }
 
+#endif
     internal static async Task CapturarXamlAsync(FrameworkElement elemento, string arquivo)
     {
         // O Mica não entra na captura: fundo sólido do tema só durante a captura, para o texto não sumir.
@@ -6288,6 +6292,7 @@ internal static class Roteiro
         await File.WriteAllBytesAsync(arquivo, bytes);
     }
 
+#if !PMVNI_DISTRIBUICAO
     // Grava num temporário ao lado e renomeia: quem espera pelo arquivo nunca lê JSON pela metade.
     static void Gravar(string arquivo, JsonObject dados)
     {
@@ -6296,4 +6301,5 @@ internal static class Roteiro
         File.WriteAllText(temporario, dados.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
         File.Move(temporario, arquivo, overwrite: true);
     }
+#endif
 }

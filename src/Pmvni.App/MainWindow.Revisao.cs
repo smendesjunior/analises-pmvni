@@ -88,8 +88,25 @@ public sealed partial class MainWindow
         MontarBotoesFiltro();
         R.ListaExcluidos.ItemClick += async (_, e) => { if (e.ClickedItem is FrameworkElement { Tag: string id }) await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(id))); };
         R.BotaoFecharPropriedades.Click += (_, _) => MostrarPropriedades(false);
+        R.PropTextosOcultos.Click += async (_, _) => await TentarAsync(EscolherTextoOcultoAsync);
         R.PropNoPdf.Click += async (_, _) =>
         {
+            if (textoModeloSelecionado is { } chave && TextosDoRelatorio?.GetValueOrDefault(chave) is { } texto)
+            {
+                await TentarAsync(() => AplicarAsync(new DefinirTextoDoModelo(chave, texto.Atual == texto.Original ? null : texto.Atual,
+                    R.PropNoPdf.IsChecked == true)));
+                return;
+            }
+            if (sessao?.Revisao.Projeto is { } p && FiguraParaPropriedades(p, figuraSelecionada) is { } f)
+            {
+                await TentarAsync(() => AplicarAsync(f.Incluida ? new ExcluirFigura(f.Id) : new RestaurarFigura(f.Id)));
+                return;
+            }
+            if (LinhaSelecionada is { } linha && R.PropNoPdf.IsEnabled)
+            {
+                await TentarAsync(() => AplicarAsync(new DefinirVisibilidadeDoCampo(linha, "", R.PropNoPdf.IsChecked == true)));
+                return;
+            }
             if (ItemSelecionado is not { } it) return;
             await TentarAsync(() => AplicarAsync(it.Incluido ? new Excluir(it.Id) : new Restaurar(it.Id)));
         };
@@ -229,6 +246,9 @@ public sealed partial class MainWindow
     /// O critério ilegível não é adivinhado: a edição entra sozinha e o aviso sugere «Rever com a IA».</summary>
     Comando ComandoDeEdicao(Projeto pj, string itemId, string campo, string texto)
     {
+        if (itemId.StartsWith("modelo/", StringComparison.Ordinal) && TextosDoRelatorio?.GetValueOrDefault(itemId[7..]) is { } modelo)
+            return new DefinirTextoDoModelo(itemId[7..], texto == modelo.Original ? null : texto, modelo.Visivel);
+        if (FiguraParaPropriedades(pj, itemId) is { }) return EdicaoDeFigura(itemId, campo, texto);
         if (itemId == TabelasRevisao.ProtocoloCapa || !TabelasRevisao.EhLinha(itemId)) return new DefinirCampo(itemId, campo, texto);
         texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo));
         if (!TabelasRevisao.Existe(pj, itemId)) return new DefinirCampo(itemId, campo, texto);
@@ -539,6 +559,7 @@ public sealed partial class MainWindow
     /// <summary>Seleciona o item (null = nenhum): nas folhas (com rolagem, se ele está incluído), nas Propriedades e na faixa.</summary>
     internal async Task SelecionarAsync(string? itemId)
     {
+        textoModeloSelecionado = figuraSelecionada = null;
         if (sessao is not { } s) return;
         var it = itemId is null ? null : s.Revisao.Projeto.Item(itemId);
         var linha = itemId is not null && TabelasRevisao.Existe(s.Revisao.Projeto, itemId);
@@ -664,9 +685,21 @@ public sealed partial class MainWindow
         switch (m.Tipo)
         {
             case "selecionado":
+                if (Texto("textoModelo") is { } chave && TextosDoRelatorio?.ContainsKey(chave) == true &&
+                    FiguraDoRef(Texto("ref")) is null && Texto("campo") is null && !RoteiroLegado)
+                {
+                    SelecionarTextoDoModelo(chave, focar: true);
+                    break;
+                }
                 SelecionadoNaPagina(Texto("ref"), Texto("campo"));
-                if (d.TryGetProperty("volumetria", out var vol) && vol.ValueKind == JsonValueKind.True)
-                    MostrarPedidoVolumetria(new Point(Numero("x"), Numero("y")));
+                if (Texto("vista") is { } vista && vista is ("planta" or "volumetria"))
+                    MostrarPedidoDiagrama(new Point(Numero("x"), Numero("y")), vista);
+                else if (!RoteiroLegado && Texto("campo") is { } campoClicado)
+                {
+                    if (!PropriedadesVisivel) MostrarPropriedades(true);
+                    if (camposNoPainel.TryGetValue(campoClicado, out var entrada))
+                        DispatcherQueue.TryEnqueue(() => entrada.Caixa.Focus(FocusState.Programmatic));
+                }
                 break;
             case "pedirEdicao":
                 if (Texto("ref") is { } r && Texto("campo") is { } c) await NaFilaAsync(() => IniciarEdicaoAsync(r, c));
@@ -698,7 +731,9 @@ public sealed partial class MainWindow
     void SelecionadoNaPagina(string? @ref, string? campo)
     {
         if (sessao is not { } s) return;
+        textoModeloSelecionado = null;
         figuraSelecionada = FiguraDoRef(@ref); // clique numa figura (Etapa 4)
+        if (figuraSelecionada is not null && !PropriedadesVisivel) MostrarPropriedades(true);
         if (@ref is not null && s.Revisao.Projeto.Item(@ref) is null && !TabelasRevisao.Existe(s.Revisao.Projeto, @ref)) @ref = null;
         selecionado = @ref;
         ultimoCampo = @ref is null ? null : campo;
@@ -939,6 +974,7 @@ public sealed partial class MainWindow
     void LimparPaineis()
     {
         selecionado = ultimoCampo = itemNasPropriedades = figuraSelecionada = null;
+        textoModeloSelecionado = null;
         mostrarOriginal = false;
         navegacaoCompleta = [];
         AtualizarPaineis();

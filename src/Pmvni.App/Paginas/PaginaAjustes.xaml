@@ -538,20 +538,6 @@
               <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
               <local:CartaoAgente x:Name="CartaoGemini" Visibility="Collapsed" x:FieldModifier="internal"/>
             </local:PainelCartoesAjustes>
-            <local:PainelCartoesAjustes>
-              <Border Style="{StaticResource PmvniAjusteGrupo}">
-                <StackPanel Padding="16,12" Spacing="6">
-                    <local:LinhaComAcoes>
-                      <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="ChatGPT: rota da conta Codex" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Como o ChatGPT se conecta nas análises: pela configuração do Codex neste PC, direto na OpenAI ou pelo Codex-LB." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                      <ComboBox x:Name="CaixaRotaCodex" x:FieldModifier="internal" AutomationProperties.Name="Rota da conta Codex">
-                        <ComboBoxItem Tag="herdar" Content="Usar configuração do Codex neste PC"/>
-                        <ComboBoxItem Tag="openai" Content="Conectar diretamente à OpenAI"/>
-                        <ComboBoxItem Tag="codex-lb" Content="Usar Codex-LB configurado neste PC"/>
-                      </ComboBox>
-                    </local:LinhaComAcoes>
-                </StackPanel>
-              </Border>
-            </local:PainelCartoesAjustes>
             <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
@@ -622,6 +608,13 @@
 
           <!-- ===== 6.1 Inteligência artificial › Modelos da análise ===== -->
           <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
+            <Border x:Name="CartaoPerfisDoPlugin" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteGrupo}">
+              <StackPanel Padding="16,12" Spacing="8">
+                <TextBlock Text="Perfis do analise-chatgpt" Style="{StaticResource PmvniAjusteTitulo}"/>
+                <TextBlock x:Name="TextoPerfisDoPlugin" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+              </StackPanel>
+            </Border>
+            <StackPanel x:Name="AjustesLegadosDosModelos" x:FieldModifier="internal" Spacing="12" Visibility="Collapsed">
             <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="Na análise, o kit escolhe o modelo conforme a tarefa. O Monitor mostra qual está em atividade. Na auditoria técnica, você escolhe o modelo e o esforço que este computador usará nas novas análises."/>
             <TextBlock Text="ROTAS DE EXECUÇÃO" Style="{StaticResource PmvniAjusteTitulo}"/>
             <InfoBar x:Name="AvisoModelosAnalise" x:FieldModifier="internal" Severity="Warning" IsClosable="False" IsOpen="False" Title="Confira os modelos da análise"/>
@@ -692,6 +685,8 @@
                           local:Dicas.Titulo="Publicar como padrão do kit" local:Dicas.Descricao="Só no computador do kit mestre: grava esta tabela no kit e roda o instalador (manter) fora do Editor. A atualização automática leva a tabela aos outros computadores."/>
               </local:LinhaComAcoes>
             </Border>
+          </StackPanel>
+
           </StackPanel>
 
           <!-- ===== 7. Kit PMVNI ===== -->

@@ -61,7 +61,7 @@ public sealed partial class MainWindow
         : ajustes.Agentes[Provedor.Claude].Modo == ModoAcesso.Chave ? FonteIa.AnthropicApi : FonteIa.ClaudeCode;
 
     RotaResolvida ConexaoCodexDoComputador() =>
-        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecasAgentes.CodexHome);
+        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, "herdar", pecasAgentes.CodexHome);
 
     bool UsaCatalogoIndicativoDoCodex(string rota) => rota == "codex" && ConexaoCodexDoComputador().Rota == "codex-lb";
 
@@ -85,6 +85,19 @@ public sealed partial class MainWindow
     void IniciarModelosDaAnalise()
     {
         var p = PaginaDeAjustes;
+        if (!RoteiroLegado)
+        {
+            p.CategoriaMostrada += async tag =>
+            {
+                if (tag != CategoriasAjustes.Modelos) return;
+                await LerPecasAsync();
+                MostrarModelosDaAnalise();
+            };
+            return;
+        }
+        p.PermitirRestaurarModelos = true;
+        p.CartaoPerfisDoPlugin.Visibility = Visibility.Collapsed;
+        p.AjustesLegadosDosModelos.Visibility = Visibility.Visible;
         p.CartoesRotas.SizeChanged += (_, e) => DistribuirCartoes(p.CartoesRotas, e.NewSize.Width);
         foreach (var (texto, _) in OpcoesCotaBaixa) p.CaixaCotaBaixa.Items.Add(new ComboBoxItem { Content = texto });
         p.AlternarReconferenciaEconomica.Toggled += (_, _) =>
@@ -174,6 +187,11 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         var p = PaginaDeAjustes;
+        if (!RoteiroLegado)
+        {
+            p.TextoPerfisDoPlugin.Text = TextoDosPerfisDoPlugin();
+            return;
+        }
         var (kit, etapas) = TabelaDoKitInstalado();
         montandoModelosAnalise = true;
         try
@@ -295,6 +313,24 @@ public sealed partial class MainWindow
                 p.TextoModelosAnalise.Text = a.Vazio ? "Tudo no padrão do kit." : "Há ajustes deste computador (as células marcadas com •).";
         }
         finally { montandoModelosAnalise = false; }
+    }
+
+    string TextoDosPerfisDoPlugin()
+    {
+        if (pecasAgentes.AnaliseChatGpt is not { } skill) return "Instale o kit PMVNI para consultar os perfis do plugin.";
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(Path.Combine(skill, "references", "grupos.json")));
+            var perfis = json.RootElement.EnumerateArray()
+                .Select(g => (Id: g.GetProperty("id").GetInt32(), Modelo: g.GetProperty("modelo").GetString(), Esforco: g.GetProperty("esforco").GetString()))
+                .GroupBy(g => (g.Modelo, g.Esforco, Auditoria: g.Id == 15));
+            return string.Join(Environment.NewLine, perfis.Select(g =>
+                $"{g.Key.Modelo} · {ModelosDaAnalise.NomeDoNivel(g.Key.Esforco ?? "")} · {(g.Key.Auditoria ? "Auditoria e consolidação" : "Grupos " + string.Join(", ", g.Select(x => x.Id)))}"));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            return "Não foi possível ler os perfis do plugin. Verifique a instalação em Kit PMVNI.";
+        }
     }
 
     string? KitMestreDesteComputador()

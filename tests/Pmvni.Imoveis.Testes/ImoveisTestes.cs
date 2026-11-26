@@ -151,6 +151,37 @@ public class MapaLocalizacaoTestes : IDisposable
 
     public MapaLocalizacaoTestes() => b = BaseQgis.Carregar(pasta);
 
+    [Fact]
+    public void ConsultaParaAnaliseCruzaInscricaoSemExporNomes()
+    {
+        var entrada = Path.Combine(pasta, "entrada-consulta.json");
+        File.WriteAllText(entrada, System.Text.Json.JsonSerializer.Serialize(new { inscricoes = new[] { BaseFicticia.Lote4 } }));
+        var resultado = Path.Combine(pasta, "consulta.json");
+        Assert.Equal(0, ConsultaParaAnalise.Executar([ConsultaParaAnalise.Comando, pasta, entrada, resultado], TextWriter.Null));
+        var texto = File.ReadAllText(resultado);
+        using var json = System.Text.Json.JsonDocument.Parse(texto);
+        Assert.Equal("CONSULTADA", json.RootElement.GetProperty("situacao").GetString());
+        var candidato = Assert.Single(json.RootElement.GetProperty("candidatos").EnumerateArray());
+        Assert.Equal(BaseFicticia.Lote4, candidato.GetProperty("inscricao").GetString());
+        var feicao = candidato.GetProperty("feicao").GetInt32();
+        Assert.DoesNotContain("FULANO DE TAL EXEMPLO", texto);
+        Assert.DoesNotContain(BaseFicticia.Lote3, texto);
+
+        var mapa = Path.Combine(pasta, "mapa-do-candidato");
+        Assert.Equal(0, MapaParaAnalise.Executar([MapaParaAnalise.Comando, pasta, feicao.ToString(), mapa], TextWriter.Null));
+        using var ficha = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(mapa, "FICHA.JSON")));
+        Assert.Equal(feicao, ficha.RootElement.GetProperty("feicao").GetInt32());
+        Assert.DoesNotContain("FULANO DE TAL EXEMPLO", File.ReadAllText(Path.Combine(mapa, "MAPA.SVG")));
+
+        var fallback = ConsultaParaAnalise.ConsultarArquivo(Path.Combine(pasta, "ausente"), pasta, entrada, CancellationToken.None);
+        Assert.Equal("CONSULTADA", fallback["situacao"]!.GetValue<string>());
+        Assert.Equal(pasta, fallback["pasta"]!.GetValue<string>());
+        Assert.Single(fallback["tentativas_anteriores"]!.AsArray());
+        var ausente = Path.Combine(pasta, "consulta-indisponivel.json");
+        Assert.Equal(0, ConsultaParaAnalise.Executar([ConsultaParaAnalise.Comando, Path.Combine(pasta, "ausente"), entrada, ausente], TextWriter.Null));
+        Assert.Contains("INDISPONIVEL", File.ReadAllText(ausente));
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(pasta, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }

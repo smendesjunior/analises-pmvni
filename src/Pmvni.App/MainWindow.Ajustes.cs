@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Pmvni.Agentes;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
 using Pmvni.Legislacao;
@@ -182,7 +184,6 @@ public sealed partial class MainWindow
             SalvarAjustes();
             p.TextoProfissionalSalvo.Text = "Dados salvos. Valem a partir do próximo despacho e relatório.";
         };
-        AoEscolher(p.CaixaRotaCodex, valor => ajustes.RotaCodex = (string)valor);
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();
@@ -253,7 +254,6 @@ public sealed partial class MainWindow
                 foreach (var item in c.Items.OfType<ComboBoxItem>())
                     if (Equals(item.Tag, valor)) { c.SelectedItem = item; return; }
             }
-            Escolher(p.CaixaRotaCodex, ajustes.RotaCodex);
             Escolher(p.CaixaTema, ajustes.Tema);
             Escolher(p.CaixaIntervalo, ajustes.IntervaloAutosaveS);
             Escolher(p.CaixaAbrirEm, ajustes.AbrirEm);
@@ -502,10 +502,32 @@ public sealed partial class MainWindow
         p.TextoResultadoComponentes.Text = "Verificando as versões…";
         try
         {
-            var leitura = await ComponentesDoKit.LerAsync(OrigensDoKitDoComputador());
+            var leitura = await ComponentesDoKit.LerAsync(OrigensDoKitDoComputador(), RoteiroLegado ? null : ComponentesDoKit.FerramentasPdf);
+            string? fontesAnalise = null;
+            if (!RoteiroLegado)
+            {
+                await LerPecasAsync();
+                var componente = ComponentesDoKit.AnaliseChatGpt;
+                var motivo = OrquestradorAnalise.MotivoAnaliseChatGpt(pecasAgentes);
+                var versao = pecasAgentes.VersaoAnaliseChatGpt;
+                if (pecasAgentes.AnaliseChatGpt is { } skill && pecasAgentes.Node is not null)
+                {
+                    var resolucao = await OrquestradorAnalise.ResolverFontesChatGptAsync(pecasAgentes, ajustes.PastaKit, CancellationToken.None);
+                    var raiz = resolucao["fonte"]?["raiz"]?.ToString();
+                    fontesAnalise = raiz is null ? "Nenhuma origem de fontes acessível." : "Fontes da análise · " + raiz;
+                    if (resolucao["diferem"] is JsonArray { Count: > 0 } divergencias)
+                        motivo = "Origens com fontes divergentes · " + string.Join(" · ", divergencias.Select(d => d?["raiz"]?.ToString()));
+                    else if (raiz is null && resolucao["avisos"] is JsonArray avisos)
+                        motivo = string.Join(Environment.NewLine, avisos.Select(a => a?["raiz"] + " · " + a?["motivo"]));
+                    fontesAnalise += Environment.NewLine + "Plugin em uso · " + skill;
+                }
+                var estado = motivo is null ? SituacaoComponente.EmDia : versao is null ? SituacaoComponente.Ausente : SituacaoComponente.ComErro;
+                leitura = leitura with { Linhas = [new LinhaComponente(componente, versao, versao, estado, motivo ?? componente.Ajuda, true), .. leitura.Linhas] };
+            }
             if (fechada || geracao != geracaoComponentes) return;
             LeituraDoKitAtual = leitura;
             MostrarComponentes(leitura);
+            if (fontesAnalise is not null) p.TextoFonteComponentes.Text += Environment.NewLine + fontesAnalise;
             p.TextoResultadoComponentes.Text = "Verificado às " + DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture) + ".";
         }
         catch (Exception e)

@@ -260,10 +260,13 @@ public static partial class Esquadrias
             Gravar("resultado/conta", conta.TextoConta);
             if (conta.Minimo is not null) Gravar("resultado/comparacao", conta.TextoComparacao);
         }
-        if (conta.Situacao is { } nova && TabelasRevisao.SituacaoEfetiva(depois, ambiente) is { } situacao && situacao != "DECISAO_DO_ANALISTA")
+        var justificativa = TabelasRevisao.Justificativa(depois, ambiente);
+        var situacaoDefinidaPeloRevisor = depois.Linhas.TryGetValue(ambiente, out var revisao) && revisao.Situacao is not null &&
+            !string.IsNullOrWhiteSpace(justificativa) && !justificativa.StartsWith(RecalculoLinha.MarcaJustificativa, StringComparison.Ordinal);
+        if (conta.Situacao is { } nova && TabelasRevisao.SituacaoEfetiva(depois, ambiente) is { } situacao &&
+            situacao is not ("DECISAO_DO_ANALISTA" or "DIVERGENCIA") && !situacaoDefinidaPeloRevisor)
         {
             if (nova != situacao) comandos.Add(new DefinirSituacao(ambiente, nova));
-            var justificativa = TabelasRevisao.Justificativa(depois, ambiente);
             if (string.IsNullOrWhiteSpace(justificativa) || justificativa!.StartsWith(RecalculoLinha.MarcaJustificativa, StringComparison.Ordinal))
             {
                 var volta = nova == TabelasRevisao.SituacaoOriginal(depois, ambiente);

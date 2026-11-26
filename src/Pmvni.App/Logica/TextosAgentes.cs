@@ -79,9 +79,9 @@ public static class TextosAgentes
           + "o Google pode usar esse conteúdo para melhorar os produtos dele: por isso ela só serve para processos fictícios. O editor não envia nada por "
           + "conta própria: ele só dá a partida, mostra o andamento e importa o relatório no fim."
         : p == Provedor.ChatGpt
-        ? "Analisar com o ChatGPT inicia a rota ChatGPT do plugin analise do kit PMVNI, que roda sozinha pelo Python e chama o Codex instalado neste computador, "
-          + "com a sua configuração. O Codex lê os arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o conteúdo "
-          + "de que precisar, como faz no app do ChatGPT. O editor não envia nada por conta própria: ele só dá a partida, mostra o andamento e importa o relatório no fim."
+        ? "O plugin analise-chatgpt usa o Codex CLI com a sua conta ChatGPT para analisar e auditar o processo. "
+          + "A análise consome a cota dessa conta. O Codex pode enviar à OpenAI trechos das peças e das evidências necessárias à análise. "
+          + "O Editor organiza as rodadas e abre o relatório editável para revisão. O despacho é emitido manualmente no módulo Despachos."
         : "Analisar com o Claude inicia a rota Claude do plugin analise do kit PMVNI, que roda sozinha numa janela minimizada e chama o Claude Code deste computador "
           + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
           + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "

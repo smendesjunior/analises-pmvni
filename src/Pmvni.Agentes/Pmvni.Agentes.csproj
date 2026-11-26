@@ -17,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <ProjectReference Include="..\Pmvni.Imoveis\Pmvni.Imoveis.csproj" />
   </ItemGroup>
 </Project>

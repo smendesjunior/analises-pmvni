@@ -42,7 +42,8 @@ public sealed partial class MainWindow : IHostFiguras
 
     void AtualizarComandosFiguras(bool temRelatorio)
     {
-        if (figuraSelecionada is not null && FiguraDoRef(figuraSelecionada) is null) figuraSelecionada = null;
+        if (figuraSelecionada is not null && (sessao is not { } aberta || FiguraParaPropriedades(aberta.Revisao.Projeto, figuraSelecionada) is null))
+            figuraSelecionada = null;
         var editavel = temRelatorio && Editavel;
         Faixa.Habilitar(ComandosApp.FigurasInserirRegiao, editavel);
         Faixa.Habilitar(ComandosApp.FigurasEditar, temRelatorio && figuraSelecionada is not null);

@@ -24,6 +24,7 @@ public static class FontesModelos
     public const string AnaliseNoKit = "01 - PLUGINS/plugins/analise";
 
     public const string NomeRegistro = "TEMPLATES_OFICIAIS.json";
+    public const string ReferenciasDoKit = "02 - MODELOS DE DOCUMENTOS/DESPACHO/REFERENCIAS";
 
     /// <summary>O que fazer quando nenhuma fonte foi achada (fim da mensagem de <see cref="NaoEncontrados"/>).</summary>
     public const string AtualizeOKit =
@@ -36,7 +37,7 @@ public static class FontesModelos
         var kit = string.IsNullOrWhiteSpace(raizKit) ? "a pasta do kit não foi informada"
             : Directory.Exists(raizKit) ? "a pasta do kit (" + raizKit + ") não tem os modelos de despacho"
             : "a pasta do kit não foi encontrada em " + raizKit;
-        return "Os modelos de despacho não foram encontrados: " + kit + ", e o plugin analise instalado não traz os modelos. " + AtualizeOKit;
+        return "Os modelos de despacho não foram encontrados: " + kit + ". " + AtualizeOKit;
     }
 
     static string Local(string relativo) => relativo.Replace('/', Path.DirectorySeparatorChar);
@@ -63,11 +64,16 @@ public static class FontesModelos
     public static FonteModelos DoRegistroDoKit(string raizKit)
     {
         ArgumentNullException.ThrowIfNull(raizKit);
+        var oficiais = DoKitAtual(raizKit);
+        if (Directory.Exists(oficiais.PastaTextos)) return oficiais;
         var novos = Path.Combine(raizKit, Local(AnaliseNoKit), Local(PastaNoAnalise));
         var textos = Directory.Exists(novos) ? novos : Path.Combine(raizKit, Local(TextosFixos.PastaReferencias));
-        return new FonteModelos(Path.Combine(raizKit, Local(RegistroModelos.CaminhoRegistro)), raizKit, textos,
-            "pasta do kit, 02 - MODELOS DE DOCUMENTOS (" + raizKit + ")");
+        return oficiais with { PastaTextos = textos };
     }
+
+    public static FonteModelos DoKitAtual(string raizKit) =>
+        new(Path.Combine(raizKit, Local(RegistroModelos.CaminhoRegistro)), raizKit, Path.Combine(raizKit, Local(ReferenciasDoKit)),
+            "pasta do kit, 02 - MODELOS DE DOCUMENTOS (" + raizKit + ")");
 
     /// <summary>A pasta do kit: primeiro o registro <c>02 - MODELOS DE DOCUMENTOS</c>, depois o <c>references\despacho</c> do analise dela.</summary>
     public static IReadOnlyList<FonteModelos> DaPastaDoKit(string raizKit)

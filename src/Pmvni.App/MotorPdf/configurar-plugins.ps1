@@ -1,7 +1,5 @@
-# -Componente (Tarefa 21, cartao 'Plugins e ferramentas' dos Ajustes): so uma parte. analise = o plugin no Codex e no Claude Code;
-# motores = PyMuPDF, Docling, Blueprint e FYP (instalam juntos); pmvni-pdf = o servidor de PDF e o registro dele nos programas.
-# Sem -Componente, tudo (primeira abertura e botao 'Reparar instalação'). Uma parte so mantem no resumo as linhas das outras.
-param([ValidateSet('','analise','motores','pmvni-pdf')][string]$Componente = '', [string]$KitLocal = '', [switch]$AtualizarKit,
+# Configura o leitor PyMuPDF e o servidor de PDF. A atualização do kit é feita pelo instalador da origem.
+param([ValidateSet('','motores','pmvni-pdf')][string]$Componente = '', [string]$KitLocal = '', [switch]$AtualizarKit,
       [string]$PastaPmvni = (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PMVNI'))
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'nativo.ps1')
@@ -45,38 +43,12 @@ if ($AtualizarKit) {
 }
 $tudo = -not $Componente
 $fazMotores = $tudo -or $Componente -eq 'motores'
-$fazPlugin = !$AtualizarKit -and ($tudo -or $Componente -eq 'analise')
 $fazServidor = $tudo -or $Componente -eq 'pmvni-pdf'
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 [IO.Directory]::CreateDirectory($base) | Out-Null
 $estado = [ordered]@{'PyMuPDF 2.1'='PENDENTE'}
 $resumo = Join-Path $base 'resumo-instalacao.txt'
 $erros = @()
-# Confere a instalação efetiva com o verificador que o executor usa no pré-voo.
-function Conferir-Plugin([string]$programa) {
-    $origem = Join-Path $catalogo 'plugins\analise'
-    $versao = (Get-Content -LiteralPath (Join-Path $origem '.codex-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
-    if ($programa -eq 'Codex') {
-        $raiz = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
-        $plugin = Join-Path $raiz "plugins\cache\pmvni-kit\analise\$versao"
-    } else {
-        $raiz = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }
-        $registro = Join-Path $raiz 'plugins\installed_plugins.json'
-        if (!(Test-Path -LiteralPath $registro)) { return $false }
-        $instalados = (Get-Content -LiteralPath $registro -Raw -Encoding UTF8 | ConvertFrom-Json).plugins
-        $entrada = @($instalados."analise@$mk" | Where-Object { $_.version -eq $versao -and $_.scope -eq 'user' }) | Select-Object -First 1
-        if (!$entrada.installPath) { return $false }
-        $plugin = $entrada.installPath
-    }
-    $skill = Join-Path $plugin 'skills\analise'
-    if (!(Test-Path -LiteralPath $skill -PathType Container)) { return $false }
-    if (!$python -or !(Test-Path -LiteralPath $python -PathType Leaf)) { throw 'Motor PDF indisponivel para conferir o plugin' }
-    $verificador = Join-Path $origem 'skills\analise\scripts\check_kit_version.py'
-    $resultado = & $python -B -X utf8 $verificador --kit-root $kit --skill-root $skill | Out-String | ConvertFrom-Json
-    if ($resultado.status -eq 'CURRENT' -and $LASTEXITCODE -eq 0 -and $resultado.kit_plugin_copy) { return $true }
-    if ($resultado.status -eq 'UPDATE_REQUIRED' -or @($resultado.different_skill_files | Where-Object { $_ }).Count) { return $false }
-    throw ("Conferencia do kit para $programa inconclusiva: " + $resultado.status + ' ' + ($resultado.errors -join ' / '))
-}
 $mutex = [Threading.Mutex]::new($false,'Local\PMVNI-ConfigurarPlugins')
 try {
     try { $entrou = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $entrou = $true }
@@ -92,10 +64,9 @@ try {
             if ($campos.Count -ne 2) { continue }
             if ($campos[0] -eq 'FALHA') {
                 $erro = $campos[1].Trim()
-                if (($fazMotores -and $erro -like 'Motor *') -or ($fazServidor -and $erro -like 'MCP *') -or
-                    ($fazPlugin -and $erro -like 'Plugin *')) { continue }
+                if (($fazMotores -and $erro -like 'Motor *') -or ($fazServidor -and $erro -like 'MCP *') -or $erro -like 'Plugin *') { continue }
                 if (!$tudo) { $falhasAnteriores += $erro }
-            } else { $estado[$campos[0].Trim()] = $campos[1].Trim() }
+            } elseif ($campos[0].Trim() -notmatch '/ analise(?:-|$)') { $estado[$campos[0].Trim()] = $campos[1].Trim() }
         }
     }
     if ($fazMotores) { foreach ($k in 'PyMuPDF 2.1') { $estado[$k]='PENDENTE' } }
@@ -114,10 +85,6 @@ try {
     $runtime = Join-Path $base 'runtime.txt'
     if (!$python -and (Test-Path -LiteralPath $runtime)) { $python = [IO.File]::ReadAllText($runtime) }
     if ($fazServidor -and !$fazMotores -and !$python) { $erros += 'MCP sem motor PDF: atualize os motores de PDF primeiro'; $fazServidor = $false }
-    $cfg = Join-Path $env:USERPROFILE '.codex\pmvni-kit.json'
-    $kit = if ($KitLocal) { $KitLocal } elseif (Test-Path $cfg) {(Get-Content $cfg -Raw -Encoding UTF8|ConvertFrom-Json).kit_root}
-    if (!$kit) {$kit='\\srv-fileserver.PMVNI.PREF\pmvni\Obras\Engenharia\KIT DE TREINAMENTO DE IA (PMVNI)'}
-    $catalogo = Join-Path $kit '01 - PLUGINS'
     $servidor = Join-Path $base 'mcp_pmvni.py'
     if ($fazServidor) { Copy-Item (Join-Path $PSScriptRoot 'mcp_pmvni.py') $servidor -Force }
     $codex = (Get-Command codex.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
@@ -133,61 +100,23 @@ try {
             Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
     }
     if ($codex) { $estado.Remove('Codex') }
-    if (!$codex) {$estado['Codex']='AUSENTE'} elseif ($fazPlugin -or $fazServidor) {
+    if (!$codex) {$estado['Codex']='AUSENTE'} elseif ($fazServidor) {
         try {
-            $origemErro = 'Plugin Codex'
-            if ($fazPlugin) { Invocar-Nativo $codex @('plugin', 'marketplace', 'add', $catalogo) | Out-Null }
-
-            foreach($n in @(if ($fazPlugin) {'analise'})){
-                $estado["Codex / $n"]='PENDENTE'
-                $r = Invocar-Nativo $codex @('plugin', 'add', "$n@pmvni-kit", '--json') |ConvertFrom-Json
-                if(!$r.version){throw "Plugin $n"}
-                if (!(Conferir-Plugin 'Codex')) {
-                    Invocar-Nativo $codex @('plugin', 'remove', "$n@pmvni-kit") | Out-Null
-                    $r = Invocar-Nativo $codex @('plugin', 'add', "$n@pmvni-kit", '--json') | ConvertFrom-Json
-                    if (!(Conferir-Plugin 'Codex')) { throw 'Conteudo instalado ainda diverge do kit' }
-                }
-                $estado["Codex / $n"]="INSTALADO $($r.version)"
-            }
-            if ($fazServidor) {
-                $origemErro = 'MCP Codex'
-                Invocar-Nativo $codex @('mcp', 'add', 'pmvni-pdf', '--', $python, '-I', $servidor) | Out-Null
-
-                $estado['Codex / ferramentas PDF']='CONFIGURADO'
-            }
-        } catch { $erros += "$origemErro - $($_.Exception.Message)" }
+            Invocar-Nativo $codex @('mcp', 'add', 'pmvni-pdf', '--', $python, '-I', $servidor) | Out-Null
+            $estado['Codex / ferramentas PDF']='CONFIGURADO'
+        } catch { $erros += "MCP Codex - $($_.Exception.Message)" }
     }
     $claude = Get-Command claude.exe -ErrorAction SilentlyContinue
     if ($claude) { $estado.Remove('Claude Code') }
-    if (!$claude) { $estado['Claude Code']='AUSENTE' } elseif ($fazPlugin -or $fazServidor) {
+    if (!$claude) { $estado['Claude Code']='AUSENTE' } elseif ($fazServidor) {
         try {
-            $origemErro = 'Plugin Claude'
-            if ($fazPlugin) {
-                $mk=(Get-Content (Join-Path $catalogo '.claude-plugin\marketplace.json') -Raw|ConvertFrom-Json).name
-                try { Invocar-Nativo $claude.Source @('plugin', 'marketplace', 'add', $catalogo, '--scope', 'user') | Out-Null
-                } catch { Invocar-Nativo $claude.Source @('plugin', 'marketplace', 'update', $mk) | Out-Null }
-                Invocar-Nativo $claude.Source @('plugin', 'install', "analise@$mk", '--scope', 'user') | Out-Null
-
-                Invocar-Nativo $claude.Source @('plugin', 'update', "analise@$mk", '--scope', 'user') | Out-Null
-
-                if (!(Conferir-Plugin 'Claude')) {
-                    Invocar-Nativo $claude.Source @('plugin', 'uninstall', "analise@$mk", '--scope', 'user') | Out-Null
-                    Invocar-Nativo $claude.Source @('plugin', 'install', "analise@$mk", '--scope', 'user') | Out-Null
-                    if (!(Conferir-Plugin 'Claude')) { throw 'Conteudo instalado ainda diverge do kit' }
-                }
-                $estado['Claude Code / analise']='INSTALADO'
+            $existente = try { Invocar-Nativo $claude.Source @('mcp', 'get', 'pmvni-pdf') | Out-String } catch { '' }
+            if ($existente -notlike "*$python*" -or $existente -notlike "*$servidor*") {
+                if ($existente -match 'Scope: User') { Invocar-Nativo $claude.Source @('mcp', 'remove', '--scope', 'user', 'pmvni-pdf') | Out-Null }
+                Invocar-Nativo $claude.Source @('mcp', 'add', '--scope', 'user', '--transport', 'stdio', 'pmvni-pdf', '--', $python, '-I', $servidor) | Out-Null
             }
-            if ($fazServidor) {
-                $origemErro = 'MCP Claude'
-                $existente = try { Invocar-Nativo $claude.Source @('mcp', 'get', 'pmvni-pdf') | Out-String } catch { '' }
-                if ($existente -notlike "*$python*" -or $existente -notlike "*$servidor*") {
-                    if($existente -match 'Scope: User') { Invocar-Nativo $claude.Source @('mcp', 'remove', '--scope', 'user', 'pmvni-pdf') | Out-Null }
-                    Invocar-Nativo $claude.Source @('mcp', 'add', '--scope', 'user', '--transport', 'stdio', 'pmvni-pdf', '--', $python, '-I', $servidor) | Out-Null
-
-                }
-                $estado['Claude Code / ferramentas PDF']='CONFIGURADO'
-            }
-        } catch { $erros += "$origemErro - $($_.Exception.Message)" }
+            $estado['Claude Code / ferramentas PDF']='CONFIGURADO'
+        } catch { $erros += "MCP Claude - $($_.Exception.Message)" }
     }
     $pastas = @(Join-Path $env:APPDATA 'Claude')
     $pastas += @(Get-ChildItem "$env:LOCALAPPDATA\Packages\Claude*\LocalCache\Roaming\Claude" -Directory -ErrorAction SilentlyContinue | ForEach-Object FullName)

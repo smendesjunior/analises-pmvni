@@ -11,6 +11,7 @@ public sealed record SituacaoKit(string Codigo, string? Rotulo, string? Etapa, s
     public DateTimeOffset? RetomarEmUtc { get; init; }
     public string? Motivo { get; init; }
     public DecisaoAnalise? Decisao { get; init; }
+    internal PerfilRodadaChatGpt? RodadaChatGpt { get; init; }
 }
 
 public static class SituacaoAnalisePro

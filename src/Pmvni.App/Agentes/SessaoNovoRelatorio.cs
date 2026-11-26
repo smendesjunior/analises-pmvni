@@ -124,7 +124,8 @@ public sealed class ExecucaoEmCurso
     /// <summary>O editor deixou de acompanhar (fechou com o Claude rodando): o fim desta execução não muda nada na tela nem nos ajustes.</summary>
     internal bool Abandonada { get; set; }
 
-    public string UltimaMensagem => Path.Combine(RegistroDeTrabalho, "ultima-mensagem.md");
+    internal string? PastaAnaliseChatGpt { get; init; }
+    public string UltimaMensagem => Path.Combine(PastaAnaliseChatGpt ?? RegistroDeTrabalho, "ultima-mensagem.md");
 
     /// <summary>Os anexos recusados no plano do clique (ficaram ilegíveis entre a prévia e a partida): não foram copiados nem enviados.</summary>
     public IReadOnlyList<string> Recusas { get; internal init; } = [];
@@ -185,14 +186,16 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// <param name="modelos">Tarefa 19: a tabela efetiva de modelos (padrão do kit + ajuste local); null = vale o padrão do kit.</param>
     public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
         PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false, string? registroAnterior = null, TabelaDeModelos? modelos = null,
-        string? pastaQgis = null, string? pastaKit = null, ModoAcesso? modoOriginal = null, string? rotaOriginal = null, bool auditoriaAlternativa = false)
+        string? pastaQgis = null, string? pastaKit = null, ModoAcesso? modoOriginal = null, string? rotaOriginal = null,
+        bool auditoriaAlternativa = false, bool usarAnaliseChatGpt = false)
     {
         if (!Provedores.Ativos.Contains(p)) throw new AnaliseRecusadaException(Provedores.RotaDesativada);
         var pc = pecas();
-        var m = modoOriginal ?? modo(p);
+        var m = usarAnaliseChatGpt ? ModoAcesso.Conta : modoOriginal ?? modo(p);
         if (p != Provedor.Gemini) { perfilGemini = null; ficticio = false; }
         var chaveGuardada = m == ModoAcesso.Chave && CofreChaves.Existe(raizDados, p);
-        if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini) is { } motivo) throw new AnaliseRecusadaException(motivo);
+        if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini, usarAnaliseChatGpt) is { } motivo)
+            throw new AnaliseRecusadaException(motivo);
         texto = string.IsNullOrWhiteSpace(texto) ? null : texto;
 
         var orq = orquestrador();
@@ -210,7 +213,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 }
                 // A mesma análise retomada no mesmo registro (escolhida, ou achada interrompida com o mesmo pedido e as mesmas peças): no ChatGPT, o
                 // controlador do kit continua o controle que já existe (sem --inputs).
-                var interrompida = registroAnterior is null ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos, p, orq.DocumentosParaTeste) : null;
+                var interrompida = !usarAnaliseChatGpt && registroAnterior is null
+                    ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos, p, orq.DocumentosParaTeste) : null;
                 var reg = registroAnterior is not null ? RegistroExecucao.Abrir(registroAnterior, pr.Pasta)
                     : interrompida ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
                 if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
@@ -218,7 +222,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 if (registroAnterior is null && interrompida is null)
                     reg.Atualizar(o =>
                     {
-                        o["area_local_solicitada"] = true;
+                        o["area_local_solicitada"] = !usarAnaliseChatGpt;
+                        if (usarAnaliseChatGpt) o["plugin"] = OrquestradorAnalise.NomeAnaliseChatGpt;
                         if (auditoriaAlternativa) o["rota_auditoria_alternativa"] = p == Provedor.Claude ? "codex" : "claude";
                     });
                 reg.GravarPedido(texto ?? "");      // o pedido digitado; nenhuma IA recebe pedido do editor (Tarefa 12)
@@ -240,13 +245,17 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             throw new AnaliseRecusadaException("A janela foi fechada antes da partida; nada foi iniciado.");
         }
         // A trava pega antes de copiar os anexos passa ao orquestrador, que a segura até o fim (nunca fica um instante sem dono).
-        var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
+        var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false)
+        {
+            Recusas = recusas,
+            PastaAnaliseChatGpt = usarAnaliseChatGpt ? OrquestradorAnalise.PastaAnaliseChatGpt(raizDados, pr.Pasta, registro.Pasta) : null,
+        };
         var progresso = Progresso(e);
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro)
         {
             RotaCodex = rotaOriginal ?? rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
             Modelos = modelos, PastaQgis = pastaQgis, PastaKit = pastaKit,
-            UsarDocumentos = true, AoPrepararLocal = e.MostrarTrabalhoEm,
+            UsarDocumentos = !usarAnaliseChatGpt, UsarAnaliseChatGpt = usarAnaliseChatGpt, AoPrepararLocal = e.MostrarTrabalhoEm,
             NomeProfissional = Pmvni.Composicao.Profissional.Atual?.NomeLinha,
             CargoProfissional = Pmvni.Composicao.Profissional.Atual?.Cargo(),
         };

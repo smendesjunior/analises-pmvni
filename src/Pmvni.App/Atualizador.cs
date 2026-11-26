@@ -43,7 +43,7 @@ internal static class Atualizador
 
     /// <summary>Executável publicado e carimbado, fora do autoteste.</summary>
     /// A cópia de desenvolvimento (Aplicativo\ do projeto) não se atualiza: só a cópia de uso, instalada pelo tools\instalar.cmd.
-    public static bool Habilitado { get; } = Compilacao is not null && ExeAtual is not null && !Autoteste.Ativo && Argumentos.Atual.Roteiro is null
+    public static bool Habilitado => Compilacao is not null && ExeAtual is not null && !Autoteste.Ativo && Argumentos.Atual.Roteiro is null
         && !Pmvni.Composicao.Web.PastaDados.CopiaDeDesenvolvimento
         && Environment.GetEnvironmentVariable("PMVNI_SEM_ATUALIZACAO") is not "1";
 

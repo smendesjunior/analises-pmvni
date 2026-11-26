@@ -36,6 +36,7 @@ public static class ProjetoJson
                     p.Linhas[id] = LerLinha(valor!.AsObject());
                 }
             if (j["figuras"] is { } figuras) p.Figuras = CamadaFiguras.Ler(figuras);
+            if (j["textos_do_modelo"] is JsonObject textos) p.TextosDoModelo = (JsonObject)textos.DeepClone();
             return p;
         }
         catch (Exception e) when (e is NullReferenceException or InvalidOperationException or InvalidCastException or FormatException)
@@ -121,6 +122,7 @@ public static class ProjetoJson
         }
         // A camada de figuras só existe depois da primeira edição de figura (um projeto sem ela grava como antes).
         if (p.Figuras is not null) o["figuras"] = CamadaFiguras.Escrever(p.Figuras);
+        if (p.TextosDoModelo.Count > 0) o["textos_do_modelo"] = p.TextosDoModelo.DeepClone();
         return JsonFiel.Escrever(o);
     }
 

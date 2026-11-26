@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Pmvni.Composicao.Kit;
 using Pmvni.Revisao;
 using Windows.Foundation;
 
@@ -14,26 +15,28 @@ public sealed partial class MainWindow
 {
     internal Flyout? UltimoPedidoVolumetria { get; private set; }
 
-    void MostrarPedidoVolumetria(Point ponto)
+    void MostrarPedidoDiagrama(Point ponto, string vista)
     {
-        if (sessao?.Revisao.Projeto is not { } p || !TabelasRevisao.Existe(p, TabelasRevisao.Id(TabelasRevisao.Volumetria, 1))) return;
+        if (sessao?.Revisao.Projeto is not { } p || !TabelasRevisao.Existe(p, TabelasRevisao.Id(vista, 1))) return;
+        var planta = vista == Diagrama.VistaPlanta;
+        var nome = planta ? "planta do terreno" : "volumetria";
         var painel = new StackPanel { Spacing = 8, Width = 420 };
-        painel.Children.Add(new TextBlock { Text = "Ajustar a volumetria com a IA", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+        painel.Children.Add(new TextBlock { Text = $"Ajustar a {nome} com a IA", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
         var caixa = new TextBox
         {
-            PlaceholderText = "Ex.: mais um pavimento; sem telhado; mostrar que o afastamento lateral direito está errado",
+            PlaceholderText = planta ? "Ex.: corrigir o rótulo da testada conforme a cota da prancha" : "Ex.: mais um pavimento ou cobertura sem telhado",
             TextWrapping = TextWrapping.Wrap, AcceptsReturn = false, MinHeight = 64,
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixa, "Pedido para a volumetria");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixa, "Pedido para a " + nome);
         painel.Children.Add(caixa);
         painel.Children.Add(new TextBlock
         {
-            Text = "O desenho continua o mesmo; mudam os pavimentos, o telhado, as alturas e o destaque em vermelho. Desfazer volta.",
+            Text = planta ? "Edite os rótulos e as chamadas desta vista." : "Edite os pavimentos, a cobertura, os rótulos e as chamadas desta vista.",
             Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextWrapping = TextWrapping.Wrap,
         });
         var aplicar = new Button { Content = "Aplicar", Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], IsEnabled = Editavel };
         IconeDeAcao.SetGlifo(aplicar, Glifos.Conferir);
-        void AtualizarDica() => Dicas.Aplicar(aplicar, "Aplicar", "Envia o pedido para ajustar a volumetria com a IA.", "Enter",
+        void AtualizarDica() => Dicas.Aplicar(aplicar, "Aplicar", $"Envia o pedido para ajustar a {nome} com a IA.", "Enter",
             !Editavel ? MotivoRevisaoIndisponivel() : !aplicar.IsEnabled ? "A consulta está em andamento." : null);
         AtualizarDica();
         var anel = new ProgressRing { IsActive = false, Width = 18, Height = 18, Visibility = Visibility.Collapsed };
@@ -49,7 +52,7 @@ public sealed partial class MainWindow
             anel.Visibility = Visibility.Visible;
             anel.IsActive = true;
             var ok = false;
-            try { ok = await AjustarVolumetriaComIaAsync(pedido); }
+            try { ok = await AjustarDiagramaComIaAsync(pedido, vista); }
             finally
             {
                 anel.IsActive = false;
@@ -67,12 +70,14 @@ public sealed partial class MainWindow
             await Enviar();
         };
         flyout.Opened += (_, _) => caixa.Focus(FocusState.Programmatic);
-        UltimoPedidoVolumetria = flyout;
+        if (!planta) UltimoPedidoVolumetria = flyout;
         flyout.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
     }
 
     /// <summary>Manda à IA a volumetria e as chamadas do diagrama com o pedido; aplica o que voltar.</summary>
-    internal async Task<bool> AjustarVolumetriaComIaAsync(string pedido)
+    internal Task<bool> AjustarVolumetriaComIaAsync(string pedido) => AjustarDiagramaComIaAsync(pedido, Diagrama.VistaVolumetria);
+
+    internal async Task<bool> AjustarDiagramaComIaAsync(string pedido, string vista)
     {
         if (ajustandoComIa || sessao is not { Revisao.Projeto: { } p } s) return false;
         IniciarEsperaIa();
@@ -81,7 +86,8 @@ public sealed partial class MainWindow
         {
         var linhas = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var id in TabelasRevisao.Ids(p).Where(i => TabelasRevisao.TentarLer(i, out var b, out _)
-                     && b is TabelasRevisao.Volumetria or TabelasRevisao.Chamadas))
+            && (b == vista || b == TabelasRevisao.Chamadas && (Diagrama.NormalizarVista(TabelasRevisao.Original(p, i)?["vista"]?.ToString())
+                ?? Diagrama.VistaDaAncora(TabelasRevisao.Original(p, i)?["ancora"]?.ToString())) == vista)))
         {
             var d = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var c in TabelasRevisao.Caminhos(TabelasRevisao.Original(p, id)!)) d[c] = TabelasRevisao.TextoEfetivo(p, id, c) ?? "";
@@ -90,11 +96,12 @@ public sealed partial class MainWindow
         }
         try
         {
-            var saida = await PerguntarNaRevisaoAsync(IaRecalculoIndices.PromptVolumetria(pedido, linhas));
+            var saida = await PerguntarNaRevisaoAsync(IaRecalculoIndices.PromptDiagrama(pedido, linhas, vista));
             if (!ReferenceEquals(sessao, s)) return false;
+            p = s.Revisao.Projeto;
             if (IaRecalculoIndices.Ler(saida, linhas.Keys) is not { } novas)
             {
-                MostrarMensagem(InfoBarSeverity.Warning, "Volumetria", "A resposta da IA não veio no formato esperado; nada mudou.");
+                MostrarMensagem(InfoBarSeverity.Warning, "Diagrama dos índices", "A resposta da IA não contém alterações válidas para esta vista.");
                 return false;
             }
             var comandos = new List<Comando>();
@@ -112,9 +119,9 @@ public sealed partial class MainWindow
             // Correções 2026-11-16: "adicionar que o afastamento frontal de 120 cm não atende" vira uma chamada numerada nova (a 7, depois
             // da 5 e da 6), com a marca no desenho; antes a IA só podia pôr a frase no destaque vermelho. Correção 2026-11-17: a chamada
             // leva a vista (volumetria, por padrão: o pedido veio do desenho da volumetria), e é ela que decide a coluna e o desenho.
-            var chamadas = IaRecalculoIndices.LerNovasChamadas(saida, linhas.Keys);
+            var chamadas = IaRecalculoIndices.LerNovasChamadas(saida, linhas.Keys, vista).Where(c => c.Vista == vista).ToArray();
             var novasIds = new List<string>();
-            if (chamadas.Count > 0 && TabelasRevisao.ProximaChamada(p) is { } primeira && TabelasRevisao.TentarLer(primeira, out _, out var n))
+            if (chamadas.Length > 0 && TabelasRevisao.ProximaChamada(p) is { } primeira && TabelasRevisao.TentarLer(primeira, out _, out var n))
                 foreach (var c in chamadas)
                 {
                     var id = TabelasRevisao.Id(TabelasRevisao.Chamadas, n + novasIds.Count);
@@ -123,17 +130,17 @@ public sealed partial class MainWindow
                 }
             if (comandos.Count == 0)
             {
-                MostrarMensagem(InfoBarSeverity.Success, "Volumetria", "A IA não mudou nada na volumetria.");
+                MostrarMensagem(InfoBarSeverity.Success, "Diagrama dos índices", "A IA manteve os textos desta vista.");
                 return true;
             }
-            await TentarAsync(() => AplicarAsync(new Lote(TabelasRevisao.Id(TabelasRevisao.Volumetria, 1), comandos, "Volumetria ajustada pela IA")));
+            await TentarAsync(() => AplicarAsync(new Lote(TabelasRevisao.Id(vista, 1), comandos, "Diagrama ajustado pela IA")));
             if (ultimosErros.Count > 0) return false;
             var textos = comandos.Count(c => c is DefinirCampo);
             var partes = new List<string>();
             if (novasIds.Count > 0)
                 partes.Add((novasIds.Count == 1 ? "chamada nova " : "chamadas novas ") + string.Join(", ", novasIds.Select(i => TabelasRevisao.TentarLer(i, out _, out var k) ? k.ToString(CultureInfo.InvariantCulture) : i)));
             if (textos > 0) partes.Add($"{textos} {(textos == 1 ? "texto" : "textos")}");
-            MostrarMensagem(InfoBarSeverity.Success, "Volumetria", $"A IA ajustou a volumetria ({string.Join("; ", partes)}). Um Desfazer volta tudo.");
+            MostrarMensagem(InfoBarSeverity.Success, "Diagrama dos índices", $"Vista revisada pela IA. {string.Join(" · ", partes)}.");
         }
         catch (Exception e)
         {

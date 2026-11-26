@@ -292,7 +292,7 @@ public static class Diagrama
     }
 
     /// <summary>montar_diagrama(d): numera as chamadas, separa por âncora (planta/volumetria) e desenha os dois SVGs.</summary>
-    public static Dictionary<string, object?> MontarDiagrama(IReadOnlyDictionary<string, object?> d)
+    public static Dictionary<string, object?> MontarDiagrama(IReadOnlyDictionary<string, object?> d, bool editar = false)
     {
         var planta = new List<(string, int)>();
         var volume = new List<(string, int)>();
@@ -302,6 +302,7 @@ public static class Diagrama
         foreach (var item in Dados.Lista(Dados.Exigir(d, "chamadas")))
         {
             n++;
+            if (Equals(Dados.Obter(item, "_oculto_na_revisao"), true)) continue;
             var a = Dados.Exigir(item, "ancora");
             var c = new Dictionary<string, object?>();
             foreach (var par in Dados.Dict(item)) c[par.Key] = par.Value;
@@ -327,10 +328,24 @@ public static class Diagrama
         }
         var r = new Dictionary<string, object?>();
         foreach (var par in d) r[par.Key] = par.Value;
-        r["planta_svg"] = new Seguro(PlantaSvg(Dados.Dict(Dados.Exigir(d, "planta")), planta));
-        r["volumetria_svg"] = new Seguro(VolumetriaSvg(Dados.Dict(Dados.Exigir(d, "volumetria")), volume));
+        r["planta_svg"] = new Seguro(VistaEditavel(PlantaSvg(Dados.Dict(Dados.Exigir(d, "planta")), planta), VistaPlanta, editar));
+        r["volumetria_svg"] = new Seguro(VistaEditavel(VolumetriaSvg(Dados.Dict(Dados.Exigir(d, "volumetria")), volume), VistaVolumetria, editar));
         r["chamadas_planta"] = cp;
         r["chamadas_volumetria"] = cv;
         return r;
+    }
+
+    static string VistaEditavel(string svg, string vista, bool editar)
+    {
+        if (!editar) return svg;
+        var campos = vista == VistaPlanta
+            ? new[] { "via", "testada", "profundidade", "permeavel/titulo", "permeavel/linha1", "permeavel/linha2", "beiral",
+                "edificacao/0", "edificacao/1", "lateral/0", "lateral/1", "frente", "fundos" }
+            : ["via", "altura_esquerda/0", "altura_esquerda/1", "altura_direita/0", "altura_direita/1", "destaque"];
+        var i = 0;
+        svg = svg.Insert(4, " data-vista-diagrama=\"" + vista + "\"");
+        return System.Text.RegularExpressions.Regex.Replace(svg, "<text(?= [^>]* class=)", m =>
+            i < campos.Length ? m.Value + " data-campo-diagrama=\"" + campos[i++] + "\"" : m.Value,
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
 }

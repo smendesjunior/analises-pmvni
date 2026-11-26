@@ -21,7 +21,8 @@ public sealed partial class MainWindow
     async Task EscolherHistoricoPendenteAsync()
     {
         await CarregarHistoricoAsync();
-        var itens = historicoAnalises.Where(h => Provedores.Ativos.Contains(h.Provedor) && h.Situacao is not ("concluida" or "descartada")).ToList();
+        var itens = historicoAnalises.Where(h => h.Situacao is not ("concluida" or "descartada") &&
+            (RoteiroLegado ? Provedores.Ativos.Contains(h.Provedor) : OrquestradorAnalise.RegistroAnaliseChatGpt(h.Registro))).ToList();
         if (itens.Count == 0)
         {
             MostrarMensagem(InfoBarSeverity.Informational, "Retomar análise", "Nenhuma análise pendente foi encontrada na pasta de processos.");

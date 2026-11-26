@@ -532,14 +532,14 @@ public static class MapaLocalizacao
         var rotulos = viz.Where(v => donos.ContainsKey(v.Campo("InscImob"))).Select(v => (v, Curto(donos[v.Campo("InscImob")]))).ToList();
 
         // o balão do lote
-        var ficha = new List<string> { "LOTE " + (loteN.Length > 0 ? loteN : "s/ nº") + (quadra.Length > 0 ? $" · QUADRA {quadra}" : ""), $"Inscrição {ins}" };
+        var ficha = new List<string> { (o.Candidato ? "LOTE CANDIDATO " : "LOTE ") + (loteN.Length > 0 ? loteN : "s/ nº") + (quadra.Length > 0 ? $" · QUADRA {quadra}" : ""), $"Inscrição {ins}" };
         if (proprietario.Length > 0) ficha.Insert(1, Encurtar(proprietario, 44));
         var areas = string.Join(" · ", new[] { areaBase is > 0 ? $"base {Num(areaBase.Value)} m²" : $"calculada {Num(Area(alvo.Partes))} m²", o.AreaDeclarada is > 0 ? $"declarada {Num(o.AreaDeclarada.Value)} m²" : "" }.Where(x => x.Length > 0));
         ficha.Add(string.Join(" · ", new[] { zona.Length > 0 ? $"Zona {zona}" : "", areas }.Where(x => x.Length > 0)));
-        if (appAtinge) ficha.Add("APP ATINGE O LOTE");
+        if (appAtinge) ficha.Add(o.Candidato ? "APP NA BASE: SOBREPOSIÇÃO A CONFERIR" : "APP ATINGE O LOTE");
         // como o kit (atinge_dominio / atinge_nao_edificavel): o domínio do DNIT (< 40 m do eixo) é o caso mais grave
-        if (br is { AtingeDominio: true }) ficha.Add("DOMÍNIO DNIT DA BR-262 ATINGE O LOTE");
-        else if (br is { AtingeNaoEdificavel: true }) ficha.Add("FAIXA DA BR-262 ATINGE O LOTE");
+        if (br is { AtingeDominio: true }) ficha.Add(o.Candidato ? "BR-262: DOMÍNIO SIMULADO, A CONFIRMAR" : "DOMÍNIO DNIT DA BR-262 ATINGE O LOTE");
+        else if (br is { AtingeNaoEdificavel: true }) ficha.Add(o.Candidato ? "BR-262: FAIXA SIMULADA, A CONFIRMAR" : "FAIXA DA BR-262 ATINGE O LOTE");
 
         var nomeRio = o.NomeRio;
         var nomeInformado = nomeRio.Length > 0;
@@ -594,7 +594,7 @@ public static class MapaLocalizacao
         else Dado(GrupoZona, "APP / rio", "Nenhum curso d'água na base num raio de 250 m", "NÃO ATINGE", "g");
         if (br is not null)
             Dado(GrupoZona, "BR-262", $"Eixo a {Num(br.DistanciaEixo, 1)} m · domínio {Num(br.Dominio, 0)} m + {Num(br.NaoEdificavel, 0)} m não edificáveis",
-                br.AtingeNaoEdificavel ? "ATINGE O LOTE" : "NÃO ATINGE", br.AtingeNaoEdificavel ? "r" : "g",
+                o.Candidato ? "A CONFIRMAR" : br.AtingeNaoEdificavel ? "ATINGE O LOTE" : "NÃO ATINGE", o.Candidato ? "a" : br.AtingeNaoEdificavel ? "r" : "g",
                 "Domínio a confirmar no DNIT; faixa não edificável: Lei 6.766/1979, art. 4º, III.");
         Dado(GrupoZona, "AUC", b[Camada.Auc] is null ? indisponivel : auc.Length > 0 ? $"Sim — AUC {auc}" : "Não (fora das AUCs da base)");
         Dado(GrupoZona, "Perímetro", b[Camada.PerimetroUrbano] is null ? indisponivel : perimetro.Length > 0 ? perimetro : "Fora do perímetro urbano de 2022");

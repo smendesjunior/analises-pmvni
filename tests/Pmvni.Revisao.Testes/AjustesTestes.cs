@@ -251,7 +251,7 @@ public class AjustesKitTestes
         var b = Ajustes.Carregar(pasta);
         Assert.Equal(ModoAcesso.Chave, b.Agentes[Provedor.ChatGpt].Modo);
         Assert.Equal(@"C:\Programas\codex.exe", b.Agentes[Provedor.ChatGpt].Executavel);
-        Assert.Equal(1, b.Agentes[Provedor.ChatGpt].AvisoVersao);
+        Assert.Equal(Ajustes.VersaoAviso, b.Agentes[Provedor.ChatGpt].AvisoVersao);
         Assert.Equal(aceite, b.Agentes[Provedor.ChatGpt].AvisoEm);
         Assert.True(b.Agentes[Provedor.ChatGpt].AvisoAceito);
         Assert.Equal(ModoAcesso.Conta, b.Agentes[Provedor.Claude].Modo);

@@ -68,7 +68,7 @@ public sealed class Ajustes
     public const int MaxPedidoPadrao = 2000;
 
     /// <summary>A versão do texto do aviso dos agentes (desenho §12.8): texto novo pede o aceite de novo.</summary>
-    public const int VersaoAviso = 1;
+    public const int VersaoAviso = 2;
 
     /// <summary>Os ajustes dos três agentes locais (sempre os três, com o padrão no que faltar).</summary>
     public IReadOnlyDictionary<Provedor, AjustesAgente> Agentes { get; } = new Dictionary<Provedor, AjustesAgente>
@@ -202,7 +202,6 @@ public sealed class Ajustes
         get => pedidoPadrao;
         set => pedidoPadrao = value is null ? "" : value.Length > MaxPedidoPadrao ? value[..MaxPedidoPadrao] : value;
     }
-    public string RotaCodex { get; set; } = "herdar";
     public bool ConfirmarCancelar { get; set; } = true;
     /// <summary>Ajustes › Inteligência artificial › Modelos de IA (2026-11-17): a IA da revisão e dos ajustes (<c>ia_revisao_fonte</c>):
     /// <see cref="EscolhaIa.Automatico"/> ("Escolha por mim") ou uma <see cref="FonteIa"/> (<see cref="FontesIa.Valor"/>).</summary>
@@ -264,7 +263,6 @@ public sealed class Ajustes
         DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
         PedidoPadrao = "";
-        RotaCodex = p.RotaCodex;
         ConfirmarCancelar = p.ConfirmarCancelar;
         IaRevisaoFonte = p.IaRevisaoFonte;
         foreach (var f in FontesIa.Todas) IaModelos[f] = p.IaModelos[f];
@@ -325,7 +323,7 @@ public sealed class Ajustes
         : string.IsNullOrWhiteSpace(PastaKit) ? PastaKitPadrao : PastaKit;
 
     /// <summary>Chaves que o app deixou de usar de propósito: saem do arquivo na próxima gravação (as desconhecidas, não).</summary>
-    static readonly HashSet<string> Aposentadas = new(StringComparer.Ordinal) { "pasta_legislacao" };
+    static readonly HashSet<string> Aposentadas = new(StringComparer.Ordinal) { "pasta_legislacao", "rota_codex" };
 
     public static Ajustes Carregar(string raizDados)
     {
@@ -478,7 +476,6 @@ public sealed class Ajustes
             ["profissional_matricula"] = ProfissionalMatricula,
             ["legislacao_escopo"] = LegislacaoEscopo,
             ["pedido_padrao"] = PedidoPadrao,
-            ["rota_codex"] = RotaCodex,
             ["confirmar_cancelar"] = ConfirmarCancelar,
             // Modelos de IA: só o nome do modelo e o nível de cada fonte. Nenhuma chave nem token vem para este arquivo.
             ["ia_revisao_fonte"] = IaRevisaoFonte,
@@ -566,7 +563,6 @@ public sealed class Ajustes
         a.ProfissionalMatricula = Texto(j, "profissional_matricula");
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
-        a.RotaCodex = Escolha("rota_codex", ["herdar", "openai", "codex-lb"], a.RotaCodex);
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
         // ia_ajuste_modelo/ia_ajuste_esforco (antes de 2026-11-17): só lidos, para migrar o Codex para ia_modelos; não são mais gravados.
         var antigoModelo = Escolha("ia_ajuste_modelo", ModeloIaAjuste.Modelos.Select(m => m.Valor).ToList(), ModeloIaAjuste.ModeloPadrao);

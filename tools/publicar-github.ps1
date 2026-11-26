@@ -31,6 +31,7 @@ $comprovante = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($Exe))) 'bu
 if (-not (Test-Path -LiteralPath $comprovante)) { throw 'Sem build-validada.json: execute tools\build-release.ps1 -SemGitHub antes de publicar.' }
 $v = Get-Content -LiteralPath $comprovante -Raw -Encoding UTF8 | ConvertFrom-Json
 $commitAtual = & git -C $raiz rev-parse HEAD
+if ($v.AlteracoesLocais -eq $true) { throw 'A build de validação inclui alterações locais. Grave o código em um commit e refaça a build de publicação.' }
 if ($LASTEXITCODE -ne 0 -or -not $v.Commit -or $v.Commit -ne $commitAtual) { throw 'O commit atual difere da build validada. Refaça a build antes de publicar.' }
 $alteracoes = & git -C $raiz status --porcelain --untracked-files=no
 if ($LASTEXITCODE -ne 0 -or $alteracoes) { throw 'Há alterações sem commit. Grave o commit e refaça a build antes de publicar.' }

@@ -387,7 +387,7 @@ public static class Processos
         return anexos.Select(a => a.Categoria ?? CategoriaDoArquivo(a.Relativo)).ToHashSet(StringComparer.Ordinal);
     }
 
-    static string CategoriaDoArquivo(string relativo)
+    public static string CategoriaDoArquivo(string relativo)
     {
         var pasta = Path.GetDirectoryName(relativo) ?? "";
         if (CategoriaDaPasta(pasta) is { } categoria) return categoria;

@@ -9,6 +9,8 @@ namespace Pmvni.Agentes;
 public sealed record OpcoesLocalizacao(string LocalAppData, string CodexHome, IReadOnlyList<string> Path, string PastaKit, string? CodexEscolhido, string? PythonEscolhido,
     string? PastaClaude = null, string? PerfilClaude = null)
 {
+    public string? PastaKitAnalise { get; init; }
+    public bool PermitirKitLegado { get; init; } = true;
     /// <summary>O ambiente real: <c>%LOCALAPPDATA%</c>, <c>CODEX_HOME</c> (ou <c>%USERPROFILE%\.codex</c>), o <c>PATH</c> e o Claude Code
     /// (<c>CLAUDE_CONFIG_DIR</c>, ou <c>%USERPROFILE%\.claude</c> e <c>%USERPROFILE%\.claude.json</c>).</summary>
     public static OpcoesLocalizacao DoAmbiente(string pastaKit, string? codex, string? python)
@@ -42,6 +44,10 @@ public sealed record Pecas(
     /// <summary>O Antigravity CLI (<c>agy.exe</c>), que executa o análise Google pela conta Google ou pela chave do Google AI Studio.</summary>
     public string? Agy { get; init; }
 
+    internal string? AnaliseChatGpt { get; init; }
+    internal string? VersaoAnaliseChatGpt { get; init; }
+    internal string? Node { get; init; }
+
     /// <summary>O <c>google_runtime.py</c> do análise Google instalado no Codex (a maior versão, se conhece a rota explícita).</summary>
     public string? GoogleRuntime { get; init; }
 
@@ -74,6 +80,7 @@ public sealed record Pecas(
 /// <summary>Onde estão o Codex, o Claude Code, o Python e as peças do kit (desenho §12.4–§12.5). Só lê; nada falha: peça ilegível é peça ausente.</summary>
 public static class Localizacao
 {
+    internal const string KitNaRede = @"\\srv-fileserver\PMVNI\Obras\Engenharia\KIT DE TREINAMENTO DE IA (PMVNI)";
     static readonly Regex Habilitado = new(@"^enabled\s*=\s*true\s*(#.*)?$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     static readonly Regex DottedHabilitado = new(@"^plugins\.[""']analise@pmvni-kit[""']\.enabled\s*=\s*true\s*(#.*)?$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     static readonly Regex InlineHabilitado = new(@"^plugins\.[""']analise@pmvni-kit[""']\s*=\s*\{[^}]*\benabled\s*=\s*true\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -87,6 +94,22 @@ public static class Localizacao
         // Tarefa 18: o kit tem um só plugin de análise (analise 4.0.0+), com o controlador de cada rota em skills\analise\scripts\rotas\<rota>.
         // Os três botões (ChatGPT, Claude, Gemini) usam a mesma pasta instalada: a maior versão de cache\pmvni-kit\analise.
         var cacheKit = Path.Combine(o.CodexHome, "plugins", "cache", "pmvni-kit");
+        var nomeChatGpt = OrquestradorAnalise.NomeAnaliseChatGpt;
+        var pessoal = Environment.GetEnvironmentVariable("OneDriveConsumer") ??
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive");
+        var raizes = new[] { o.PastaKitAnalise, KitNaRede, Path.Combine(pessoal, "PMVNI", "SIDNEY JUNIOR", Path.GetFileName(KitNaRede)) };
+        var fontes = raizes.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => Path.Combine(p!, "01 - PLUGINS", "plugins", nomeChatGpt));
+        var (_, repositorioChatGpt) = MaiorVersao(Path.Combine(cacheKit, nomeChatGpt));
+        var (skillChatGpt, versaoChatGpt) = fontes.Append(repositorioChatGpt).Where(p => p is not null)
+            .Select(p => (Skill: Path.Combine(p!, "skills", nomeChatGpt), Versao: VersaoInstalada(p)))
+            .FirstOrDefault(p => p.Versao is not null && new[] { "SKILL.md", "references/grupos.json", "scripts/resolver-kit.mjs", "scripts/gerar-rpmvni.mjs" }
+                .All(arquivo => File.Exists(Path.Combine(p.Skill, arquivo))));
+        var node = NoPath(o, "node.exe");
+        if (!o.PermitirKitLegado)
+            return new Pecas(codex, claude, python, launcher, null, null, VersaoDoKit(o), false, null, false)
+            {
+                CodexHome = o.CodexHome, AnaliseChatGpt = skillChatGpt, VersaoAnaliseChatGpt = versaoChatGpt, Node = node,
+            };
         var (versaoPlugin, pastaAnalise) = MaiorVersao(Path.Combine(cacheKit, PluginsInstalados.Analise));
         versaoPlugin = VersaoInstalada(pastaAnalise) ?? versaoPlugin;
         var analise62 = Controlador(pastaAnalise, Provedor.ChatGpt);
@@ -103,6 +126,7 @@ public static class Localizacao
         return new Pecas(codex, claude, python, launcher, proRuntime, versaoPlugin, versaoKit, PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
         {
             CodexHome = o.CodexHome, Analise62 = analise62, EtapasJson = ArquivoEtapas(pastaAnalise),
+            AnaliseChatGpt = skillChatGpt, VersaoAnaliseChatGpt = versaoChatGpt, Node = node,
             ModelosPorRota = ArquivoDasReferencias(pastaAnalise, TabelaDeModelos.NomeNoKit), ProducaoTeste = ScriptComum(pastaAnalise, Pmvni.Agentes.ProducaoTeste.Script),
         };
     }

@@ -106,6 +106,8 @@ internal static class Motor
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(c);
         if (c is Lote lote) return CalcularLote(p, lote);
+        if (c is DefinirTextoDoModelo texto) return TextosRevisados.Calcular(p, texto);
+        if (c is DefinirVisibilidadeDoCampo visibilidade) return TextosRevisados.Calcular(p, visibilidade);
         if (TabelasRevisao.EhLinha(c.Item)) return MotorLinhas.Calcular(p, c); // linha de tabela (Linhas.cs)
         if (c is ComandoFigura cf) return MotorFiguras.Calcular(p, cf);
         if (c is CriarItem criar) return CalcularCriacao(p, criar);
@@ -129,6 +131,7 @@ internal static class Motor
     public static void Definir(Projeto p, string tipo, string item, string? campo, JsonNode? valor)
     {
         if (tipo == nameof(Lote)) { DefinirLote(p, valor); return; }
+        if (tipo is nameof(DefinirTextoDoModelo) or nameof(DefinirVisibilidadeDoCampo)) { TextosRevisados.Definir(p, campo!, valor); return; }
         if (TabelasRevisao.EhLinha(item)) { MotorLinhas.Definir(p, tipo, item, campo, valor); return; } // linha de tabela (Linhas.cs)
         if (MotorFiguras.EhTipo(tipo)) { MotorFiguras.Definir(p, valor); return; }
         if (tipo == nameof(CriarItem)) { DefinirCriacao(p, item, valor); return; }

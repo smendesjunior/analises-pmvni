@@ -85,6 +85,7 @@ public sealed class Projeto
     /// <summary>A camada de edição das figuras (editor de figuras, recortes de prancha). Null = nenhuma figura foi editada: as figuras saem do
     /// <see cref="Documento"/> como vieram.</summary>
     public List<FiguraRevisao>? Figuras { get; set; }
+    public JsonObject TextosDoModelo { get; set; } = new();
 
     /// <summary>O que o usuário ACRESCENTOU às tabelas (correções 2026-11-16), por chave: uma linha inteira (<c>chamadas/07</c>: uma
     /// chamada nova do diagrama) ou uma parte de uma linha (<c>ambientes/01/vaos/1</c>: uma esquadria nova do ambiente). O valor é o
@@ -100,6 +101,7 @@ public sealed class Projeto
         Documento = (JsonObject)Documento.DeepClone(),
         Linhas = new SortedDictionary<string, LinhaRevisao>(Linhas.ToDictionary(l => l.Key, l => l.Value.Clonar()), StringComparer.Ordinal),
         Figuras = Figuras?.Select(f => f.Clonar()).ToList(),
+        TextosDoModelo = (JsonObject)TextosDoModelo.DeepClone(),
     };
 
     public ItemRevisao? Item(string id) => Itens.FirstOrDefault(i => string.Equals(i.Id, id, StringComparison.Ordinal));

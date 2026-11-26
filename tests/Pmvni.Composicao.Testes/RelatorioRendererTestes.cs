@@ -44,7 +44,7 @@ public class RelatorioRendererTestes : IDisposable
     {
         var r = RelatorioRenderer.Renderizar(GravarModelo(), new OpcoesRender(false, true), _modelo);
         Assert.True(r.Ok, string.Join("; ", r.Erros));
-        Assert.Contains("CONTA NOMINAL CONFERE", r.Html);
+        Assert.Contains("<span class=\"pill g\"><i></i>Conta nominal confere</span>", r.Html);
         Assert.Contains("overflow-wrap: anywhere; word-break: break-word", r.Html);
     }
 

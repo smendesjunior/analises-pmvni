@@ -93,6 +93,19 @@ internal static class IaRecalculoIndices
             "\" quando houver chamada nova, sem comentários.";
     }
 
+    internal static string PromptDiagrama(string pedido, IReadOnlyDictionary<string, Dictionary<string, string>> linhas, string vista)
+    {
+        if (vista == Pmvni.Composicao.Kit.Diagrama.VistaVolumetria)
+            return PromptVolumetria(pedido, linhas) + "\nAjuste exclusivamente a volumetria. Todas as chamadas novas têm vista \"volumetria\".";
+        return "Edite a planta do terreno (vista superior) do relatório. Os dados são os rótulos impressos e as chamadas vinculadas a esta vista. " +
+            "Altere somente os caminhos existentes no JSON e apenas com medidas confirmadas fornecidas no pedido ou nos dados. " +
+            "Se o pedido exigir uma chamada nova, use a chave novas_chamadas com objetos {vista, ancora, titulo, texto, situacao}. " +
+            "A vista é planta, as âncoras são " + string.Join(", ", AncorasDaVista(vista)) +
+            ", e a situação é ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA. Preserve as referências dos itens e marcadores. " +
+            "Devolva apenas o JSON das linhas alteradas, com os mesmos IDs e os campos mudados. Use {} se não houver alteração.\n" +
+            JsonSerializer.Serialize(new { pedido, linhas }, Relaxado);
+    }
+
     /// <summary>A chave das chamadas novas na resposta da volumetria.</summary>
     internal const string ChaveNovasChamadas = "novas_chamadas";
 

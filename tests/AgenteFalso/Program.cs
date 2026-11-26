@@ -28,6 +28,7 @@ static class Program
         try
         {
             if (args.Length == 0) return Uso();
+            if (cenario["analise_chatgpt"] is JsonObject chatgpt) return AnaliseChatGpt(args, chatgpt);
             if (args[0] == "dormir") { Dormir(60000); return 0; }
             if (args.Contains("--contas") && args.Any(a => Path.GetFileName(a) == "orcamento_lb.py"))
             {
@@ -36,7 +37,12 @@ static class Program
             }
             if (args.Any(a => a.EndsWith("executar_analise_62.py", StringComparison.OrdinalIgnoreCase))) return Analise62(args);
             if (Array.IndexOf(args, "--case") >= 0) return Python(args);
-            if (args[0] == "exec") return Exec(args);
+            if (args[0] == "exec" || args is ["-a", "never", "exec", ..]) return Exec(args);
+            if (args.TakeLast(3).SequenceEqual(new[] { "mcp", "list", "--json" }))
+            {
+                saida.WriteLine("[]");
+                return 0;
+            }
             if (Array.IndexOf(args, "--version") >= 0 || Array.IndexOf(args, "-V") >= 0) return Versao();
             if (args.Length == 2 && args[0] == "login" && args[1] == "status") return LoginStatus();
             if (args.Length == 2 && args[0] == "auth" && args[1] == "status") return AuthStatus();
@@ -46,6 +52,20 @@ static class Program
         finally { saida.Flush(); }
     }
 
+    static int AnaliseChatGpt(string[] args, JsonObject dados)
+    {
+        if (args.TakeLast(2).SequenceEqual(new[] { "login", "status" })) return LoginStatus();
+        if (args is ["--version"]) return Versao();
+        if (args[0] != "exec") return Uso();
+        var prompt = Console.In.ReadToEnd();
+        if (!prompt.Contains("SKILL.md") || !prompt.Contains("entrega-plugin.rpmvni")) return Uso();
+        File.AppendAllLines(dados["rodadas"]!.GetValue<string>(), ["exec"]);
+        if (File.Exists(dados["pausa"]!.GetValue<string>())) Dormir(30000);
+        if (File.Exists(dados["montagem_invalida"]!.GetValue<string>()))
+            File.WriteAllText("entrega-plugin.rpmvni", "pacote incompleto");
+        else File.Copy(dados["pacote"]!.GetValue<string>(), "entrega-plugin.rpmvni");
+        return 0;
+    }
     static int Uso()
     {
         Console.Error.WriteLine("agente falso: argumentos não reconhecidos");

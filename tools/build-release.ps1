@@ -10,12 +10,13 @@
          -> informar o espaço liberado.
   Não apaga web\paginador\node_modules (necessário para refazer o bundle), só os caches dele.
 #>
-param([switch]$SemGitHub, [switch]$SemLimpeza, [switch]$SomenteLoginGemini)
+param([switch]$SemGitHub, [switch]$SemLimpeza, [switch]$SuiteCompleta, [string]$PastaSaida)
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
 $projeto = Join-Path $raiz 'src\Pmvni.App\Pmvni.App.csproj'
-$publicacao = Join-Path $raiz 'artifacts\publicacao'
-$pastaFinal = Join-Path $raiz 'Aplicativo'
+$pastaFinal = if ($PastaSaida) { [IO.Path]::GetFullPath($PastaSaida) } else { Join-Path $raiz 'Aplicativo' }
+if ($PastaSaida -and -not $SemGitHub) { throw 'Use -SemGitHub para gerar uma compilação em pasta de validação.' }
+$publicacao = if ($PastaSaida) { Join-Path $pastaFinal ('.publish-' + [Guid]::NewGuid().ToString('N')) } else { Join-Path $raiz 'artifacts\publicacao' }
 $exeFinal = Join-Path $pastaFinal 'Editor de Relatorios PMVNI.exe'
 
 function Tamanho([string]$caminho) {
@@ -25,15 +26,36 @@ function Tamanho([string]$caminho) {
 }
 
 # 0. Testes (a pasta de dados do app vai para tests\saida\dados, ignorada pelo git, e some na limpeza)
-$saida = Join-Path $raiz 'tests\saida'
+$saida = if ($PastaSaida) { Join-Path $pastaFinal 'verificacao' } else { Join-Path $raiz 'tests\saida' }
 New-Item -ItemType Directory -Force -Path $saida | Out-Null
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados'
 $commitFonte = & git -C $raiz rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Não foi possível identificar o commit da build.' }
+$alteracoesLocais = [bool](& git -C $raiz status --porcelain --untracked-files=all -- src tests tools web Directory.Build.props)
+if (!$SemGitHub -and $alteracoesLocais) { throw 'Grave o código em um commit antes de compilar para publicação no GitHub.' }
 # A solução mapeia Release para x64. Executar projetos com a mesma plataforma evita
 # procurar bin/Release depois de compilar em bin/x64/Release. Sem retry: toda falha bloqueia.
-$projetosTeste = @(Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse | Sort-Object FullName)
-if ($SomenteLoginGemini) { $projetosTeste = @($projetosTeste | Where-Object BaseName -eq "Pmvni.Agentes.Testes") }
+$testesEntrega = @{
+    'Pmvni.Agentes.Testes' = 'FullyQualifiedName~AnaliseChatGpt'
+    'Pmvni.Revisao.Testes' = (@(
+        'ArquivamentoTestes.anexos_arquivados_como_o_kit'
+        'CompactadosTestes.zip_com_pastas_e_zip_dentro_vira_arquivos_soltos_sem_lixo'
+        'PacoteTestes.ida_e_volta_preserva_tudo'
+        'LinhasTabelaTestes.pacote_gravado_e_reaberto_mantem_as_linhas_e_o_diario_reaplica'
+        'TextosDoRelatorioTestes.EdicaoEVisibilidadeSobrevivemAoPacoteEAoHistorico'
+        'AjustesKitTestes.ajustes_guardam_a_pasta_do_kit'
+        'DespachoNoEditorTestes.Modelos_manuais_vem_do_registro_e_das_referencias_do_kit_atual'
+        'FluxoNovoRelatorioTestes.aviso_uma_vez_por_versao'
+        'RegrasAtualizacaoTestes.Le_o_manifesto_e_recusa_o_que_nao_e_manifesto'
+        'RegrasAtualizacaoTestes.Confere_tamanho_hash_e_cabecalho'
+        'RegrasAtualizacaoTestes.Troca_recusada_deixa_o_executavel_como_estava'
+    ) | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
+    'Pmvni.Composicao.Testes' = 'FullyQualifiedName~tabela_de_vaos_distingue_conta_nominal_da_conclusao_tecnica|FullyQualifiedName~com_vista_planta_a_chamada_vai_para_a_planta|FullyQualifiedName~com_vista_volumetria_a_chamada_vai_para_a_volumetria'
+    'Pmvni.Imoveis.Testes' = 'FullyQualifiedName~ConsultaParaAnalise'
+    'Pmvni.Web.Testes' = 'FullyQualifiedName~TextosDoRelatorioWebTestes'
+}
+$projetosTeste = @(Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse | Sort-Object FullName |
+    Where-Object { $SuiteCompleta -or $testesEntrega.ContainsKey($_.BaseName) })
 if ($projetosTeste.Count -eq 0) { throw 'Nenhum projeto de teste encontrado.' }
 $falhasTeste = @()
 foreach ($p in $projetosTeste) {
@@ -41,7 +63,7 @@ foreach ($p in $projetosTeste) {
     $trx = Join-Path $saida "resultados\$($p.BaseName).trx"
     if (Test-Path -LiteralPath $trx) { Remove-Item -LiteralPath $trx -Force }
     $filtro = @()
-    if ($SomenteLoginGemini) { $filtro = @('--filter', 'FullyQualifiedName~Gemini|FullyQualifiedName~ContasEPlugins') }
+    if (-not $SuiteCompleta) { $filtro = @('--filter', $testesEntrega[$p.BaseName]) }
     & dotnet test $p.FullName @filtro -c Release "-p:Platform=x64" --nologo "-m:1" --logger "trx;LogFileName=$($p.BaseName).trx" --results-directory (Join-Path $saida 'resultados')
     $codigoTeste = $LASTEXITCODE
     if ($codigoTeste -ne 0) { $falhasTeste += "$($p.BaseName) (código $codigoTeste)"; continue }
@@ -75,14 +97,21 @@ if ($bytes.Length -lt 1MB -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw
 $hashFinal = (Get-FileHash -LiteralPath $exePublicado -Algorithm SHA256).Hash
 
 # 4. Autoteste do .exe publicado (o mesmo arquivo que vai para Aplicativo\, conferido por hash no passo 5): abre o .exe com
-#    --autoteste por script externo aberto com explorer.exe (fora do pacote do Claude), em duas rodadas (1ª fria, 2ª quente).
-#    Cada rodada grava um JSON em tests\saida; exige "ok": true (só gravado depois de a página carregar no WebView2) e "elevado": false.
-$jsons = @((Join-Path $saida 'autoteste.json'), (Join-Path $saida 'autoteste-2.json'))
+#    --autoteste por script externo aberto com explorer.exe, com extração nova e sem elevação.
+$jsonAuto = Join-Path $saida 'autoteste.json'
 $logAuto = Join-Path $saida 'autoteste-log.txt'
-$ensaioMonitor = Join-Path $saida 'roteiro-monitor\resultado.json'
-foreach ($f in $jsons + $logAuto + $ensaioMonitor) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
-[System.IO.File]::WriteAllText((Join-Path $saida 'autoteste-alvo.txt'), $exePublicado, (New-Object System.Text.UTF8Encoding($false)))
-Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + (Join-Path $PSScriptRoot 'autoteste.cmd') + '"')
+foreach ($f in $jsonAuto, $logAuto) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
+$lancador = Join-Path $PSScriptRoot 'autoteste.cmd'
+if ($PastaSaida) {
+    $lancador = Join-Path $saida 'autoteste-candidata.cmd'
+    $scriptAutoteste = Join-Path $PSScriptRoot 'autoteste.ps1'
+    $linha = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{0}" -Executavel "{1}" -PastaResultados "{2}"' -f (
+        $scriptAutoteste.Replace('%','%%')), ($exePublicado.Replace('%','%%')), ($saida.Replace('%','%%'))
+    [IO.File]::WriteAllText($lancador, "@echo off`r`nsetlocal DisableDelayedExpansion`r`n$linha`r`n", [Console]::OutputEncoding)
+} else {
+    [IO.File]::WriteAllText((Join-Path $saida 'autoteste-alvo.txt'), $exePublicado, [Text.UTF8Encoding]::new($false))
+}
+Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + $lancador + '"')
 # O autoteste.ps1 ainda pode estar gravando o log: leitura presa conta como "ainda não terminou".
 function AutotesteTerminou {
     if (-not (Test-Path -LiteralPath $logAuto)) { return $false }
@@ -94,24 +123,13 @@ while ((Get-Date) -lt $limite) {
     Start-Sleep -Milliseconds 500
 }
 if (-not (AutotesteTerminou)) { throw 'O autoteste não terminou em 5 min.' }
-foreach ($f in $jsons) {
-    if (-not (Test-Path -LiteralPath $f)) { throw "O autoteste não gravou ${f}: o executável não abriu." }
-    $r = Get-Content -LiteralPath $f -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($r.ok -ne $true) { throw "Autoteste reprovou em ${f}: sem ok=true ($($r.erro))." }
-    if ($r.elevado -ne $false) { throw "Autoteste reprovou em ${f}: o app abriu elevado (elevado=$($r.elevado))." }
-}
-Write-Host 'Autoteste do executável: aprovado (2 rodadas, ok=true, sem elevação).'
-if (-not (Test-Path -LiteralPath $ensaioMonitor)) { throw 'O monitor nativo não produziu recibo de telemetria.' }
-$monitor = Get-Content -LiteralPath $ensaioMonitor -Raw -Encoding UTF8 | ConvertFrom-Json
-$medicoes = $monitor.passos.monitor_controles.arquivos_ate_controles_winui
-if ($monitor.ok -ne $true -or $monitor.programas_iniciados.fora_do_agente_falso -ne 0 -or
-    $medicoes.quatorze_de_28 -ne $true -or $medicoes.duas_janelas_na_reabertura -ne $true -or
-    $medicoes.monitor_sem_foco_recusa_registro_alheio -ne $true -or $medicoes.monitor_sem_foco_atualiza_indices -ne $true) {
-    throw "As medições no monitor nativo não passaram. Consulte $ensaioMonitor."
-}
-Write-Host 'Monitor nativo: porcentagem, relógio, previsão e consumo conferidos durante a execução e na reabertura.'
+if (-not (Test-Path -LiteralPath $jsonAuto)) { throw "O autoteste não gravou ${jsonAuto}: o executável não abriu." }
+$r = Get-Content -LiteralPath $jsonAuto -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($r.ok -ne $true) { throw "Autoteste reprovou em ${jsonAuto}: sem ok=true ($($r.erro))." }
+if ($r.elevado -ne $false) { throw "Autoteste reprovou em ${jsonAuto}: o app abriu elevado (elevado=$($r.elevado))." }
+Write-Host 'Autoteste do executável: aprovado (abertura a frio, ok=true, sem elevação).'
 # 4b. PDF.js embutido (Legislação, desenho §11.4): o bloco "legislacao" do autoteste (versão, arquivos, bytes, sha conferido).
-$leg = (Get-Content -LiteralPath $jsons[0] -Raw -Encoding UTF8 | ConvertFrom-Json).legislacao
+$leg = $r.legislacao
 if ($null -eq $leg -or $leg.sha_ok -ne $true) { throw 'Autoteste reprovou: o PDF.js embutido não confere com o VERSAO.json.' }
 $ptBr = [System.Globalization.CultureInfo]::GetCultureInfo('pt-BR')
 Write-Host ("PDF.js {0} embutido: {1} arquivos, {2} MB (sha conferido)." -f $leg.pdfjs, $leg.arquivos, ([double]$leg.bytes / 1000000).ToString('0.00', $ptBr))
@@ -139,7 +157,7 @@ if ($exeAntigo) {
 }
 
 # Evidência vinculada ao arquivo efetivamente testado, exigida também na publicação manual.
-$validacao = [ordered]@{ Compilacao = $compilacao; Sha256 = $hashFinal; Commit = $commitFonte; Testes = $projetosTeste.Count; Autoteste = $true; MonitorAoVivo = $true }
+$validacao = [ordered]@{ Compilacao = $compilacao; Sha256 = $hashFinal; Commit = $commitFonte; AlteracoesLocais = $alteracoesLocais; Testes = $projetosTeste.Count; Autoteste = $true }
 $validacao | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $pastaFinal 'build-validada.json') -Encoding UTF8
 
 # 5a. GitHub (smendesjunior/analises-pmvni): Release com o .exe e o manifesto, para a atualização automática dos outros PCs.

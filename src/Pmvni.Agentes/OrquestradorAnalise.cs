@@ -17,6 +17,7 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     /// <summary>ChatGPT, modo conta: a rota escolhida em Ajustes (<c>herdar</c>, <c>openai</c> ou <c>codex-lb</c>), resolvida antes da partida por
     /// <see cref="Agentes.RotaCodex.Resolver"/>.</summary>
     public string? RotaCodex { get; init; }
+    internal bool UsarAnaliseChatGpt { get; init; }
     public string? PastaQgis { get; init; }
     public string? NomeProfissional { get; init; }
     public string? CargoProfissional { get; init; }
@@ -91,6 +92,7 @@ public sealed partial class OrquestradorAnalise
 
     // ------------------------------------------------------------------ comum
 
+#if !PMVNI_DISTRIBUICAO
     /// <param name="tabelaModelos">Tarefa 19: o <c>modelos-por-rota.json</c> desta execução (no registro), passado em <see cref="TabelaDeModelos.Variavel"/>;
     /// null = nenhum ajuste (a variável herdada também sai: vale o padrão do kit).</param>
     Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false,
@@ -165,6 +167,7 @@ public sealed partial class OrquestradorAnalise
         var arquivo = Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
         return pe.Modelos is not null || (pe.Retomar && File.Exists(arquivo)) ? arquivo : null;
     }
+#endif
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
 
@@ -172,17 +175,30 @@ public sealed partial class OrquestradorAnalise
     /// passa a ser deste método, que a solta no fim. null = o método pega a sua.</param>
     public async Task<FimAnalise> ExecutarAsync(PedidoExecucao pe, IProgress<ProgressoAnalise> progresso, CancellationToken ct, TravaExecucao? travaPega = null)
     {
+#if PMVNI_DISTRIBUICAO
+        if (!pe.UsarAnaliseChatGpt || pe.Provedor != Provedor.ChatGpt)
+#else
+        if ((!pe.UsarAnaliseChatGpt && TravaDeProgramas.Permitidos is null) || (pe.UsarAnaliseChatGpt && pe.Provedor != Provedor.ChatGpt))
+#endif
+        {
+            travaPega?.Dispose();
+            return Falha("As novas análises usam o plugin analise-chatgpt com a conta ChatGPT.");
+        }
         if (!Provedores.Ativos.Contains(pe.Provedor))
         {
             travaPega?.Dispose();
             return Falha(Provedores.RotaDesativada);
         }
-        pe = pe with { Modo = ModoEfetivo(pe.Provedor, pe.Modo, pe.Pecas) };
+        pe = pe with { Modo = pe.UsarAnaliseChatGpt ? ModoAcesso.Conta : ModoEfetivo(pe.Provedor, pe.Modo, pe.Pecas) };
+#if PMVNI_DISTRIBUICAO
+        var impedimento = MotivoAnaliseChatGpt(pe.Pecas) is { } motivo ? Falha(motivo) : null;
+#else
         var impedimento = Conferir(pe, out var rotaCodex);
+#endif
         if (impedimento is not null)
         {
             travaPega?.Dispose();
-            if (!pe.UsarDocumentos || !pe.Retomar) Encerrar(pe, impedimento, DateTimeOffset.UtcNow);
+            if (pe.UsarAnaliseChatGpt || !pe.UsarDocumentos || !pe.Retomar) Encerrar(pe, impedimento, DateTimeOffset.UtcNow);
             return impedimento;
         }
 
@@ -195,19 +211,24 @@ public sealed partial class OrquestradorAnalise
         }
 
         var inicio = DateTimeOffset.UtcNow;
+        var podeAtualizarRegistro = pe.UsarAnaliseChatGpt || !pe.UsarDocumentos || !pe.Retomar;
+#if !PMVNI_DISTRIBUICAO
         string? chave = null;
         if (pe.Modo == ModoAcesso.Chave) chave = CofreChaves.Ler(pe.RaizDados, pe.Provedor);   // já conferida em Conferir
 
         // Uma cópia recusada antes de validar a retomada não muda o resultado registrado pela execução original.
-        var podeAtualizarRegistro = !pe.UsarDocumentos || !pe.Retomar;
         if (!podeAtualizarRegistro)
         {
             var notificar = pe.AoPrepararLocal;
             pe = pe with { AoPrepararLocal = local => { podeAtualizarRegistro = true; notificar?.Invoke(local); } };
         }
+#endif
         FimAnalise fim;
         try
         {
+#if PMVNI_DISTRIBUICAO
+            fim = await Task.Run(() => ExecutarAnaliseChatGptAsync(pe, inicio, progresso, ct), ct).ConfigureAwait(false);
+#else
             Task<FimAnalise> Rodar(PedidoExecucao trabalho)
             {
                 GravarTabelaDeModelos(trabalho);
@@ -215,28 +236,35 @@ public sealed partial class OrquestradorAnalise
                     ? ExecutarChatGptAsync(trabalho, rotaCodex!, chave, inicio, progresso, ct)
                     : ExecutarPeloKitAsync(trabalho, chave, inicio, progresso, ct);
             }
-            fim = pe.UsarDocumentos
-                ? await RodarEmDocumentosAsync(pe, Rodar, inicio, progresso, ct).ConfigureAwait(false)
-                : await Rodar(pe).ConfigureAwait(false);
+            fim = pe.UsarAnaliseChatGpt
+                ? await Task.Run(() => ExecutarAnaliseChatGptAsync(pe, inicio, progresso, ct), ct).ConfigureAwait(false)
+                : pe.UsarDocumentos
+                    ? await RodarEmDocumentosAsync(pe, Rodar, inicio, progresso, ct).ConfigureAwait(false)
+                    : await Rodar(pe).ConfigureAwait(false);
+#endif
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             fim = new FimAnalise("cancelada", null, null, "A análise foi cancelada.", null);
         }
-        catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException or InvalidDataException or KeyNotFoundException)
+        catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException or InvalidDataException or KeyNotFoundException or PacoteInvalidoException)
         {
+            Registrar(e);
             fim = Falha("A análise não pôde ser executada: " + e.Message.TrimEnd('.') + ". Veja o registro: " + pe.Registro.Pasta + ".");
         }
         if (podeAtualizarRegistro) Encerrar(pe, fim, inicio);
         return fim;
     }
 
+#if !PMVNI_DISTRIBUICAO
     /// <summary>As peças que faltam e os motivos exatos (desenho §12.11): nada é iniciado nem arquivado. ChatGPT: <paramref name="rota"/> é a rota do Codex
     /// resolvida aqui, uma vez só, e usada na execução inteira (nunca relida do config.toml depois da partida).</summary>
     static FimAnalise? Conferir(PedidoExecucao pe, out RotaResolvida? rota)
     {
         rota = null;
         var pecas = pe.Pecas;
+        if (pe.UsarAnaliseChatGpt)
+            return MotivoAnaliseChatGpt(pecas) is { } motivo ? Falha(motivo) : null;
         if (pe.Provedor == Provedor.ChatGpt)
         {
             if (pecas.Codex is null)
@@ -284,6 +312,8 @@ public sealed partial class OrquestradorAnalise
 
     /// <summary>O modo que a análise usa de fato: sempre o escolhido em Ajustes (2026-11-17, análise pro 1.6.4). Não há mais conversão de "chave" para
     /// "conta": com um análise pro que não aceita a Anthropic API, o modo chave é recusado (<see cref="ApiNaoSuportada"/>), nunca trocado.</summary>
+#endif
+
     public static ModoAcesso ModoEfetivo(Provedor p, ModoAcesso m, Pecas pecas)
     {
         ArgumentNullException.ThrowIfNull(pecas);
@@ -362,10 +392,10 @@ public sealed partial class OrquestradorAnalise
             o["usuario"] = Usuario();
             o["versao_do_editor"] = VersaoEditor();
             // 2026-11-16: o plugin do kit e a versão instalada que fizeram a análise (auditável depois).
-            o["plugin"] = PluginUsado(pe.Provedor);
-            o["versao_do_plugin"] = VersaoDoPlugin(pe.Provedor, pe.Pecas) ?? "não encontrada";
+            o["plugin"] = pe.UsarAnaliseChatGpt ? NomeAnaliseChatGpt : PluginUsado(pe.Provedor);
+            o["versao_do_plugin"] = (pe.UsarAnaliseChatGpt ? pe.Pecas.VersaoAnaliseChatGpt : VersaoDoPlugin(pe.Provedor, pe.Pecas)) ?? "não encontrada";
             // Fluxo linear do kit: a marca que libera as durações desta análise para a previsão (FluxoLinear).
-            if (FluxoLinear.DoKit(pe.Pecas.EtapasJson)) o[FluxoLinear.Chave] = FluxoLinear.Assinatura;
+            if (!pe.UsarAnaliseChatGpt && FluxoLinear.DoKit(pe.Pecas.EtapasJson)) o[FluxoLinear.Chave] = FluxoLinear.Assinatura;
             if (pe.Provedor == Provedor.Claude) o["autenticacao"] = AutenticacaoAnalisePro(pe.Modo);    // nunca a chave
             if (pe.Provedor == Provedor.Gemini)
             {
@@ -424,6 +454,7 @@ public sealed partial class OrquestradorAnalise
         catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException) { /* a tela já foi embora */ }
     }
 
+#if !PMVNI_DISTRIBUICAO
     // ------------------------------------------------------------------ ChatGPT (analise: executar_analise_62.py)
 
     /// <summary>Quantas vezes, no máximo, uma execução chama o controlador (etapas, esperas de cota e decisões): um controlador que nunca termina não prende o
@@ -571,6 +602,8 @@ public sealed partial class OrquestradorAnalise
         }
     }
 
+#endif
+
     /// <summary>A situação que a tela mostra para a rota ChatGPT, no mesmo formato da que o análise pro informa.</summary>
     static SituacaoKit SituacaoDoControlador(string codigo, string rotulo, string? etapa) => new(codigo, rotulo, etapa, null, null, null, null, Array.Empty<string>());
 
@@ -636,6 +669,7 @@ public sealed partial class OrquestradorAnalise
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException) { return false; }
     }
 
+#if !PMVNI_DISTRIBUICAO
     /// <summary>O ambiente do controlador: o de sempre (chaves herdadas fora; a do modo chave pela variável do provedor; o registro da execução), a rota em
     /// <see cref="RotaCodex.Variavel"/> e a pasta do Codex achado pelo editor no começo do PATH (o controlador chama <c>codex</c>).</summary>
     Action<IDictionary<string, string?>> AmbienteAnalise62(PedidoExecucao pe, string? chave, string rota, RegistroExecucao registro)
@@ -1166,4 +1200,12 @@ public sealed partial class OrquestradorAnalise
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Array.Empty<string>(); }
         }
     }
+#else
+    public Task<bool> CancelarChatGptAsync(string pastaRegistro, Pecas pecas) => Task.FromResult(false);
+    public Task<bool> CancelarClaudeAsync(string pastaProcesso, Pecas pecas, Provedor p = Provedor.Claude) => Task.FromResult(false);
+    public Task<SituacaoKit?> SituacaoClaudeAsync(string pastaProcesso, Pecas pecas, Provedor p = Provedor.Claude) =>
+        Task.FromResult<SituacaoKit?>(null);
+    public Task<FimAnalise> AcompanharClaudeAsync(PedidoExecucao pe, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct) =>
+        Task.FromResult(Falha("A execução pertence a um fluxo aposentado. O registro continua no histórico."));
+#endif
 }

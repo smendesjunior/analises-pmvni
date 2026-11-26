@@ -26,7 +26,7 @@ public static class CategoriasAjustes
         new(Relatorios, "Relatórios e revisão", "Zoom, marcas de revisão, painéis, salvamento automático, recuperação e arquivos recentes.", Glifos.Relatorio),
         new(Modulos, "Módulos", "Como Processos, Despachos, Acompanhamento e Legislação trabalham: listas, PDF dos despachos e leis anexadas.", Glifos.Lista),
         new(Ia, "Inteligência artificial", "As contas das IAs, o que o Novo relatório pergunta antes de seguir e a IA da revisão.", Glifos.Ia),
-        new(Modelos, "Modelos da análise", "Veja como a análise escolhe modelos por tarefa e configure a auditoria técnica.", Glifos.Ia, Pai: Ia),
+        new(Modelos, "Modelos da análise", "Consulte os perfis de análise e auditoria definidos pelo analise-chatgpt.", Glifos.Ia, Pai: Ia),
         new(Kit, "Kit PMVNI", "A pasta do kit e os plugins e ferramentas instalados neste computador.", Glifos.Ferramenta),
         new(Sobre, "Sistema", "Atualizações, suporte, restaurar os ajustes, diagnóstico e informações sobre o editor.", Glifos.Sobre, Rodape: true),
     ];

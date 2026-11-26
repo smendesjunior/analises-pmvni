@@ -11,6 +11,7 @@ namespace Pmvni.App;
 public sealed partial class PaginaNovoRelatorio : UserControl
 {
     internal string TextoExecutorExibido => ExecutorDetalhes.Text;
+    internal string PercentualExibido => TextoPercentual.Text;
 
     ScrollViewer? rolagemDasLinhas;
 
@@ -278,6 +279,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal EstimativaAnalise? EstimativaAtual { get; private set; }
     EstimativaAnalise? estimativaDesenhada;
     bool execucaoAtivaNaBarra;
+    (bool Plugin, double? Global, int Confirmadas) progressoDoPlanoDesenhado;
     (double Percentual, TimeSpan DuracaoAtiva)? previsaoPeloRitmo;
 
     internal void ReiniciarEstimativa()
@@ -297,6 +299,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         TextoTempoDecorrido.Text = FluxoNovoRelatorio.TempoLegivel(decorrido ?? ativo, incluirSegundos: true);
         TextoTempoAtivo.Text = "Em atividade por " + FluxoNovoRelatorio.TempoLegivel(ativo, incluirSegundos: true);
+        if (MonitorChatGpt is not null)
+        {
+            TextoTempoEstimado.Text = "Sem previsão por tempo";
+            AutomationProperties.SetHelpText(TextoTempoEstimado, "O progresso usa as etapas concluídas e os registros das rodadas.");
+            return;
+        }
         TimeSpan? restantePeloRitmo = null;
         if (execucaoAtivaNaBarra && EstimativaAtual is { PeloEditor: false } && ativo > TimeSpan.Zero &&
             EstimativaAtual?.PercentualGeral is double percentual and >= 1 and < 100)
@@ -503,6 +511,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     static string DescricaoDaEtapa(string nome) => nome switch
     {
+        "Preparar fontes" => "Conferir a sessão ChatGPT, as peças e as fontes do kit",
+        "Analisar grupos" => "Registrar verificações e consultar a biblioteca QGIS",
+        "Auditar relatório" => "Consolidar a matriz e conferir as evidências do relatório",
+        "Validar e salvar" => "Montar e abrir o relatório editável para revisão",
         "Preparo" => "Identificar pranchas e organizar os arquivos do processo",
         // Fluxo linear do kit (2026-11-22): a análise roda em três frentes; auditoria cruzada, relatório e revisão final são programas locais.
         "Análise" => "Conferir os grupos do plano e registrar as evidências",
@@ -534,12 +546,15 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     /// <summary>O id do kit da etapa mostrada com este nome (os cartões só conhecem o nome).</summary>
     string? IdDaEtapa(string nome) =>
         detalhesEtapas.Plano.Concat(detalhesEtapas.Etapas.Keys).Concat(detalhesEtapas.Registros.Keys).Concat(detalhesEtapas.Objecoes.Select(o => o.Etapa)).Append("analyze")
+            .Concat(OrquestradorAnalise.EtapasAnaliseChatGpt)
             .FirstOrDefault(id => FluxoNovoRelatorio.NomeDaEtapa(id) == nome);
 
     string? ExecutorAtual()
     {
         if (!emCurso || etapaAtual is null) return null;
         var id = IdDaEtapa(etapaAtual);
+        if (MonitorChatGpt is not null)
+            return PerfilChatGptAtivo?.Texto ?? (id is "preparar_fontes" or "salvar_relatorio" ? "Editor PMVNI" : null);
         if (id is not null && leituraExibida?.EtapaEmExecucao == id && leituraExibida.ModelosEmExecucao is { } modelos) return modelos;
         return id is not null && detalhesEtapas.Etapas.GetValueOrDefault(id)?.Programa == true
             ? "Programa local" : "Aguardando identificação do modelo";
@@ -583,8 +598,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
         var executorAtual = ExecutorAtual();
+        var progressoDoPlano = (MonitorChatGpt is not null, MonitorChatGpt?.Percentual, MonitorChatGpt?.RodadasConcluidas ?? 0);
         if (executorDesenhado == executorAtual && execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual && ReferenceEquals(detalhesDesenhados, detalhesEtapas)
-            && estimativaDesenhada == EstimativaAtual && etapasMostradas.SequenceEqual(etapas)) return;
+            && estimativaDesenhada == EstimativaAtual && progressoDoPlanoDesenhado == progressoDoPlano && etapasMostradas.SequenceEqual(etapas)) return;
+        progressoDoPlanoDesenhado = progressoDoPlano;
         executorDesenhado = executorAtual;
         detalhesDesenhados = detalhesEtapas;
         execucaoAtivaNaBarra = animar;
@@ -595,11 +612,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var feitas = etapas.Count(e => e.Estado == EstadoEtapa.Feita);
         var concluiu = etapas.Count > 0 && feitas == etapas.Count;
         double? percentualPorEtapas = etapas.Count > 0 ? 100d * feitas / etapas.Count : null;
-        var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
-        if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor, 1), 0, concluiu ? 100 : 99);
+        var percentual = MonitorChatGpt is { } monitor ? monitor.Percentual
+            : concluiu ? 100d : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
+        if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor, 1), 0, concluiu || MonitorChatGpt is not null ? 100 : 99);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null } origem && (!origem.PeloEditor || origem.PercentualEstimado);
+        var percentualEstimado = MonitorChatGpt is null && !concluiu && EstimativaAtual is { PercentualGeral: not null } origem && (!origem.PeloEditor || origem.PercentualEstimado);
         TextoPercentual.Text = percentual is { } p ? $"{(percentualEstimado ? "≈ " : "")}{p:0.#}%" : "—";
         BarraResumoEtapas.IsActive = percentual.HasValue || animar;
         TextoPercentual.Visibility = Visivel(percentual.HasValue);
@@ -608,7 +626,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         AtualizarContagemResumo();
         ContagemAtividades.Text = $"{feitas} de {etapas.Count} etapas concluídas";
         EstimativaAtividades.Text = $"Progresso total: {TextoPercentual.Text}";
-        var origemPercentual = percentual is null ? FluxoNovoRelatorio.PrevisaoDepoisDasEtapas
+        var origemPercentual = MonitorChatGpt is not null ? "Verificações concluídas no plano de trabalho do ChatGPT"
+            : percentual is null ? FluxoNovoRelatorio.PrevisaoDepoisDasEtapas
             : !concluiu && EstimativaAtual is { PercentualGeral: not null } estimativa ? $"Progresso {OrigemDoPercentual(estimativa)}"
             : "Progresso pelas etapas concluídas";
         ToolTipService.SetToolTip(ContagemAtividades, origemPercentual);
@@ -694,6 +713,15 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     /// <c>Aproximado</c>: o valor saiu da estimativa inicial (sem histórico neste computador).</summary>
     (double? Valor, bool Aproximado) PercentualDaEtapa(string nome, EstadoEtapa estado)
     {
+        if (MonitorChatGpt is { } monitor)
+        {
+            var etapaPlugin = IdDaEtapa(nome);
+            if (etapaPlugin is not ("analisar_grupos" or "auditar_relatorio")) return (null, false);
+            var rodadas = monitor.Rodadas.Where(r => r.Grupos.Any(g => g.Id == 15) == (etapaPlugin == "auditar_relatorio")).ToArray();
+            return rodadas.Any(r => r.Percentual.HasValue)
+                ? (100d * rodadas.Sum(r => r.Realizadas) / rodadas.Sum(r => r.Verificacoes), false)
+                : (null, false);
+        }
         if (estado == EstadoEtapa.Feita) return (100, false);
         if (estado == EstadoEtapa.Pendente) return (0, false);
         if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual } estimativa && FluxoNovoRelatorio.NomeDaEtapa(etapa) == nome)

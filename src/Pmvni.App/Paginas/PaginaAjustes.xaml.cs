@@ -35,6 +35,7 @@ public sealed partial class PaginaAjustes : UserControl
 
     /// <summary>A categoria à vista (a etiqueta de <see cref="CategoriasAjustes"/>).</summary>
     public string CategoriaAtual { get; private set; } = CategoriasAjustes.Geral;
+    internal bool PermitirRestaurarModelos { get; set; }
 
     /// <summary>Os títulos do menu, na ordem, com as subpáginas logo depois da mãe (o roteiro confere as categorias).</summary>
     public IReadOnlyList<string> TitulosDoMenu =>
@@ -69,7 +70,8 @@ public sealed partial class PaginaAjustes : UserControl
         TituloCategoria.Text = categoria.Titulo;
         DescricaoCategoria.Text = categoria.Ajuda;
         CategoriaAtual = tag;
-        TrilhaModelos.Visibility = BotaoRestaurarModelos.Visibility = tag == CategoriasAjustes.Modelos ? Visibility.Visible : Visibility.Collapsed;
+        TrilhaModelos.Visibility = tag == CategoriasAjustes.Modelos ? Visibility.Visible : Visibility.Collapsed;
+        BotaoRestaurarModelos.Visibility = PermitirRestaurarModelos ? TrilhaModelos.Visibility : Visibility.Collapsed;
         EstadoSalvoCategoria.Visibility = tag == CategoriasAjustes.Modelos ? Visibility.Collapsed : Visibility.Visible;
         foreach (var (t, pagina) in categorias) pagina.Visibility = t == tag ? Visibility.Visible : Visibility.Collapsed;
         Rolagem.ChangeView(null, 0, null, disableAnimation: true);

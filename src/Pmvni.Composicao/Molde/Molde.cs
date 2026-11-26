@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using Pmvni.Composicao.Kit;
 
 namespace Pmvni.Composicao;
 
@@ -11,6 +12,7 @@ public sealed class Molde
     private abstract record No;
     private sealed record Texto(string Valor) : No;
     private sealed record Var(string Expr) : No;
+    private sealed record TextoRevisavel(string Slot, string Valor, bool Variavel) : No;
     private sealed record Para(string Nome, string Expr, List<No> Corpo) : No;
     private sealed record Se(string Expr, List<No> Corpo, List<No> Outro) : No;
 
@@ -57,6 +59,12 @@ public sealed class Molde
                 if (partes.Length == 0) throw new MoldeErro("list index out of range");
                 var kw = partes[0];
                 if (Array.IndexOf(fins, kw) >= 0) return (saida, kw);
+                if (kw is "texto_fixo" or "texto_variavel")
+                {
+                    var trecho = tag.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+                    saida.Add(new TextoRevisavel(trecho[1], trecho[2], kw == "texto_variavel"));
+                    continue;
+                }
                 if (kw == "for")
                 {
                     var (corpo, _) = Bloco(toks, ref pos, new[] { "endfor" });
@@ -88,28 +96,38 @@ public sealed class Molde
 
     public string Renderizar(IDictionary<string, object?> ctx) => Renderizar(ctx, FiltrosBasicos);
 
-    public string Renderizar(IDictionary<string, object?> ctx, IReadOnlyDictionary<string, Func<object?, object?>> filtros)
+    public string Renderizar(IDictionary<string, object?> ctx, IReadOnlyDictionary<string, Func<object?, object?>> filtros) =>
+        Renderizar(ctx, filtros, null);
+
+    internal string Renderizar(IDictionary<string, object?> ctx, IReadOnlyDictionary<string, Func<object?, object?>> filtros, TextosDoModelo? textos)
     {
         var sb = new StringBuilder();
-        Render(_nos, ctx, filtros, sb);
+        Render(_nos, ctx, filtros, sb, textos, "");
         return sb.ToString();
     }
 
     private static void Render(List<No> nos, IDictionary<string, object?> ctx,
-        IReadOnlyDictionary<string, Func<object?, object?>> filtros, StringBuilder sb)
+        IReadOnlyDictionary<string, Func<object?, object?>> filtros, StringBuilder sb, TextosDoModelo? textos, string ocorrencia)
     {
         foreach (var no in nos)
         {
             switch (no)
             {
                 case Texto t: sb.Append(t.Valor); break;
-                case Var v:
-                    var val = Valor(v.Expr, ctx, filtros);
+                case TextoRevisavel t:
+                    var original = t.Variavel
+                        ? PythonTexto.Escape(Valor(t.Valor, ctx, filtros) is { } v ? PythonTexto.StrPython(v) : "")
+                        : System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(t.Valor));
+                    if (textos is null) sb.Append(original);
+                    else textos.Anexar(sb, t.Slot, ocorrencia, original);
+                    break;
+                case Var variavel:
+                    var val = Valor(variavel.Expr, ctx, filtros);
                     if (val is Seguro sg) sb.Append(sg.Valor);
                     else sb.Append(PythonTexto.Escape(val is null ? "" : PythonTexto.StrPython(val)));
                     break;
                 case Se se:
-                    Render(PythonTexto.Verdadeiro(Valor(se.Expr, ctx, filtros)) ? se.Corpo : se.Outro, ctx, filtros, sb);
+                    Render(PythonTexto.Verdadeiro(Valor(se.Expr, ctx, filtros)) ? se.Corpo : se.Outro, ctx, filtros, sb, textos, ocorrencia);
                     break;
                 case Para p:
                     var bruto = Valor(p.Expr, ctx, filtros);
@@ -117,6 +135,8 @@ public sealed class Molde
                     var seq = Iterar(bruto);
                     for (var i = 0; i < seq.Count; i++)
                     {
+                        if (seq[i] is IReadOnlyDictionary<string, object?> entrada &&
+                            Equals(Dados.Obter(entrada, "_oculto_na_revisao"), true)) continue;
                         var c = new Dictionary<string, object?>(ctx)
                         {
                             [p.Nome] = seq[i],
@@ -129,7 +149,10 @@ public sealed class Molde
                             ["last"] = i == seq.Count - 1,
                             ["even"] = i % 2 == 1,
                         };
-                        Render(p.Corpo, c, filtros, sb);
+                        var coletar = p.Expr is "indices.linhas" or "iluminacao.ambientes" or "itens" ? null : textos;
+                        var identidade = seq[i] is IReadOnlyDictionary<string, object?> dado && Dados.Obter(dado, "id") is string id
+                            ? Uri.EscapeDataString(id) : i.ToString(CultureInfo.InvariantCulture);
+                        Render(p.Corpo, c, filtros, sb, coletar, ocorrencia + "/" + identidade);
                     }
                     break;
             }

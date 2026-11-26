@@ -131,16 +131,15 @@ public class FluxoNovoRelatorioTestes
     public void aviso_uma_vez_por_versao()
     {
         Assert.True(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente()));
-        Assert.False(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 1 }));
-        Assert.Equal(1, Ajustes.VersaoAviso);
-        // Com a versão 2 do texto, quem aceitou a 1 é perguntado de novo (o mesmo critério, sem depender da constante).
-        Assert.True(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 1 }, versaoAtual: 2));
-        Assert.False(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 2 }, versaoAtual: 2));
+        Assert.True(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 1 }));
+        Assert.False(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 2 }));
+        Assert.Equal(2, Ajustes.VersaoAviso);
 
-        Assert.Equal("Analisar com o ChatGPT inicia a rota ChatGPT do plugin analise do kit PMVNI, que roda sozinha pelo Python e chama o Codex instalado neste computador, "
-            + "com a sua configuração. O Codex lê os arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o conteúdo "
-            + "de que precisar, como faz no app do ChatGPT. O editor não envia nada por conta própria: ele só dá a partida, mostra o andamento e importa o relatório no fim.",
-            FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
+        var aviso = FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt);
+        Assert.Contains("analise-chatgpt", aviso);
+        Assert.Contains("cota dessa conta", aviso);
+        Assert.Contains("OpenAI", aviso);
+        Assert.Contains("emitido manualmente", aviso);
         Assert.Equal("Analisar com o Claude inicia a rota Claude do plugin analise do kit PMVNI, que roda sozinha numa janela minimizada e chama o Claude Code deste computador "
             + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
             + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "

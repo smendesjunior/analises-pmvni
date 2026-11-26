@@ -756,6 +756,7 @@ var Paginador = (() => {
     const img = document.createElement("img");
     img.alt = "";
     img.src = cfg.cabecalhoUri;
+    img.setAttribute("data-texto-modelo", "cabecalho");
     cab.appendChild(img);
     const area = document.createElement("div");
     area.className = "area";
@@ -764,7 +765,9 @@ var Paginador = (() => {
     const esquerda = document.createElement("div");
     esquerda.className = "folha-rodape-esq";
     esquerda.textContent = cfg.rodapeEsquerda;
+    esquerda.setAttribute("data-texto-modelo", "rodape-esquerda");
     const direita = document.createElement("div");
+    direita.setAttribute("data-texto-modelo", "rodape-direita");
     direita.className = "folha-rodape-dir";
     rodape.append(esquerda, direita);
     folha.append(cab, area, rodape);
@@ -1534,6 +1537,7 @@ var Paginador = (() => {
   var LINHAS = `:where(tr[data-pmvni-linha])`;
   var CSS_EDICAO = `
 @media screen {
+  section.folha [data-texto-modelo]:hover { outline: 1px solid rgba(${AZUL}, .55); cursor: text; }
   .cover .dates b[data-campo="protocolo"] { cursor: text; min-inline-size: 3em; min-block-size: 1em; }
   ${SEM_EDICAO} :where(.card[data-ref], .fig[data-ref], tr[data-pmvni-linha], [${ATR_CLICAVEL}]) { cursor: pointer; }
   ${SEM_EDICAO} ${BLOCOS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: 1px; }
@@ -1556,16 +1560,19 @@ ${CSS_MARCAS}`;
     if (pedacos.length > 0 || ehLinha(ref)) return pedacos;
     return Array.from(document.querySelectorAll(SELETOR_FIGURAS)).filter((e) => e.getAttribute("data-ref") === ref);
   };
-  function volumetriaDe(alvo) {
+  function vistaDoDiagrama(alvo) {
     if (!(alvo instanceof Element)) return null;
     const painel = alvo.closest(".panel");
     const desenho = alvo.closest("svg.dg");
     if (!painel || !desenho) return null;
-    return (painel.querySelector(".chip")?.textContent ?? "").toUpperCase().includes("VOLUMETRIA") ? desenho : null;
+    const vista = desenho.getAttribute("data-vista-diagrama");
+    if (vista === "planta" || vista === "volumetria") return vista;
+    if (!painel.parentElement?.matches(".dgrid")) return null;
+    return painel.previousElementSibling?.classList.contains("panel") ? "volumetria" : "planta";
   }
   function marcarClicaveis() {
     for (const svg of Array.from(document.querySelectorAll("section.folha .area .panel svg.dg"))) {
-      if (volumetriaDe(svg)) svg.setAttribute(ATR_CLICAVEL, "");
+      if (vistaDoDiagrama(svg)) svg.setAttribute(ATR_CLICAVEL, "");
     }
   }
   function garantirCss() {
@@ -1854,8 +1861,22 @@ ${CSS_MARCAS}`;
         return;
       }
       aplicarSelecao(ref);
-      const volumetria = volumetriaDe(e.target) !== null;
-      evento("selecionado", volumetria ? { ref, campo, volumetria: true, x: e.clientX, y: e.clientY } : { ref, campo });
+      const textoModelo = e.target instanceof Element ? e.target.closest("[data-texto-modelo]")?.getAttribute("data-texto-modelo") : void 0;
+      const vista = vistaDoDiagrama(e.target);
+      if (e.target instanceof Element) {
+        const campoDiagrama = e.target.closest("[data-campo-diagrama]")?.getAttribute("data-campo-diagrama");
+        if (vista && campoDiagrama) {
+          evento("selecionado", { ref: vista + "/01", campo: campoDiagrama });
+          return;
+        }
+        const chamada = e.target.closest(".dgrid .co");
+        const numero = chamada?.querySelector(".cn")?.textContent?.trim();
+        if (chamada && numero && /^\d+$/.test(numero)) {
+          evento("selecionado", { ref: "chamadas/" + numero.padStart(2, "0"), campo: e.target.closest(".coh b") ? "titulo" : "texto" });
+          return;
+        }
+      }
+      evento("selecionado", vista ? { ref, campo, vista, volumetria: vista === "volumetria", x: e.clientX, y: e.clientY } : { ref, campo, textoModelo });
     });
     document.addEventListener("dblclick", (e) => {
       if (!ativo || edicao) return;

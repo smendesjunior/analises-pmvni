@@ -84,6 +84,11 @@ public static class ComponentesDoKit
         new("pymupdf", "Motor de PDF PyMuPDF", "Lê o texto e as páginas dos PDFs.", OrigemComponente.MotorPdf, "PyMuPDF", "motores", "2.1"),
     ];
 
+    internal static ComponenteDoKit AnaliseChatGpt { get; } = new("analise-chatgpt", "analise-chatgpt",
+        "Plugin usado nas novas análises e na auditoria técnica.", OrigemComponente.PluginNoCodex, "analise-chatgpt", null);
+    internal static IReadOnlyList<ComponenteDoKit> FerramentasPdf { get; } =
+        Lista.Where(c => c.Origem is OrigemComponente.ServidorPdf or OrigemComponente.MotorPdf).ToArray();
+
     /// <summary>O que uma parte do <c>configurar-plugins.ps1</c> atualiza, para a dica e o resultado: "a análise no Codex e no Claude Code".</summary>
     public static string NomeDaParte(string parte) => parte switch
     {
@@ -200,13 +205,18 @@ public static class ComponentesDoKit
                 (acessivel, versaoNaFonte) = await Task.Run(() =>
                 {
                     var existe = Directory.Exists(fonte);
-                    return (existe, existe ? VersaoDoPlugin(fonte, PluginsInstalados.Analise) : null);
+                    return (existe, existe && (lista ?? Lista).Any(c => c.Origem is OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude)
+                        ? VersaoDoPlugin(fonte, PluginsInstalados.Analise) : null);
                 }).WaitAsync(EsperaDaFonte);
             }
             catch (Exception e) when (e is TimeoutException or IOException or UnauthorizedAccessException) { acessivel = false; versaoNaFonte = null; }
         }
         string? versaoNoKitLocal = null;
-        try { versaoNoKitLocal = await Task.Run(() => VersaoDoPlugin(kitLocal, PluginsInstalados.Analise)).WaitAsync(EsperaDaFonte); }
+        try
+        {
+            if ((lista ?? Lista).Any(c => c.Origem is OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude))
+                versaoNoKitLocal = await Task.Run(() => VersaoDoPlugin(kitLocal, PluginsInstalados.Analise)).WaitAsync(EsperaDaFonte);
+        }
         catch (TimeoutException) { }
         var resumo = await Task.Run(() => LerTexto(PrimeiraAbertura.RegistroMaisRecente(o.PastaMotorPdf)));
         var linhasResumo = LinhasDoResumo(resumo);

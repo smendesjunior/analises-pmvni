@@ -23,8 +23,8 @@ public sealed class RecomposicaoRecusadaException(IReadOnlyList<string> erros)
 public sealed class Recompositor : IDisposable
 {
     // As imagens do pacote estão em assets\ da pasta de trabalho: nada fora dela é lido (Pacote.Ler já amarra o documento aos assets).
-    static readonly OpcoesRender Rascunho = new(false, true, ImagensSoNaPasta: true);
-    static readonly OpcoesRender Final = new(false, false, ImagensSoNaPasta: true);
+    static readonly OpcoesRender Rascunho = new(false, true, ImagensSoNaPasta: true, EditarTextos: true);
+    static readonly OpcoesRender Final = new(false, false, ImagensSoNaPasta: true, EditarTextos: true);
 
     readonly ModeloCarregado modelo;
     readonly Pmvni.Composicao.Web.PastaTrabalho pasta;
@@ -44,16 +44,19 @@ public sealed class Recompositor : IDisposable
     public Preparado Preparar(Projeto p)
     {
         ArgumentNullException.ThrowIfNull(p);
-        var gerado = DadosEfetivos.Gerar(p);
+        var gerado = DadosEfetivos.Gerar(p, apresentarContaNominal: true);
         var caminho = pasta.CaminhoDados;
         var render = RelatorioRenderer.Renderizar(gerado.Json, caminho, Rascunho, modelo);
         if (!render.Ok) throw new RecomposicaoRecusadaException(render.Erros);
         render = DadosEfetivos.RefsDeSessao(render, gerado.IdsDosItens);
+        var textos = new Dictionary<string, Pmvni.Composicao.TextoDoModelo>(render.Textos, StringComparer.Ordinal);
+        var config = ConfigFolhas.PadraoDeBytes(modelo, gerado.Json, textos);
+        render = render with { Textos = textos };
 
         var erros = new List<string>(RelatorioRenderer.Renderizar(gerado.Json, caminho, Final, modelo).Erros);
         erros.AddRange(ConferenciaRevisao.Erros(p));
         // A conferência do kit e a da revisão podem repetir uma mensagem: cada uma aparece uma vez.
-        return new Preparado(gerado.Json, caminho, render, ConfigFolhas.PadraoDeBytes(modelo, gerado.Json), erros.Distinct(StringComparer.Ordinal).ToList(),
+        return new Preparado(gerado.Json, caminho, render, config, erros.Distinct(StringComparer.Ordinal).ToList(),
             ReferenciasCruzadas.FigurasRenumeradas(p));
     }
 

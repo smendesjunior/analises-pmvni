@@ -40,9 +40,11 @@ public sealed partial class MainWindow
         /// analise-google); a segunda linha de plugin desses cartões mostra a versão dele.</summary>
         public static InfoLocalAgentes Ler(OpcoesLocalizacao o)
         {
+            var chatGpt = ContasLocais.Ler(Provedor.ChatGpt, o);
+            var claude = ContasLocais.Ler(Provedor.Claude, o);
+            if (!o.PermitirKitLegado) return new(chatGpt, claude, null, null, null);
             var analiseNoCodex = PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.Analise);
-            return new(ContasLocais.Ler(Provedor.ChatGpt, o), ContasLocais.Ler(Provedor.Claude, o),
-                analiseNoCodex, PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise), analiseNoCodex);
+            return new(chatGpt, claude, analiseNoCodex, PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise), analiseNoCodex);
         }
     }
 
@@ -76,10 +78,11 @@ public sealed partial class MainWindow
                 && PaginaDeAjustes.CartaoGemini.Visibility == Visibility.Collapsed;
             d["cartoes"] = cartoes.Count;
             d["gemini_desativado"] = geminiOculto;
-            var etapasMonitor = FluxoNovoRelatorio.Etapas("analyze", "EM_ANDAMENTO", Roteiro.EtapasDaAnaliseDeTeste);
+            const string etapaAnalise = "analisar_grupos";
+            var etapasMonitor = FluxoNovoRelatorio.Etapas(etapaAnalise, "EM_ANDAMENTO", OrquestradorAnalise.EtapasAnaliseChatGpt);
             NR.MostrarResumo(true, null, etapasMonitor, "ChatGPT");
             var amostra = new ConsumoAoVivo("codex", null, false, null, null, null, null, null, null, null)
-                { EtapaEmExecucao = "analyze", ModelosEmExecucao = "modelo-um" };
+                { EtapaEmExecucao = etapaAnalise, ModelosEmExecucao = "modelo-um" };
             NR.MostrarConsumo([], leitura: amostra);
             var primeiro = NR.TextoExecutorExibido;
             NR.MostrarConsumo([], leitura: amostra with { ModelosEmExecucao = "modelo-dois" });
@@ -88,7 +91,16 @@ public sealed partial class MainWindow
             NR.MostrarConsumo([]);
             var troca = primeiro == "modelo-um" && segundo == "modelo-dois" && NR.TextoExecutorExibido == "ChatGPT";
             d["troca_de_modelo_observada"] = troca;
-            d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca;
+            var rodada = new RodadaDoMonitorChatGpt(new(1, "gpt-6.1-terra", "low"), [new(1, "Instrução", [1, 2])], false);
+            NR.MonitorChatGpt = new([rodada], null, null);
+            var semPlano = NR.PercentualExibido == "—";
+            NR.MonitorChatGpt = new([rodada with { Plano = [new(1, "concluida"), new(2, "em_andamento")] }], null, null);
+            var parcial = NR.PercentualExibido == "50%";
+            NR.MonitorChatGpt = new([rodada with { Plano = [new(1, "concluida"), new(2, "concluida")] }], null, null);
+            var completo = NR.PercentualExibido == "100%";
+            NR.MonitorChatGpt = null;
+            d["progresso_plano_chatgpt"] = semPlano && parcial && completo;
+            d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca && semPlano && parcial && completo;
             if (!(bool)d["ok"]!) d["erro"] = "Confira as rotas de análise disponíveis em Novo relatório e Ajustes.";
         }
         catch (Exception e)
@@ -181,9 +193,16 @@ public sealed partial class MainWindow
 
     void IniciarAgentes()
     {
-        OpcoesAgentes = () => Argumentos.Atual.Roteiro is { } roteiro
+        OpcoesAgentes = () =>
+#if !PMVNI_DISTRIBUICAO
+            Argumentos.Atual.Roteiro is { } roteiro
             ? Roteiro.OpcoesDosAgentes(roteiro, ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel)
-            : OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel);
+            :
+#endif
+            OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, null) with
+            {
+                PastaKitAnalise = ajustes.PastaKit, PermitirKitLegado = false,
+            };
         // A página de IA se consulta sozinha ao ser vista (sem clicar em Testar); ao voltar de um Entrar/Sair, relê a conta e testa aquele agente de novo.
         PaginaDeAjustes.CategoriaMostrada += tag => { if (tag == CategoriasAjustes.Ia && PaginaAjustesVisivel) AtualizarAgentes(); };
         Activated += (_, e) =>
@@ -239,6 +258,13 @@ public sealed partial class MainWindow
     /// <summary>Compara as versões instaladas dos plugins com as da última vez (ajustes.json) e guarda as de agora; a mudança fica avisada no cartão até fechar.</summary>
     void RegistrarPluginsVistos()
     {
+        if (!RoteiroLegado)
+        {
+            if (acompanhamentoPlugins.Registrar(ajustes.PluginsVistos,
+                AcompanhamentoPlugins.Chave(Provedor.ChatGpt, OrquestradorAnalise.NomeAnaliseChatGpt), pecasAgentes.VersaoAnaliseChatGpt))
+                SalvarAjustes();
+            return;
+        }
         var mudou = acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.ChatGpt, PluginsInstalados.Analise), infoLocal.AnaliseNoCodex?.Versao);
         mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Claude, PluginsInstalados.Analise), infoLocal.AnaliseNoClaude?.Versao);
         mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Claude, PluginsInstalados.AnalisePro), infoLocal.AnaliseProNoCodex?.Versao);
@@ -287,7 +313,15 @@ public sealed partial class MainWindow
         try
         {
             var pecas = await LerPecasAsync();
-            resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo,
+            if (!RoteiroLegado && p == Provedor.ChatGpt)
+            {
+                var motivo = OrquestradorAnalise.MotivoAnaliseChatGpt(pecas);
+                resultado = new SituacaoProvedor(motivo ?? (await OrquestradorAnalise.ContaChatGptConfirmadaAsync(
+                    pecas, PastaDados.Raiz, CancellationToken.None) ? "Conta ChatGPT confirmada para esta análise." : OrquestradorAnalise.SemContaChatGpt), []);
+            }
+            else if (!RoteiroLegado && p == Provedor.Claude)
+                resultado = new SituacaoProvedor(pecas.Claude is null ? "Claude Code não encontrado." : "Claude Code encontrado para revisão pontual.", []);
+            else resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo,
                 CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None);
         }
         catch (Exception e) { resultado = new SituacaoProvedor("Não foi possível testar: " + Erro(e), []); }
@@ -453,10 +487,24 @@ public sealed partial class MainWindow
         c.TextoAssinatura.Text = TextosAgentes.Assinatura(conta);
 
         // Plugins do kit: versão, data e o aviso quando mudou desde a última vez.
-        if (!gemini)
+        if (!RoteiroLegado)
+        {
+            c.LinhaPluginPro.Visibility = Visibility.Collapsed;
+            c.LinhaPluginAnalise.Visibility = p == Provedor.ChatGpt ? Visibility.Visible : Visibility.Collapsed;
+            if (p == Provedor.ChatGpt)
+            {
+                c.TituloPluginAnalise.Text = "analise-chatgpt";
+                c.TextoPluginAnalise.Text = pecas.VersaoAnaliseChatGpt is { } versao ? "Versão " + versao + " · análise e auditoria" : "Plugin indisponível";
+                c.SeloPluginAnalise.Definir(pecas.AnaliseChatGpt is not null, pecas.AnaliseChatGpt is null ? "Indisponível" : "Encontrado");
+                c.TextoPluginAnaliseNovo.Visibility = Visibility.Collapsed;
+            }
+            c.PainelBotoesPrograma.Visibility = p == Provedor.ChatGpt ? Visibility.Visible : Visibility.Collapsed;
+            c.OpcaoConta.Visibility = c.OpcaoChave.Visibility = Visibility.Collapsed;
+        }
+        else if (!gemini)
             MostrarPlugin(c.TextoPluginAnalise, c.SeloPluginAnalise, c.TextoPluginAnaliseNovo, p, PluginsInstalados.Analise,
                 p == Provedor.ChatGpt ? infoLocal.AnaliseNoCodex : infoLocal.AnaliseNoClaude, pecas.PluginAnaliseHabilitado);
-        if (p == Provedor.Claude)
+        if (p == Provedor.Claude && RoteiroLegado)
             MostrarPlugin(c.TextoPluginPro, c.SeloPluginPro, c.TextoPluginProNovo, p, PluginsInstalados.AnalisePro, infoLocal.AnaliseProNoCodex, pecas.PluginAnaliseHabilitado);
         if (gemini)
             MostrarPlugin(c.TextoPluginPro, c.SeloPluginPro, c.TextoPluginProNovo, p, PluginsInstalados.AnaliseGoogle, infoLocal.AnaliseGoogleNoCodex, pecas.PluginAnaliseHabilitado);
@@ -464,7 +512,7 @@ public sealed partial class MainWindow
         var achado = p switch
         {
             Provedor.ChatGpt => pecas.Codex is not null,
-            Provedor.Claude => pecas.Python is not null && pecas.Claude is not null,
+            Provedor.Claude => pecas.Claude is not null && (!RoteiroLegado || pecas.Python is not null),
             _ => pecas.Python is not null && pecas.Agy is not null,
         };
         c.SeloPrograma.Definir(achado, achado ? TextosAgentes.Encontrado : TextosAgentes.NaoEncontrado);
@@ -473,6 +521,7 @@ public sealed partial class MainWindow
             : gemini
             ? TextosAgentes.LinhaDoPrograma("Python", pecas.Python, ajustes.Agentes[Provedor.Claude].Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
               + Environment.NewLine + "Antigravity CLI (agy): " + (pecas.Agy ?? "não encontrado")
+            : !RoteiroLegado ? TextosAgentes.LinhaDoPrograma("Claude Code", pecas.Claude, null)
             : TextosAgentes.LinhaDoPrograma("Python", pecas.Python, a.Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
               + Environment.NewLine + "Executor do kit (Claude Code): " + (pecas.Claude ?? "não encontrado");
         AtualizarDicaDeDisponibilidade(c.BotaoProgramaPadrao, DicasComandos.Livre("Usar padrão",
@@ -514,9 +563,9 @@ public sealed partial class MainWindow
             c.TextoMatriz.Text = TextosAgentes.MatrizDoGemini(a.Modo, a.PerfilApi);
             c.TextoMatriz.Visibility = Visibility.Visible;
         }
-        c.TextoDicaChave.Text = dica;
-        c.TextoDicaChave.Visibility = dica.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;
+        c.TextoDicaChave.Text = RoteiroLegado ? dica : "Chave usada quando a API é selecionada em Modelos de IA para revisão e ajustes.";
+        c.TextoDicaChave.Visibility = !RoteiroLegado || dica.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        c.PainelChave.Visibility = !RoteiroLegado || a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;
         var guardada = CofreChaves.Existe(PastaDados.Raiz, p);
         c.CaixaChave.PlaceholderText = guardada ? "••••••••" : "Cole a chave de API aqui";
         c.TextoChave.Text = guardada ? TextosAgentes.ChaveGuardada : TextosAgentes.SemChave;

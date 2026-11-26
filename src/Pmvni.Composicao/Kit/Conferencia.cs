@@ -139,7 +139,10 @@ public static class Conferencia
                 erros.Add("Índice \"" + Dados.Txt(Dados.Obter(l, "nome")) + "\": situação inválida " + PythonTexto.Repr(sit));
         }
         var iluminacao = Dados.Obter(d, "iluminacao");
-        if (!rascunho && PythonTexto.Verdadeiro(iluminacao) && !Tem(iluminacao, "ambientes"))
+        var temLacunaIluminacao = Dados.Obter(SeVerdadeiro(iluminacao), "sem_calculo") is IReadOnlyDictionary<string, object?> faltaIluminacao
+            && TextoPreenchido(Dados.Obter(faltaIluminacao, "motivo"))
+            && TextoPreenchido(Dados.Obter(faltaIluminacao, "evidencia"));
+        if (!rascunho && PythonTexto.Verdadeiro(iluminacao) && !Tem(iluminacao, "ambientes") && !temLacunaIluminacao)
             erros.Add("Iluminação: a tabela exige ao menos um ambiente.");
         var ambientes = Dados.Lista(Dados.Obter(SeVerdadeiro(iluminacao), "ambientes", new List<object?>()));
         foreach (var a in ambientes)

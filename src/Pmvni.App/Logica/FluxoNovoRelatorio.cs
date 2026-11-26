@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Pmvni.Agentes;
 using Pmvni.Revisao;
 
@@ -92,12 +92,13 @@ public static class FluxoNovoRelatorio
     /// <summary>Por que o botão do provedor está desabilitado (desenho §12.11, nesta ordem: processo, execução em andamento, programa(s), plugin, modo/chave);
     /// null = pode analisar. As peças de um provedor não contam para o outro.</summary>
     /// <param name="perfilGemini">Só o Gemini: o perfil que vale para o modo (<see cref="MatrizGemini.PerfilDoModo"/>); null no modo chave = perfil não escolhido.</param>
-    public static string? MotivoDesabilitado(Provedor p, Processo? processo, bool emAndamento, Pecas pecas, ModoAcesso modo, bool chaveGuardada, PerfilGemini? perfilGemini = null)
+    public static string? MotivoDesabilitado(Provedor p, Processo? processo, bool emAndamento, Pecas pecas, ModoAcesso modo, bool chaveGuardada, PerfilGemini? perfilGemini = null, bool usarAnaliseChatGpt = false)
     {
         if (!Provedores.Ativos.Contains(p)) return Provedores.RotaDesativada;
         ArgumentNullException.ThrowIfNull(pecas);
         if (processo is null) return EscolhaOProcesso;
         if (emAndamento) return EmAndamento;
+        if (usarAnaliseChatGpt) return OrquestradorAnalise.MotivoAnaliseChatGpt(pecas);
         if (p == Provedor.ChatGpt)
         {
             if (pecas.Codex is null) return SemCodex;
@@ -221,6 +222,7 @@ public static class FluxoNovoRelatorio
     /// <summary>O nome em português da etapa; uma etapa que o Editor não conhece (kit mais novo) aparece com o id legível ("etapa_nova" vira "Etapa nova").</summary>
     internal static string NomeDaEtapa(string etapa)
     {
+        if (etapa == "salvar_relatorio") return "Validar e salvar";
         var nome = SituacaoAnalisePro.NomeEtapa(etapa);
         if (nome != etapa) return nome;
         var legivel = etapa.Replace('_', ' ').Trim();

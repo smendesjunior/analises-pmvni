@@ -119,13 +119,7 @@ sealed class Assistente : Window
                 Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH")+";"+ Environment.GetEnvironmentVariable("Path",EnvironmentVariableTarget.User));
             }
             Andamento(60, "Instalando o kit e suas dependências. A janela do kit mostra os detalhes e solicita as confirmações necessárias.");
-            var kit = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe")) { UseShellExecute = false, WorkingDirectory = fonte };
-            kit.Environment["PMVNI_SCRIPT"] = Script(fonte);
-            kit.Environment["PMVNI_ARGS"] = "instalar --sem-pausa --processos \"" + processos.Text + "\"";
-            foreach (var arg in new[]{"-NoProfile","-Command","$global:PMVNI_CODIGO=1; Invoke-Expression ([IO.File]::ReadAllText($env:PMVNI_SCRIPT,[Text.Encoding]::UTF8)); exit $global:PMVNI_CODIGO"}) kit.ArgumentList.Add(arg);
-            using var p = Process.Start(kit) ?? throw new IOException("Falha ao abrir o instalador do kit.");
-            await p.WaitForExitAsync();
-            if (p.ExitCode != 0) throw new IOException($"O kit encerrou com código {p.ExitCode}. Confira o registro em Documentos\\PMVNI.");
+            await ExecutarInstaladorDoKit();
             Andamento(95, "Preparando atalhos");
             if (menu.IsChecked == true) Atalho(Pasta(Environment.SpecialFolder.Programs));
             if (desktop.IsChecked == true) Atalho(Pasta(Environment.SpecialFolder.DesktopDirectory));
@@ -135,6 +129,33 @@ sealed class Assistente : Window
             painel.Children.Add(Botao("Tentar novamente", Instalar));
             throw;
         } finally { instalando = false; }
+    }
+
+    async Task ExecutarInstaladorDoKit()
+    {
+        var pasta = Path.Combine(Pasta(Environment.SpecialFolder.LocalApplicationData), "PMVNI", "EditorInstalador");
+        Directory.CreateDirectory(pasta);
+        var comando = Path.Combine(pasta, $"instalar-{Guid.NewGuid():N}.cmd");
+        var resultado = Path.ChangeExtension(comando, ".resultado.txt");
+        // CALL expande as porcentagens duas vezes. Aspas protegem os outros caracteres válidos em caminhos.
+        static string Aspas(string caminho) => "\"" + caminho.Replace("%", "%%%%", StringComparison.Ordinal) + "\"";
+        var corpo = "@echo off\r\nchcp 65001 >nul\r\nsetlocal DisableDelayedExpansion\r\n"
+            + $"call {Aspas(Script(fonte))} instalar --sem-pausa --processos {Aspas(processos.Text)}\r\n"
+            + "> \"%~dpn0.resultado.tmp\" echo %errorlevel%\r\n"
+            + "move /y \"%~dpn0.resultado.tmp\" \"%~dpn0.resultado.txt\" >nul\r\n";
+        await File.WriteAllTextAsync(comando, corpo);
+        var inicia = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe")) { UseShellExecute = false };
+        inicia.ArgumentList.Add(comando);
+        using var explorer = Process.Start(inicia) ?? throw new IOException("Falha ao abrir o instalador do kit pelo Explorer.");
+        var espera = Stopwatch.StartNew();
+        while (!File.Exists(resultado) && espera.Elapsed < TimeSpan.FromMinutes(30))
+            await Task.Delay(750);
+        if (!File.Exists(resultado))
+            throw new IOException("O Windows ainda não confirmou a conclusão do kit. Confira a janela do instalador.");
+        var codigo = (await File.ReadAllTextAsync(resultado)).Trim();
+        File.Delete(resultado);
+        File.Delete(comando);
+        if (codigo != "0") throw new IOException($"O kit encerrou com código {codigo}. Confira o registro em Documentos\\PMVNI.");
     }
     void Andamento(double valor, string etapa)
     {

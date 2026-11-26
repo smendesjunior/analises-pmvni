@@ -31,9 +31,15 @@ internal static class Program
             }
         }
         if (args.FirstOrDefault() == Pmvni.Agentes.OrquestradorAnalise.ComandoCheckpoint)
+#if PMVNI_DISTRIBUICAO
+            return 2;
+#else
             return Pmvni.Agentes.OrquestradorAnalise.SalvarRetomada(args, Console.Error);
+#endif
         if (args.FirstOrDefault() == OcrDaAnalise.Comando)
             return OcrDaAnalise.Executar(args).GetAwaiter().GetResult();
+        if (args.FirstOrDefault() == Pmvni.Imoveis.ConsultaParaAnalise.Comando)
+            return Pmvni.Imoveis.ConsultaParaAnalise.Executar(args, Console.Error);
         if (args.FirstOrDefault() == Pmvni.Imoveis.MapaParaAnalise.Comando)
         {
             Console.OutputEncoding = new System.Text.UTF8Encoding(false);
@@ -44,10 +50,15 @@ internal static class Program
 
     static int IniciarJanela(string[] args)
     {
+#if PMVNI_DISTRIBUICAO
+        if (Array.IndexOf(args, "--roteiro") >= 0) return 2;
+#endif
         Environment.SetEnvironmentVariable("PMVNI_EDITOR_OCR_EXE", OcrDaAnalise.Disponivel() ? Environment.ProcessPath : null);
         Autoteste.Configurar(args);
         Argumentos.Ler(args);
+#if !PMVNI_DISTRIBUICAO
         if (Argumentos.Atual.Roteiro is { } roteiro) Roteiro.TravarProgramas(roteiro);
+#endif
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Application.Start(parametros =>
         {
@@ -61,7 +72,11 @@ internal static class Program
         // direto, sem as notificações de descarga.
         // Ajustes › Sistema › "Reiniciar agora" depois de uma atualização: abre o executável (já trocado) de novo.
         Atualizador.ReabrirSePedido();
+#if PMVNI_DISTRIBUICAO
+        var codigo = Autoteste.CodigoSaida;
+#else
         var codigo = Argumentos.Atual.Roteiro is null ? Autoteste.CodigoSaida : Roteiro.CodigoSaida;
+#endif
         if (SessaoNovoDespacho.DesenhouPaginas) TerminateProcess(GetCurrentProcess(), (uint)codigo);
         return codigo;
     }

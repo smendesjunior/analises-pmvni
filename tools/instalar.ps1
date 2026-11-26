@@ -11,7 +11,7 @@
     1. baixa a Release do GitHub para a pasta da cópia de uso (sem internet: copia Aplicativo\, que depois se atualiza pelo GitHub);
     2. cria os atalhos no Menu Iniciar e na Área de Trabalho apontando para a cópia de uso;
     3. associa .rpmvni (e o formato antigo .pmvrel) à cópia de uso (HKCU\Software\Classes);
-    4. atualiza o kit PMVNI (INSTALAR_KIT_PMVNI.cmd atualizar: plugin analise; o despacho é do próprio editor);
+    4. atualiza o kit PMVNI pelo INSTALAR_KIT_PMVNI.cmd, com o plugin analise-chatgpt;
     5. abre o editor anexando as leis do kit (03 - LEGISLACAO) à Legislação (as já anexadas não se repetem).
   Resultado em tools\instalar-resultado.txt.
 #>
@@ -91,8 +91,9 @@ try {
         $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "`"$instalarKit`" atualizar" -WindowStyle Hidden -Wait -PassThru
         Registrar "kit: INSTALAR_KIT_PMVNI.cmd atualizar (código $($p.ExitCode))"
     }
-    $ana = Get-ChildItem (Join-Path $env:USERPROFILE '.codex\plugins\cache\pmvni-kit\analise') -Directory -ErrorAction SilentlyContinue | Sort-Object { [version]$_.Name } | Select-Object -Last 1
-    Registrar "plugins instalados: analise $($ana.Name)"
+    $ana = Get-ChildItem (Join-Path $env:USERPROFILE '.codex\plugins\cache\pmvni-kit\analise-chatgpt') -Directory -ErrorAction SilentlyContinue | Sort-Object { [version]$_.Name } | Select-Object -Last 1
+    if ($ana) { Registrar "plugin instalado: analise-chatgpt $($ana.Name)" }
+    else { Registrar 'plugin analise-chatgpt não localizado no cache local do Codex' }
 
     # 5. Leis do kit (abre a cópia de uso)
     $leis = Join-Path $kit '03 - LEGISLACAO'

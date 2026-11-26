@@ -180,8 +180,11 @@ public sealed partial class MainWindow
     async Task<ModelosDisponiveis> LerModelosAsync(string kit)
     {
         ModelosDisponiveis m;
-        var home = CodexHomeAtual();
-        try { m = await Task.Run(() => RegistroModelos.Ler(FontesDosModelos(kit, home), kit)); }
+        try
+        {
+            var fontes = RoteiroLegado ? FontesDosModelos(kit, CodexHomeAtual()) : FontesDosModelosAtuais(kit);
+            m = await Task.Run(() => RegistroModelos.Ler(fontes, kit));
+        }
         catch (Exception e)
         {
             var motivo = "O registro de modelos do kit não pôde ser lido (" + Erro(e) + ").";
@@ -193,6 +196,17 @@ public sealed partial class MainWindow
         MostrarKitNosAjustes();
         AtualizarComandos();
         return m;
+    }
+
+    IReadOnlyList<FonteModelos> FontesDosModelosAtuais(string kit)
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ")))
+            return [FontesModelos.DoKitAtual(kit)];
+        var instalado = ComponentesDoKit.FonteDoKit(OrigensDoKitDoComputador()).KitLocal;
+        var pastas = string.IsNullOrWhiteSpace(ajustes.PastaKit)
+            ? new[] { instalado, Ajustes.PastaKitPadrao }
+            : new[] { kit, instalado, Ajustes.PastaKitPadrao };
+        return pastas.Distinct(StringComparer.OrdinalIgnoreCase).Select(FontesModelos.DoKitAtual).ToArray();
     }
 
     /// <summary>Ajustes › Pasta do kit PMVNI (null = a padrão): vale na hora; o registro é lido de novo.</summary>

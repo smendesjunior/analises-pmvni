@@ -174,12 +174,10 @@
               <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <CheckBox x:Name="PermitirAuditoriaAlternativa" x:FieldModifier="internal"
-                      Content="Permitir que a outra IA (Claude ou Codex) confira este processo se a auditoria ficar indisponível."/>
         <!-- Os agentes ativos com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
         <StackPanel Spacing="6">
 
-          <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
+            <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
             <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
               <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
                 <Grid Width="32" Height="32" VerticalAlignment="Center">
@@ -201,7 +199,7 @@
               </Button>
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
+          <Border x:Name="CartaoClaudeIndisponivel" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
             <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
               <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
                 <Grid Width="32" Height="32" VerticalAlignment="Center">
@@ -209,12 +207,12 @@
                 </Grid>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                   <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Claude" Style="{StaticResource PmvniAjusteTitulo}"/>
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Pelo Claude Code · Análise — rota Claude" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Plugin de análise indisponível" Style="{StaticResource PmvniSecondaryTextStyle}"/>
                 </StackPanel>
               </Grid>
               <TextBlock Visibility="Collapsed" x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
               <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <Button x:Name="BotaoClaude" AutomationProperties.Name="Analisar com o Claude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+              <Button x:Name="BotaoClaude" IsEnabled="False" AutomationProperties.Name="Analisar com o Claude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
                   <TextBlock Text="Analisar com o Claude"/>
@@ -427,7 +425,7 @@
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                 <StackPanel VerticalAlignment="Center">
                   <TextBlock Text="Principais descobertas" Style="{StaticResource MonitorTituloSecao}" AutomationProperties.HeadingLevel="Level2"/>
-                  <TextBlock Text="Constatações preliminares até a auditoria cruzada." Style="{StaticResource MonitorLegenda}"/>
+                  <TextBlock Text="Constatações preliminares até a auditoria final." Style="{StaticResource MonitorLegenda}"/>
                 </StackPanel>
 
               </Grid>

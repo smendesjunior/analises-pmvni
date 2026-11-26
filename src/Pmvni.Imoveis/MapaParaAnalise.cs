@@ -11,10 +11,11 @@ public static class MapaParaAnalise
 
     public static int Executar(string[] args, TextWriter erros)
     {
-        if (args.Length != 4 || args[0] != Comando || string.IsNullOrWhiteSpace(args[1]) || string.IsNullOrWhiteSpace(args[3])
+        if (args.Length is not (4 or 5) || args.Length == 5 && args[4] != "--confirmado" ||
+            args[0] != Comando || string.IsNullOrWhiteSpace(args[1]) || string.IsNullOrWhiteSpace(args[3])
             || !int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out var indice))
         {
-            erros.WriteLine("Uso: --mapa-qgis <pasta da base> <índice da feição Lotes> <pasta de saída vazia>");
+            erros.WriteLine("Uso: --mapa-qgis <pasta da base> <índice da feição Lotes> <pasta de saída vazia> [--confirmado]");
             return 2;
         }
         try
@@ -25,7 +26,7 @@ public static class MapaParaAnalise
             var lote = b[Camada.Lotes]?.Feicoes.FirstOrDefault(f => f.Indice == indice);
             if (lote?.Geometria is not { IsEmpty: false } geometria)
                 throw new InvalidDataException($"A feição {indice} não foi encontrada na camada Lotes.");
-            var mapa = MapaLocalizacao.Gerar(b, geometria, [lote], new OpcoesMapa { Candidato = true, Cotas = true, ComDonos = false });
+            var mapa = MapaLocalizacao.Gerar(b, geometria, [lote], new OpcoesMapa { Candidato = args.Length == 4, Cotas = true, ComDonos = false });
             var ext = mapa.Extensao;
             var ficha = JsonSerializer.Serialize(new
             {

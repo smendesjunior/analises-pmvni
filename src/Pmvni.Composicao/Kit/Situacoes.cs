@@ -65,7 +65,12 @@ public static class Filtros
         var f = new Dictionary<string, Func<object?, object?>>(Molde.FiltrosBasicos, StringComparer.Ordinal)
         {
             ["pill"] = v => new Seguro(Situacoes.Pill(v)),
-            ["pill_vao"] = v => new Seguro(v is string s && s == "CONTA_CONFERE" ? "<span class=\"pill a\"><i></i>CONTA NOMINAL CONFERE</span>" : Situacoes.Pill(v)),
+            ["pill_vao"] = v => new Seguro(v switch
+            {
+                "CONTA_CONFERE" => "<span class=\"pill g\"><i></i>Conta nominal confere</span>",
+                "NAO_ATENDE" => "<span class=\"pill r\"><i></i>Conta nominal não confere</span>",
+                _ => Situacoes.Pill(v),
+            }),
             ["icone"] = v => new Seguro(Icones.Icone(v)),
             ["cor"] = v => Situacoes.Cor(v),
         };
