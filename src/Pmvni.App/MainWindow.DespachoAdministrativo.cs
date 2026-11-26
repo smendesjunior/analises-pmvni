@@ -7,7 +7,8 @@ public sealed partial class MainWindow
 {
     async Task CriarAdministrativoAsync(string tipo)
     {
-        var nome = "MODELO DESPACHO " + tipo.ToUpperInvariant() + ".docx";
+        var nomeArquivo = tipo.Replace("/", " E ");
+        var nome = "MODELO DESPACHO " + nomeArquivo + ".docx";
         var modelo = Path.Combine(PastaKitEfetiva, "02 - MODELOS DE DOCUMENTOS", "DESPACHO", nome);
         var formulario = new FormularioDespacho(await File.ReadAllBytesAsync(modelo));
         var processo = moduloAtual switch
@@ -32,7 +33,7 @@ public sealed partial class MainWindow
                 Header = campo, AcceptsReturn = campo == "Texto", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap,
                 Text = campo switch
                 {
-                    "Título" => "DESPACHO",
+                    "Título" => "USO GERAL",
                     "Data" => Etapas.DataPorExtenso(Hoje()),
                     "Prazo" => "24 horas",
                     "Encaminhamento" => "A solicitação foi atendida. Arquive-se.",
@@ -49,7 +50,7 @@ public sealed partial class MainWindow
         Atualizar();
         if (await dialogo.ShowAsync() != ContentDialogResult.Primary) return;
         var bytes = formulario.Preencher(caixas.ToDictionary(x => x.Key, x => x.Value.Text));
-        var caminho = await Perguntas.Atual.SalvarArquivoAsync("DESPACHO " + tipo, ".docx");
+        var caminho = await Perguntas.Atual.SalvarArquivoAsync("DESPACHO " + nomeArquivo, ".docx");
         if (caminho is null) return;
         if (string.Equals(Path.GetFullPath(caminho), Path.GetFullPath(modelo), StringComparison.OrdinalIgnoreCase))
             throw new IOException("Escolha um arquivo de saída diferente do modelo institucional.");

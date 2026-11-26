@@ -7,10 +7,10 @@ namespace Pmvni.Revisao;
 public sealed class FormularioDespacho
 {
     static readonly XNamespace W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-    static readonly Regex Campo = new(@"\[([^\[\]\r\n]+)\]|^(?:DESPACHO|INSIRA AQUI O TEXTO DO DESPACHO)$");
+    static readonly Regex Campo = new(@"\[([^\[\]\r\n]+)\]|^(?:USO GERAL|INSIRA AQUI O TEXTO DO DESPACHO)$");
     static string NomeCampo(Match marca) => marca.Value switch
     {
-        "DESPACHO" => "Título",
+        "USO GERAL" => "Título",
         "INSIRA AQUI O TEXTO DO DESPACHO" => "Texto",
         _ => marca.Groups[1].Value
     };

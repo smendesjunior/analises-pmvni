@@ -7,9 +7,9 @@ namespace Pmvni.Revisao.Testes.DespachosTestes;
 public class FormularioDespachoTestes
 {
     [Theory]
-    [InlineData("ENTREGA", 7)]
-    [InlineData("DEVOLUÇÃO", 9)]
-    [InlineData("GENÉRICO", 5)]
+    [InlineData("RETIRADA DE PROCESSOS E PROJETOS", 7)]
+    [InlineData("DEVOLUÇÃO DE PROCESSOS E PROJETOS", 9)]
+    [InlineData("USO GERAL", 5)]
     public void EmiteModeloComCamposPreenchidos(string tipo, int quantidade)
     {
         var caminho = Path.Combine(Ambiente.ExigirKit(), "02 - MODELOS DE DOCUMENTOS", "DESPACHO", $"MODELO DESPACHO {tipo}.docx");

@@ -290,9 +290,9 @@ public static class Processos
         var nomes = arquivos.Select(a => Normalizar(Path.GetFileName(a))).ToList();
         if (nomes.Any(n => n.Contains("correcao", StringComparison.Ordinal))) return TipoDespacho.Correcao;
         if (nomes.Any(n => n.Contains("aprovacao", StringComparison.Ordinal))) return TipoDespacho.Aprovacao;
-        if (nomes.Any(n => n.StartsWith("despacho entrega", StringComparison.Ordinal))) return TipoDespacho.Entrega;
+        if (nomes.Any(n => n.StartsWith("despacho retirada", StringComparison.Ordinal))) return TipoDespacho.Entrega;
         if (nomes.Any(n => n.StartsWith("despacho devolucao", StringComparison.Ordinal))) return TipoDespacho.Devolucao;
-        if (nomes.Any(n => n.StartsWith("despacho generico", StringComparison.Ordinal))) return TipoDespacho.Generico;
+        if (nomes.Any(n => n.StartsWith("despacho uso geral", StringComparison.Ordinal))) return TipoDespacho.Generico;
         return TipoDespacho.NaoIdentificado;
     }
 

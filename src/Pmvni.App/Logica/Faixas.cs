@@ -44,9 +44,9 @@ public static class Faixas
         new(ComandosApp.DespachosNovoCorrecao, "Correção", ""),
         new(ComandosApp.DespachosNovoCorrecaoAutomatica, "Correção automática (itens pendentes do relatório)", ""),
         new(ComandosApp.DespachosNovoAprovacao, "Aprovação", ""),
-        new(ComandosApp.DespachosNovoEntrega, "Entrega", ""),
-        new(ComandosApp.DespachosNovoDevolucao, "Devolução", ""),
-        new(ComandosApp.DespachosNovoGenerico, "Genérico", ""),
+        new(ComandosApp.DespachosNovoEntrega, "RETIRADA DE PROCESSOS/PROJETOS", ""),
+        new(ComandosApp.DespachosNovoDevolucao, "DEVOLUÇÃO DE PROCESSOS/PROJETOS", ""),
+        new(ComandosApp.DespachosNovoGenerico, "USO GERAL", ""),
     ]);
 
     /// <summary>Novo relatório (desenho §12.2): primário de Relatórios e de Processos; em Relatórios também o primeiro de Arquivo.</summary>
