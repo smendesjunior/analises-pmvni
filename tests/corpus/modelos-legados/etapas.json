@@ -1,0 +1,283 @@
+{
+  "versao": 2,
+  "leia_me": [
+    "Pipeline linear do Editor. analyze distribui as 28 seções e ensaia a produção. technical_audit corrige e trava o mérito. audit, produce, final_review e gate são programas. Objeção residual bloqueia a entrega."
+  ],
+  "ordem": [
+    "prepare",
+    "analyze",
+    "technical_audit",
+    "audit",
+    "produce",
+    "final_review"
+  ],
+  "final": "gate",
+  "max_ciclos_correcao": 0,
+  "campos_da_auditoria": [
+    "section_audit",
+    "final_audit",
+    "audit"
+  ],
+  "travas": [
+    {
+      "arquivo": "manifesto.json",
+      "modo": "exato",
+      "exceto": [
+        "section_audit",
+        "final_audit",
+        "audit"
+      ]
+    },
+    {
+      "arquivo": "verificacao_candidatos.json",
+      "modo": "exato"
+    },
+    {
+      "arquivo": "vaos_calculo.json",
+      "modo": "exato"
+    },
+    {
+      "arquivo": "modelo_projeto.json",
+      "modo": "exato"
+    },
+    {
+      "arquivo": "conferencia_projeto.json",
+      "modo": "exato"
+    },
+    {
+      "arquivo": "validadores/repeticoes.json",
+      "modo": "exato"
+    },
+    {
+      "arquivo": "relatorio_conteudo.json",
+      "modo": "texto",
+      "campos_apresentacao": [
+        "localizacao.subtitulo",
+        "indices.subtitulo",
+        "iluminacao.subtitulo"
+      ]
+    },
+    {
+      "arquivo": "report_evidence.json",
+      "modo": "exato",
+      "prova_grafica": true
+    },
+    {
+      "arquivo": "manifesto.json",
+      "chave": "manifesto_auditoria",
+      "modo": "exato",
+      "desde": "technical_audit",
+      "somente": [
+        "section_audit",
+        "final_audit",
+        "audit"
+      ]
+    },
+    {
+      "arquivo": "report_evidence.json",
+      "chave": "report_evidence_montado",
+      "modo": "exato",
+      "desde": "produce"
+    }
+  ],
+  "etapas": {
+    "prepare": {
+      "executor": "programa",
+      "depende_de": [],
+      "invalida": [
+        "analyze",
+        "technical_audit",
+        "audit",
+        "produce",
+        "final_review"
+      ],
+      "entradas": [
+        "peças atuais (engine_state.json inputs)"
+      ],
+      "saidas": [
+        "preparo/preparo.json",
+        "pecas_atuais.json",
+        "enquadramento.json",
+        "modelo_projeto.candidatos.json",
+        "cadeias_cotas.candidatos.json",
+        "checklist_documental.candidatos.json",
+        "plugin_workflow.json"
+      ]
+    },
+    "analyze": {
+      "executor": "ia",
+      "sessao": "nova",
+      "depende_de": [
+        "prepare"
+      ],
+      "invalida": [
+        "technical_audit",
+        "audit",
+        "produce",
+        "final_review"
+      ],
+      "entradas": [
+        "preparo/preparo.json",
+        "diretrizes.md",
+        "objeções da volta (objecoes/<data>-<etapa>.json)"
+      ],
+      "saidas": [
+        "manifesto.json",
+        "modelo_projeto.json",
+        "vaos_calculo.json",
+        "relatorio_conteudo.json"
+      ],
+      "valida_manifesto": {
+        "depois": "analise"
+      },
+      "pedido": "Conferir as seções atribuídas, registrar achados localizados e produzir os fragmentos para montagem e ensaio."
+    },
+    "technical_audit": {
+      "executor": "ia",
+      "sessao": "nova",
+      "independente_de": [
+        "analyze"
+      ],
+      "depende_de": [
+        "analyze"
+      ],
+      "invalida": [
+        "audit",
+        "produce",
+        "final_review"
+      ],
+      "entradas": [
+        "manifesto.json",
+        "relatorio_conteudo.json",
+        "originais"
+      ],
+      "saidas": [
+        "manifesto.json (section_audit, final_audit, audit)",
+        "objecoes_technical_audit.json (só com objeção)"
+      ],
+      "valida_manifesto": {
+        "depois": "completa"
+      },
+      "trava": "registra",
+      "objecoes": "objecoes_technical_audit.json",
+      "voltas": {
+        "tecnica": "analyze"
+      },
+      "pedido": "Conferir cada achado com a figura citada. Reabrir o original se a região for insuficiente. Corrigir o mérito, as referências e os cálculos no próprio passo. Conferir relatorio_conteudo.json e registrar cada confronto. Guardar objeções residuais em {objecoes}."
+    },
+    "audit": {
+      "executor": "programa",
+      "independente_de": [
+        "analyze",
+        "technical_audit"
+      ],
+      "depende_de": [
+        "analyze",
+        "technical_audit"
+      ],
+      "invalida": [
+        "produce",
+        "final_review"
+      ],
+      "opcional": true,
+      "ligada_por_rota": {
+        "codex": true,
+        "claude": true,
+        "gemini": true
+      },
+      "entradas": [
+        "manifesto.json",
+        "relatorio_conteudo.json",
+        "originais"
+      ],
+      "saidas": [
+        "objecoes_audit.json (só com objeção)"
+      ],
+      "valida_manifesto": {
+        "antes": "completa",
+        "depois": "completa"
+      },
+      "trava": "imutavel",
+      "objecoes": "objecoes_audit.json",
+      "voltas": {
+        "tecnica": "analyze"
+      },
+      "pedido": "Conferência determinística dos controles certificados."
+    },
+    "produce": {
+      "executor": "programa",
+      "depende_de": [
+        "analyze",
+        "technical_audit",
+        "audit"
+      ],
+      "invalida": [
+        "final_review"
+      ],
+      "entradas": [
+        "relatorio_conteudo.json",
+        "manifesto.json",
+        "vaos_calculo.json",
+        "report_evidence.json"
+      ],
+      "saidas": [
+        "report_evidence.json (completado: imagens e hashes)",
+        "relatorio_dados.json",
+        "PDF do relatório (recibo)",
+        "delivery.json"
+      ],
+      "valida_manifesto": {
+        "antes": "completa",
+        "depois": "completa"
+      },
+      "trava": "apresentacao",
+      "pedido": "Montagem do PDF e conferência de fidelidade."
+    },
+    "final_review": {
+      "executor": "programa",
+      "depende_de": [
+        "produce"
+      ],
+      "invalida": [],
+      "entradas": [
+        "PDF do relatório",
+        "relatorio_dados.json",
+        "relatorio_conteudo.json",
+        "manifesto.json"
+      ],
+      "saidas": [
+        "auditoria_visual.json",
+        "objecoes_final_review.json (só com objeção)"
+      ],
+      "valida_manifesto": {
+        "antes": "completa",
+        "depois": "completa"
+      },
+      "trava": "apresentacao",
+      "objecoes": "objecoes_final_review.json",
+      "declara_sem_objecoes": true,
+      "voltas": {
+        "tecnica": "analyze",
+        "apresentacao": "produce"
+      },
+      "pedido": "Inspeção programática página por página e verificação dos hashes."
+    }
+  },
+  "grupos_leitura": [
+    {"nome": "Instrução e documentação", "secoes": [1, 2]},
+    {"nome": "Imóvel e titularidade", "secoes": [3]},
+    {"nome": "Terreno, topografia e passeio", "secoes": [4, 19]},
+    {"nome": "Enquadramento e usos especiais", "secoes": [5, 23]},
+    {"nome": "Representação, cotas e compatibilização", "secoes": [6, 7, 25]},
+    {"nome": "Áreas e índices", "secoes": [8, 9]},
+    {"nome": "Volumetria e afastamentos", "secoes": [10, 11]},
+    {"nome": "Ambientes, iluminação e esquadrias", "secoes": [12, 13, 14]},
+    {"nome": "Circulações e escadas", "secoes": [15, 16]},
+    {"nome": "Acessibilidade", "secoes": [17]},
+    {"nome": "Estacionamento e manobra", "secoes": [18]},
+    {"nome": "Cobertura, drenagem e instalações", "secoes": [20, 21]},
+    {"nome": "Incêndio", "secoes": [22]},
+    {"nome": "Reforma e regularização", "secoes": [24]},
+    {"nome": "Consolidação", "secoes": [26, 27, 28]}
+  ]
+}

@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.6
+
+- O atualizador do kit usa sua própria pasta. A instalação e a verificação do Editor usam o mesmo pacote de atualização em desenvolvimento e na versão distribuída.
+
 ## 4.7.5
 
 - Na legislação, clicar no índice destaca o tópico na folha. A busca abre a leitura padronizada e realça a ocorrência, com navegação entre os resultados.

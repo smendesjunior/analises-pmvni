@@ -218,7 +218,7 @@
           <StackPanel>
             <TextBlock TextAlignment="Left" x:Name="PropTitulo" x:FieldModifier="internal" Text="Propriedades" Style="{StaticResource PmvniAjusteTitulo}" AutomationProperties.HeadingLevel="Level2"/>
             <TextBlock x:Name="PropId" x:FieldModifier="internal" Text="" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"/>
-            <Button x:Name="PropTextosOcultos" x:FieldModifier="internal" Content="Conteúdo oculto" Margin="0,6,0,0" Visibility="Collapsed"/>
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.MaisOpcoes}" x:Name="PropTextosOcultos" x:FieldModifier="internal" Content="Conteúdo oculto" Margin="0,6,0,0" Visibility="Collapsed"/>
           </StackPanel>
           <Button x:Name="BotaoFecharPropriedades" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniBarraButtonStyle}"
                   AutomationProperties.Name="Fechar as propriedades" VerticalAlignment="Top" Width="32" Height="32" Padding="0"

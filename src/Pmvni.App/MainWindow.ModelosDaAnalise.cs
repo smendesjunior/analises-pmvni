@@ -528,7 +528,7 @@ public sealed partial class MainWindow
         p.BotaoPublicarModelos.IsEnabled = false;
         try
         {
-            var pasta = PastaScriptsDoKitDoRoteiro ?? await InstalacaoMotorPdf.ExtrairAsync();
+            var pasta = PastaScriptsDoKitDoRoteiro ?? await AtualizadorDoKit.ExtrairAsync();
             // Tudo o que é da janela é lido aqui, na thread dela; o Task.Run só mexe em arquivos e no Python.
             var analises = ProcessosComAnaliseEmAndamento();
             var (_, etapas) = TabelaDoKitInstalado();

@@ -18,13 +18,4 @@ public static class Ambiente
         }
     }
 
-    public static string CaminhoKit => Path.Combine(PastaModeloKit, "gerar_relatorio.py");
-
-    /// <summary>Caminho do gerar_relatorio.py; falha o teste (alto) se ele não existir.</summary>
-    public static string ExigirKit()
-    {
-        if (!File.Exists(CaminhoKit))
-            Assert.Fail("Python ou kit ausente: " + CaminhoKit + " (defina PMVNI_KIT_DIR)");
-        return CaminhoKit;
-    }
 }

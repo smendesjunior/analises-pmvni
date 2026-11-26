@@ -520,9 +520,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             AtualizarComandos();
 
             var args = Argumentos.Atual;
+#if PMVNI_DISTRIBUICAO
+            var demoMonitor = false;
+#else
             var demoMonitor = Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1";
-            // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
-            if (args.Roteiro is null && !demoMonitor) { _ = TentarAsync(RetomarExecucoesClaudeAsync); _ = TentarAsync(RetomarExecucoesChatGptAsync); }
+#endif
+            if (args.Roteiro is null && !demoMonitor) _ = TentarAsync(RetomarExecucoesChatGptAsync);
 #if !PMVNI_DISTRIBUICAO
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
             else

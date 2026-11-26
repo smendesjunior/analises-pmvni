@@ -15,32 +15,28 @@ public class PoliticaKitTestes
     public void api_permitida_pela_ancora(string texto, bool esperado) => Assert.Equal(esperado, PoliticaKit.ApiPermitida(texto));
 
     [Fact]
-    public void pro_runtime_do_kit_real_aceita_api_com_rota_explicita()
+    public void kit_instalavel_fornece_somente_o_plugin_chatgpt_com_gerador_proprio()
     {
-        // O kit é só lido, no lugar: o análise pro 1.6.4+ do kit aceita a Anthropic API, com a rota declarada pelo editor.
-        var script = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "scripts", "rotas", "claude", "pro_runtime.py");
-        if (!File.Exists(script)) Assert.Fail("Kit PMVNI ausente: " + Ambiente.RaizKit + " (defina PMVNI_KIT_RAIZ)");
-        Assert.True(PoliticaKit.ApiPermitida(File.ReadAllText(script)));
+        var plugins = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins");
+        var plugin = Assert.Single(Directory.GetDirectories(plugins));
+        Assert.Equal("analise-chatgpt", Path.GetFileName(plugin));
+        foreach (var manifesto in new[] { "plugin.json", Path.Combine(".codex-plugin", "plugin.json") })
+        {
+            var dados = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(plugin, manifesto)))!;
+            Assert.True(Version.TryParse(dados["version"]?.ToString(), out _));
+        }
+        var skill = Path.Combine(plugin, "skills", "analise-chatgpt");
+        Assert.True(File.Exists(Path.Combine(skill, "scripts", "gerar-rpmvni.mjs")));
+        Assert.Empty(Directory.GetFiles(plugin, "*.py", SearchOption.AllDirectories));
+        Assert.False(Directory.Exists(Path.Combine(skill, "scripts", "rotas")));
     }
 
     [Fact]
-    public void plugin_unico_do_kit_real_tem_os_tres_controladores_onde_o_editor_procura()
+    public void plugin_define_os_quinze_grupos_e_cobre_as_vinte_e_oito_secoes()
     {
-        // Tarefa 18 (só leitura do kit): o Editor monta os três caminhos a partir da mesma pasta do plugin analise; o kit tem cada controlador na sua rota,
-        // na versão mínima do Editor, e sem os plugins antigos.
-        var plugins = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins");
-        var json = Path.Combine(plugins, "analise", ".codex-plugin", "plugin.json");
-        if (!File.Exists(json)) Assert.Fail("Kit PMVNI ausente: " + Ambiente.RaizKit + " (defina PMVNI_KIT_RAIZ)");
-        var versao = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(json))!["version"]!.GetValue<string>();
-        foreach (var p in Enum.GetValues<Provedor>())
-        {
-            Assert.Null(PoliticaKit.PluginDesatualizado(p, versao));
-            var (rota, nome) = Localizacao.RotaDoControlador(p);
-            var script = Path.Combine(plugins, "analise", "skills", "analise", "scripts", "rotas", rota, nome);
-            Assert.True(File.Exists(script), "controlador ausente: " + script);
-            if (p == Provedor.Gemini) Assert.True(PoliticaKit.RuntimeGoogleValido(File.ReadAllText(script)));
-        }
-        Assert.False(Directory.Exists(Path.Combine(plugins, "analise-pro")));
-        Assert.False(Directory.Exists(Path.Combine(plugins, "analise-google")));
+        var arquivo = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise-chatgpt", "skills", "analise-chatgpt", "references", "grupos.json");
+        var grupos = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(arquivo))!.AsArray();
+        Assert.Equal(Enumerable.Range(1, 15), grupos.Select(g => (int)g!["id"]!));
+        Assert.Equal(Enumerable.Range(1, 28), grupos.SelectMany(g => g!["secoes"]!.AsArray()).Select(s => (int)s!).Distinct().Order());
     }
 }

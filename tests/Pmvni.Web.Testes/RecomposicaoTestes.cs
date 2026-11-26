@@ -29,12 +29,14 @@ public sealed class RecomposicaoTestes : IClassFixture<TelaFixture>
     public async Task pacote_importado_compoe_o_mesmo_plano_que_o_dados_json()
     {
         var caminho = CaminhoCorpus("longo");
-        var direto = RelatorioRenderer.Renderizar(caminho, new OpcoesRender(false, true), Modelo);
+        var pacote = Importar("longo");
+        var dados = DadosEfetivos.Gerar(pacote.Projeto, apresentarContaNominal: true).Json;
+        using var arquivos = PastaTrabalho.Criar(pacote);
+        var direto = RelatorioRenderer.Renderizar(dados, arquivos.CaminhoDados, new OpcoesRender(false, true, EditarTextos: true), Modelo);
         Assert.True(direto.Ok, string.Join("; ", direto.Erros));
-        await comp.Documento.CarregarAsync(direto, ConfigFolhas.PadraoDeDados(Modelo, caminho));
+        await comp.Documento.CarregarAsync(direto, ConfigFolhas.PadraoDeBytes(Modelo, dados));
         var esperado = await comp.Documento.ComporDetalhadoAsync();
 
-        var pacote = Importar("longo");
         using var rec = new Recompositor(pacote, Modelo);
         var e = rec.Preparar(pacote.Projeto);
         var c = await rec.ComporAsync(e, comp);

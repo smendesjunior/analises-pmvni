@@ -470,8 +470,7 @@ public sealed partial class MainWindow
         }
         var o = Pmvni.Agentes.OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, null, null);
         var pmvni = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI");
-        return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf(),
-            TarefaDoKitExiste, InstalacaoMotorPdf.VersaoDoServidorPdf(), AmbienteEsperado: InstalacaoMotorPdf.AmbienteEsperado);
+        return new OrigensDoKit(o.CodexHome, null, AtualizadorDoKit.BaseLocal, pmvni, ajustes.PastaKitEfetiva, null, TarefaDoKitExiste);
     }
 
     /// <summary>A tarefa "PMVNI\Atualizar kit" existe? (<c>schtasks /Query</c>, só leitura; código 0 = existe, 1 = não existe; outro = não se sabe.)</summary>
@@ -595,7 +594,7 @@ public sealed partial class MainWindow
         try
         {
             var analises = ProcessosComAnaliseEmAndamento();
-            var pasta = PastaScriptsDoKitDoRoteiro ?? await InstalacaoMotorPdf.ExtrairAsync();
+            var pasta = PastaScriptsDoKitDoRoteiro ?? await AtualizadorDoKit.ExtrairAsync();
             var origens = OrigensDoKitDoComputador();
             var kit = LeituraDoKitAtual?.KitLocal ?? await Task.Run(() => ComponentesDoKit.FonteDoKit(origens).KitLocal);
             var marcador = Path.Combine(pasta, "resultado-" + Guid.NewGuid().ToString("N") + ".txt");

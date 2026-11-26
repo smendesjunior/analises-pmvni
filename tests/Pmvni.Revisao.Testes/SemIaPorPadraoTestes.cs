@@ -174,7 +174,7 @@ public class SemIaPorPadraoTestes
         // Na janela: o botão principal da linha é "Rever (sem IA)" sempre que a tabela tem conta; "Rever com a IA" é outro botão.
         var propriedades = File.ReadAllText(FonteApp("MainWindow.Propriedades.cs"));
         Assert.Contains("R.PropAjustarRotulo.Text = semIa ? \"Rever (sem IA)\" : \"Rever com a IA\";", propriedades, StringComparison.Ordinal);
-        Assert.Contains("R.PropReverComIa.Visibility = RecalculoLinha.OfereceReverComIa(", propriedades, StringComparison.Ordinal);
+        Assert.Contains("R.PropReverComIa.Visibility = semIa && (!RoteiroLegado || RecalculoLinha.OfereceReverComIa(", propriedades, StringComparison.Ordinal);
         var revisao = File.ReadAllText(FonteApp("MainWindow.Revisao.cs")).Replace("\r\n", "\n");
         Assert.Contains("if (RecalculoLinha.ReveSemIa(id)) await ReverSemIaAsync(id);\n            else await RecalcularTabelaComIaAsync(id);", revisao, StringComparison.Ordinal);
         Assert.Contains("R.PropReverComIa.Click += async (_, _) => await ReverComIaAsync();", revisao, StringComparison.Ordinal);

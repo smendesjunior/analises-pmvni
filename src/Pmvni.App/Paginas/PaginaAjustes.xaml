@@ -15,8 +15,8 @@
             <FontIcon Glyph="{x:Bind Icone}" Style="{StaticResource PmvniIconeDestaqueStyle}" FontSize="18"/>
             <TextBlock Text="{x:Bind Numero}" Style="{StaticResource PmvniAjusteAjuda}"/>
           </StackPanel>
-          <TextBlock Grid.Row="1" Text="{x:Bind Nome}" Style="{StaticResource PmvniAjusteTitulo}" FontSize="16"/>
-          <TextBlock Grid.Row="2" Text="{x:Bind Descricao}" TextWrapping="Wrap" FontSize="14" LineHeight="20"/>
+          <TextBlock Grid.Row="1" Text="{x:Bind Nome}" Style="{StaticResource PmvniAjusteTitulo}"/>
+          <TextBlock Grid.Row="2" Text="{x:Bind Descricao}" TextWrapping="Wrap" Style="{StaticResource PmvniPainelValor}" LineHeight="20"/>
           <StackPanel Grid.Row="3" Spacing="8">
             <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
             <TextBlock Text="{x:Bind Perfil}" Style="{StaticResource PmvniAjusteAjuda}"/>

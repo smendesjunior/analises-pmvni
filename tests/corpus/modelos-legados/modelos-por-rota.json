@@ -1,0 +1,221 @@
+{
+  "versao": 1,
+  "reconferencia_economica": false,
+  "leia_me": [
+    "No preparo, Codex usa Terra 6.1 médio em todas as leituras e Claude usa Sonnet. Conferência das seções: Luna alto ou Sonnet alto. Leitura visual e autocorreção: Terra médio ou Sonnet médio. Auditoria técnica: Sol médio ou Opus médio. O programa compõe e renderiza o PDF."
+  ],
+  "niveis": [
+    "baixo",
+    "medio",
+    "alto"
+  ],
+  "equivalencia": {
+    "baixo": "low",
+    "medio": "medium",
+    "alto": "high"
+  },
+  "niveis_auditoria_por_rota": {
+    "codex": ["baixo", "medio", "alto", "xhigh", "max", "ultra"],
+    "claude": ["baixo", "medio", "alto", "xhigh", "max"]
+  },
+  "etapas_tecnicas": [
+    "analyze",
+    "technical_audit"
+  ],
+  "regras": {
+    "sobe_por_objecao_tecnica": false,
+    "desce_com_cota_abaixo_de": null,
+    "cota_baixa_leva_a": "um_nivel_abaixo",
+    "excecoes_por_rota": {}
+  },
+  "rotas": {
+    "codex": {
+      "nome": "ChatGPT",
+      "preparo": {"modelo": "gpt-6.1-terra", "nivel": "medio"},
+      "reparo_julgamento": {"modelo": "gpt-6.2-sol", "nivel": "baixo"},
+      "reparo_alternativo": {"modelo": "gpt-6.1-terra", "nivel": "medio"},
+      "regra": "A primeira auditoria e seus reparos usam o modelo e o esforço escolhidos. A reconferência econômica opcional escolhe o perfil pela tarefa nas rodadas de objeções abertas.",
+      "perfis": {
+        "padrao": {
+          "nome": "Conta ChatGPT (Codex)",
+          "etapas": {
+            "analyze": {
+              "modelo": "gpt-6-luna",
+              "nivel": "alto"
+            },
+            "technical_audit": {
+              "modelo": "gpt-6.2-sol",
+              "nivel": "medio"
+            },
+            "autocorrecao": {
+              "modelo": "gpt-6.1-terra",
+              "nivel": "medio"
+            }
+          }
+        }
+      }
+    },
+    "claude": {
+      "nome": "Claude",
+      "perfis": {
+        "padrao": {
+          "nome": "Conta Claude ou Anthropic API",
+          "etapas": {
+            "analyze": {
+              "modelo": "claude-sonnet-5-5",
+              "nivel": "alto"
+            },
+            "technical_audit": {
+              "modelo": "claude-opus-5-5",
+              "nivel": "medio"
+            },
+            "autocorrecao": {
+              "modelo": "claude-sonnet-5-5",
+              "nivel": "medio"
+            }
+          }
+        }
+      },
+      "regra": "A primeira auditoria e seus reparos usam o modelo e o esforço escolhidos. A reconferência econômica opcional agrupa as objeções na própria rota Claude e mantém o auditor selecionado."
+    },
+    "gemini": {
+      "nome": "Gemini",
+      "modelos": {
+        "gemini-4-hydrogen": {
+          "apelido": "hydrogen",
+          "niveis": [
+            "medio",
+            "alto"
+          ]
+        },
+        "gemini-3.1-pro": {
+          "apelido": "pro",
+          "niveis": [
+            "alto"
+          ]
+        },
+        "gemini-3.8-flash": {
+          "apelido": "flash",
+          "niveis": [
+            "baixo",
+            "medio",
+            "alto"
+          ]
+        },
+        "gemini-4-carbon": {
+          "apelido": "carbon",
+          "niveis": [
+            "medio"
+          ]
+        },
+        "gemini-4-argon": {
+          "apelido": "argon",
+          "niveis": [
+            "medio"
+          ]
+        }
+      },
+      "limites": {
+        "conta": {
+          "analyze": {
+            "timeout_s": 3600
+          },
+          "technical_audit": {
+            "timeout_s": 3600
+          }
+        },
+        "web": {
+          "analyze": {
+            "timeout_s": 3600
+          },
+          "technical_audit": {
+            "timeout_s": 3600
+          }
+        },
+        "api": {
+          "analyze": {
+            "max_output_tokens": 131072
+          },
+          "technical_audit": {
+            "max_output_tokens": 131072
+          }
+        }
+      },
+      "perfis": {
+        "conta_ultra": {
+          "nome": "Conta Antigravity",
+          "etapas": {
+            "analyze": {
+              "modelo": "gemini-3.8-flash",
+              "nivel": "medio"
+            },
+            "technical_audit": {
+              "modelo": "gemini-3.8-flash",
+              "nivel": "alto"
+            },
+            "autocorrecao": {
+              "modelo": "gemini-3.8-flash",
+              "nivel": "medio"
+            }
+          }
+        },
+        "conta_gemini": {
+          "nome": "Conta Google (login do Gemini)",
+          "etapas": {
+            "analyze": {
+              "modelo": "gemini-4-hydrogen",
+              "nivel": "medio"
+            },
+            "technical_audit": {
+              "modelo": "gemini-4-hydrogen",
+              "nivel": "alto"
+            },
+            "autocorrecao": {
+              "modelo": "gemini-4-hydrogen",
+              "nivel": "medio"
+            }
+          }
+        },
+        "api_creditos": {
+          "nome": "API com créditos",
+          "etapas": {
+            "analyze": {
+              "modelo": "gemini-4-carbon",
+              "nivel": "medio"
+            },
+            "technical_audit": {
+              "modelo": "gemini-4-argon",
+              "nivel": "medio"
+            },
+            "autocorrecao": {
+              "modelo": "gemini-4-carbon",
+              "nivel": "medio"
+            }
+          }
+        },
+        "api_gratuita": {
+          "nome": "API gratuita (só testes fictícios)",
+          "etapas": {
+            "analyze": {
+              "modelo": "gemini-3.8-flash",
+              "nivel": "medio"
+            },
+            "technical_audit": {
+              "modelo": "gemini-3.8-flash",
+              "nivel": "alto"
+            },
+            "autocorrecao": {
+              "modelo": "gemini-3.8-flash",
+              "nivel": "medio"
+            }
+          }
+        }
+      }
+    }
+  },
+  "reparo": {
+    "nivel": "medio",
+    "max_sessoes": 2,
+    "max_pontos_5h": 12
+  }
+}

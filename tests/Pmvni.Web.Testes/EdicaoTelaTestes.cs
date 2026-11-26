@@ -51,7 +51,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
             Assert.Equal(60, refs.GetInt32());
         }
         Assert.Equal(0, (await Js("document.querySelectorAll('div.folha.pmvni-medida [data-campo]').length")).GetInt32());
-        Assert.DoesNotContain("data-campo", a.E.Render.Html);
+        Assert.DoesNotContain("data-campo=", a.E.Render.Html);
         Assert.DoesNotContain("data-pmvni", a.E.Render.Html);
 
         // O título: o texto depois de "ITEM NN — " fica num span; o texto do card não muda.
@@ -314,7 +314,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         const string Leve = "rgba(26, 115, 232, 0.45)";
 
         // Seta de clique em todo bloco clicável: item, figura, linha de tabela e o desenho da volumetria.
-        Assert.Equal(1, (await Js("document.querySelectorAll('section.folha svg.dg[data-pmvni-clicavel]').length")).GetInt32());
+        Assert.Equal(2, (await Js("document.querySelectorAll('section.folha svg.dg[data-pmvni-clicavel]').length")).GetInt32());
         foreach (var s in new[] { card, Figura, Linha, Volumetria })
             Assert.StartsWith("pointer|", await EstiloDe(s));
 

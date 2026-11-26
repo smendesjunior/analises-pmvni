@@ -5640,12 +5640,12 @@ internal static class Roteiro
             await File.WriteAllTextAsync(Path.Combine(motor, "mcp_pmvni.py"), "# servidor fictício");
             await File.WriteAllTextAsync(Path.Combine(pmvni, "estado.json"), "{\"modo\":\"atualizar\",\"atualizado\":\"2026-11-21T10:15:00\",\"situacao\":\"CONCLUIDO\"}");
             await File.WriteAllTextAsync(Path.Combine(scripts, ComponentesDoKit.Script), "# fictício");
-            var bootstrap = await InstalacaoMotorPdf.ExtrairAsync(motor);
-            var fonteServidor = Path.Combine(bootstrap, "mcp_pmvni.py");
-            await File.WriteAllTextAsync(fonteServidor, "# cópia anterior do mesmo servidor");
-            var fonteDivergia = ComponentesDoKit.HashDe(fonteServidor) != InstalacaoMotorPdf.HashDoServidorPdf();
-            await InstalacaoMotorPdf.ExtrairAsync(motor);
-            var fonteRestaurada = fonteDivergia && ComponentesDoKit.HashDe(fonteServidor) == InstalacaoMotorPdf.HashDoServidorPdf();
+            var bootstrap = await AtualizadorDoKit.ExtrairAsync(motor);
+            var atualizador = Path.Combine(bootstrap, "atualizar-kit.ps1");
+            var esperado = ComponentesDoKit.HashDe(atualizador);
+            await File.WriteAllTextAsync(atualizador, "# cópia anterior");
+            await AtualizadorDoKit.ExtrairAsync(motor);
+            var fonteRestaurada = esperado != null && ComponentesDoKit.HashDe(atualizador) == esperado && Directory.GetFiles(bootstrap).Length == 1;
             p["bootstrap_recuperado"] = fonteRestaurada;
             var lancados = new List<(string Programa, string Cmd)>();
             j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, null, motor, pmvni, kitLocal, ComponentesDoKit.HashDe(Path.Combine(motor, "mcp_pmvni.py")), () => true);

@@ -222,50 +222,14 @@ print(json.dumps(saida))";
     }
 
     [Fact]
-    public void paridade_render_com_python_do_kit()
+    public void kit_e_editor_distribuem_o_mesmo_modelo_oficial()
     {
-        var kit = Ambiente.ExigirKit();
-        var casos = new[]
-        {
-            "{{ a }}|{{ b }}|{{ c }}|{{ d }}|{{ e }}|{{ f }}",
-            "{% for x in l %}{{ loop.n2 }}{{ loop.even }}{{ x }};{% endfor %}",
-            "{% if l %}s{% else %}n{% endif %}{% if not z %}Z{% endif %}{% if e %}E{% else %}e{% endif %}",
-            "{{ a|lower }}{{ a|upper }}{{ b|n2 }}{{ f|n2 }}{{ 'q&'|safe }}{{ \"<\" }}{{ n|lower }}",
-            "{{ l.0 }}{{ l.9 }}{{ o.k }}{{ o.l.1 }}{{ o.zz.1 }}{{ l }}{{ o }}",
-            "{% for ch in a %}[{{ ch }}]{% endfor %}{% for k in o %}<{{ k }}>{% endfor %}",
-            "{{ a|n2 }}", "{% foo %}", "{% if x %}abc", "{{ a|zzz }}", "{{ ß|upper }}{{ t|upper }}{{ s|lower }}",
-        };
-        var ctxJson = "{\"a\":\"A&<b>'\\\"\",\"b\":7,\"c\":true,\"d\":null,\"e\":\"\",\"f\":3.9,\"l\":[\"x\",\"y<\",0],\"z\":0," +
-            "\"o\":{\"k\":\"v\",\"l\":[1,2.5]},\"n\":null,\"t\":\"straße ǰ\",\"s\":\"ΑΣ ΣΑΣ İ\",\"ß\":\"ß\"}";
-        var json = "{\"casos\":" + JsonSerializer.Serialize(casos) + ",\"ctx\":" + ctxJson + "}";
-        var codigo = @"
-import json, sys, importlib.util
-spec = importlib.util.spec_from_file_location('gr', sys.argv[1])
-m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-d = json.loads(sys.stdin.buffer.read().decode('utf-8'))
-out = []
-for c in d['casos']:
-    try: out.append(m.render(m.compilar(c), d['ctx']))
-    except Exception as e: out.append('ERR:' + str(e))
-print(json.dumps(out))";
-        // o caminho do kit vai como argumento: usa o mesmo helper, com argumento extra
-        var esperado = RodarPythonComArg(codigo, json, kit);
-        Assert.NotNull(esperado);
-        Assert.Equal(casos.Length, esperado.Length);
-        var ctx = (Dictionary<string, object?>)Plano(JsonDocument.Parse(ctxJson).RootElement)!;
-        var obtido = casos.Select(c =>
-        {
-            try { return Molde.Compilar(c).Renderizar(ctx, Molde.FiltrosBasicos); }
-            catch (Exception e) { return "ERR:" + e.Message; }
-        }).ToArray();
-        var comparadosSemErro = 0;
-        for (var i = 0; i < casos.Length; i++)
-        {
-            if (!esperado[i].StartsWith("ERR:")) comparadosSemErro++;
-            if (esperado[i].StartsWith("ERR:") && obtido[i].StartsWith("ERR:") && casos[i] == "{{ a|n2 }}") continue; // texto do int() difere
-            Assert.True(esperado[i] == obtido[i], $"caso {i} ({casos[i]}): python=[{esperado[i]}] c#=[{obtido[i]}]");
-        }
-        Assert.True(comparadosSemErro >= 1, "nenhum caso sem erro foi comparado");
+        var modelo = ModeloOficial.Carregar();
+        foreach (var nome in new[] { "modelo_relatorio.html", "relatorio.css", "brasao.png", "exemplo_figura.png", "exemplo_mapa.png" })
+            Assert.Equal(ModeloOficial.LerArquivo(nome), File.ReadAllBytes(Path.Combine(Ambiente.PastaModeloKit, nome)));
+        var exemplo = Path.Combine(Ambiente.PastaModeloKit, "dados_modelo.json");
+        var render = RelatorioRenderer.Renderizar(exemplo, new OpcoesRender(true, true), modelo);
+        Assert.True(render.Ok, string.Join("; ", render.Erros));
     }
 
     private static string[]? RodarPythonComArg(string codigo, string entradaJson, string arg)

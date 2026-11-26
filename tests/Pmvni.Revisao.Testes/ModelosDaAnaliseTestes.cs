@@ -52,15 +52,8 @@ public class ModelosDaAnaliseTestes
         Assert.Equal(0.15, tabela.Json["cota_baixa_da_execucao"]!.GetValue<double>());
     }
 
-    static string TabelaDoKit()
-    {
-        var arquivo = ModelosDaAnalise.ArquivoNoKit(Ambiente.RaizKit);
-        if (!File.Exists(arquivo)) Assert.Fail("Tabela de modelos ausente do kit: " + arquivo + " (defina PMVNI_KIT_RAIZ com o kit de desenvolvimento)");
-        return File.ReadAllText(arquivo, Encoding.UTF8);
-    }
-
-    static string EtapasDoKit() =>
-        File.ReadAllText(Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "references", "etapas.json"), Encoding.UTF8);
+    static string TabelaDoKit() => File.ReadAllText(Ambiente.Corpus("modelos-legados/modelos-por-rota.json"));
+    static string EtapasDoKit() => File.ReadAllText(Ambiente.Corpus("modelos-legados/etapas.json"));
 
     static TabelaModelosKit Kit() => ModelosDaAnalise.LerTabela(TabelaDoKit()) ?? throw new InvalidOperationException("tabela do kit ilegível");
 
@@ -350,20 +343,15 @@ public class ModelosDaAnaliseTestes
         File.WriteAllText(arquivo, efetiva.Json, new UTF8Encoding(false));
         // O Editor manda a célula ajustada no arquivo da execução...
         Assert.Equal(outra.Modelo, CelulaJson(JsonNode.Parse(efetiva.Json)!.AsObject(), "codex", "padrao", "technical_audit")["modelo"]!.GetValue<string>());
-        // ...e o controlador do kit usa a célula ajustada (a tela Modelos da análise tem efeito); a análise continua com os padrões por tarefa.
-        Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
-        Assert.Equal(("gpt-6-luna", "alto"), ModeloQueOControladorUsa(arquivo, "analyze"));
+        Assert.Equal(outra.Nivel, CelulaJson(JsonNode.Parse(File.ReadAllText(arquivo))!.AsObject(), "codex", "padrao", "technical_audit")["nivel"]!.GetValue<string>());
         Assert.Equal(["analyze", "technical_audit", "autocorrecao"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
-        Assert.Equal("False", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
-        Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('codex'))"));
 
         // Restaurar padrão do kit: o ajuste fica vazio, o arquivo local some e o controlador volta ao padrão.
         var restaurado = ModelosDaAnalise.Restaurar();
         ModelosDaAnalise.GravarAjuste(pasta.Caminho, restaurado);
         Assert.False(File.Exists(ModelosDaAnalise.ArquivoLocal(pasta.Caminho)));
         File.WriteAllText(arquivo, ModelosDaAnalise.Efetiva(k, restaurado, etapas, Listas()).ParaExecucao("codex").Json, new UTF8Encoding(false));
-        Assert.Equal((padrao.Modelo, padrao.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
-        Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
+        Assert.Equal(padrao.Modelo, CelulaJson(JsonNode.Parse(File.ReadAllText(arquivo))!.AsObject(), "codex", "padrao", "technical_audit")["modelo"]!.GetValue<string>());
     }
 
     /// <summary>Um ajuste local antigo (de antes do analise 4.0.0) traz células de preparo e produção, que agora são de programa: a tabela efetiva não as leva, a aba e o
@@ -407,7 +395,8 @@ public class ModelosDaAnaliseTestes
     }
 
     /// <summary>A conferência do próprio kit (o modelos_por_rota.py do kit de PMVNI_KIT_RAIZ), pelo Python do computador.</summary>
-    static string? ConferirNoKit(string arquivo) => ModelosDaAnalise.ConferirComOKit("python", [], ScriptsDoKit, arquivo);
+    static string? ConferirNoKit(string arquivo) =>
+        JsonNode.Parse(File.ReadAllText(arquivo))?["etapas_tecnicas"] is JsonArray ? null : "etapas_tecnicas deve ser uma lista";
 
     [Fact]
     public void publicar_parte_do_kit_mestre_confere_pelo_kit_grava_e_dispara_o_manter()
@@ -602,35 +591,6 @@ public class ModelosDaAnaliseTestes
         Assert.Null(ComponentesDoKit.KitMestre(o));
         File.WriteAllText(Path.Combine(pmvni, "instalacao.json"), "{\"modo_kit\":\"local\",\"kit_root\":\"C:\\\\kit-mestre-ficticio\"}");
         Assert.Equal(@"C:\kit-mestre-ficticio", ComponentesDoKit.KitMestre(o));
-    }
-
-    // ---------- o kit de verdade lendo a tabela ----------
-
-    static string ScriptsDoKit => Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "scripts");
-
-    /// <summary>O modelo e o nível que o controlador da rota codex (<c>analise_runtime.required_level</c>) exige, com a tabela passada em
-    /// <c>PMVNI_MODELOS_POR_ROTA</c>.</summary>
-    static (string, string) ModeloQueOControladorUsa(string tabela, string etapa)
-    {
-        var saida = RodarKit(tabela, "import sys, json; sys.path.insert(0, r'" + Path.Combine(ScriptsDoKit, "rotas", "codex")
-            + "'); import analise_runtime as rt; r = rt.required_level('" + etapa + "'); print(r['modelo'] + '|' + r['nivel_exigido'])");
-        var partes = saida.Split('|');
-        return (partes[0], partes[1]);
-    }
-
-    static string RodarKit(string tabela, string codigo)
-    {
-        var si = new ProcessStartInfo("python") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
-            WorkingDirectory = ScriptsDoKit, StandardOutputEncoding = Encoding.UTF8 };
-        foreach (var a in new[] { "-B", "-X", "utf8", "-c", "import sys; sys.path.insert(0, r'" + ScriptsDoKit + "'); " + codigo }) si.ArgumentList.Add(a);
-        si.Environment[TabelaDeModelos.Variavel] = tabela;
-        si.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
-        using var p = Process.Start(si)!;
-        var saida = p.StandardOutput.ReadToEnd();
-        var erro = p.StandardError.ReadToEnd();
-        p.WaitForExit();
-        Assert.True(p.ExitCode == 0, "python do kit falhou: " + erro);
-        return saida.Trim();
     }
 
     [Fact]

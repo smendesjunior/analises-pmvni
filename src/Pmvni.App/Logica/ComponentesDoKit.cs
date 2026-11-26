@@ -218,12 +218,13 @@ public static class ComponentesDoKit
                 versaoNoKitLocal = await Task.Run(() => VersaoDoPlugin(kitLocal, PluginsInstalados.Analise)).WaitAsync(EsperaDaFonte);
         }
         catch (TimeoutException) { }
-        var resumo = await Task.Run(() => LerTexto(PrimeiraAbertura.RegistroMaisRecente(o.PastaMotorPdf)));
+        var verificarLegado = lista is null || lista.Count > 0;
+        var resumo = verificarLegado ? await Task.Run(() => LerTexto(PrimeiraAbertura.RegistroMaisRecente(o.PastaMotorPdf))) : null;
         var linhasResumo = LinhasDoResumo(resumo);
         var falhas = (resumo ?? "").Split('\n').Select(l => l.Trim().TrimStart('﻿')).Where(l => l.StartsWith("FALHA", StringComparison.Ordinal))
             .Select(l => l["FALHA".Length..].Trim()).ToList();
         var servidor = Path.Combine(o.PastaMotorPdf, "mcp_pmvni.py");
-        var hashInstalado = await Task.Run(() => HashDe(servidor));
+        var hashInstalado = verificarLegado ? await Task.Run(() => HashDe(servidor)) : null;
         var versaoInstalada = hashInstalado is null ? null : await Task.Run(() => VersaoDoServidor(servidor));
         DateTime? servidorEm = null;
         if (hashInstalado is not null)
