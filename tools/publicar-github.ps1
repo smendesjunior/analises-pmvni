@@ -52,7 +52,7 @@ function Nativo([string]$programa, [string[]]$argumentos, [string]$o_que) {
 }
 
 Nativo $gh @('auth', 'status') 'Login do GitHub CLI (gh auth status)' | Out-Null
-$versao = ([xml](Get-Content -LiteralPath (Join-Path $raiz 'Directory.Build.props') -Raw)).Project.PropertyGroup.Version
+$versao = ([xml](Get-Content -LiteralPath (Join-Path $raiz 'Directory.Build.props') -Raw)).SelectSingleNode('/Project/PropertyGroup/Version').InnerText.Trim()
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('pmvni-publicar-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temp | Out-Null
 Push-Location $raiz
