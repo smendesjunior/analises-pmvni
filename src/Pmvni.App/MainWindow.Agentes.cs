@@ -93,11 +93,11 @@ public sealed partial class MainWindow
             d["troca_de_modelo_observada"] = troca;
             var rodada = new RodadaDoMonitorChatGpt(new(1, "gpt-6.1-terra", "low"), [new(1, "Instrução", [1, 2])], false);
             NR.MonitorChatGpt = new([rodada], null, null);
-            var semPlano = NR.PercentualExibido == "—";
+            var semPlano = NR.PercentualExibido == "0%";
             NR.MonitorChatGpt = new([rodada with { Plano = [new(1, "concluida"), new(2, "em_andamento")] }], null, null);
-            var parcial = NR.PercentualExibido == "50%";
+            var parcial = NR.PercentualExibido == "25%";
             NR.MonitorChatGpt = new([rodada with { Plano = [new(1, "concluida"), new(2, "concluida")] }], null, null);
-            var completo = NR.PercentualExibido == "100%";
+            var completo = NR.PercentualExibido == "50%";
             NR.MonitorChatGpt = null;
             d["progresso_plano_chatgpt"] = semPlano && parcial && completo;
             d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca && semPlano && parcial && completo;

@@ -40,9 +40,9 @@ public sealed partial class PaginaNovoRelatorio
         var plano = dados.Rodadas.Count > 0;
         var progresso = dados.Percentual is { } percentual
             ? $"{percentual:0.#}% · {dados.VerificacoesInformadas} de {dados.Rodadas.Sum(r => r.Verificacoes)} verificações concluídas no plano"
-            : "Aguardando o plano de trabalho do ChatGPT.";
+            : "Aguardando o primeiro grupo conferido pelo plugin.";
         var confirmadas = plano
-            ? $"{dados.RodadasConcluidas} de {dados.Rodadas.Count} rodadas e {dados.GruposConcluidos} de {dados.Rodadas.Sum(r => r.Grupos.Count)} grupos conferidos na matriz do plugin."
+            ? $"{dados.GruposConcluidos} de {dados.Rodadas.Sum(r => r.Grupos.Count)} grupos conferidos na matriz do plugin."
             : null;
         Adicionar(CartaoChatGpt("Plano de trabalho", progresso, confirmadas), 14);
         if (AtividadeChatGpt is { Length: > 0 } atividade)
@@ -80,8 +80,8 @@ public sealed partial class PaginaNovoRelatorio
             {
                 var perfil = rodada.Perfil;
                 var status = rodada.Confirmada ? "Concluída" :
-                    emCurso && PerfilChatGptAtivo?.Numero == perfil.Numero ? "Perfil confirmado pelo Codex" : "Pendente";
-                var rotulo = $"Rodada {perfil.Numero} · {status}";
+                    "Aguardando confirmação";
+                var rotulo = $"{rodada.Grupos[0].Nome} · {status}";
                 var grupos = string.Join(Environment.NewLine, rodada.Grupos.Select(g =>
                     $"{g.Id:00} · {g.Nome} · verificações {string.Join(", ", g.Secoes)}"));
                 if (rodada.Percentual is { } percentual)
@@ -89,14 +89,14 @@ public sealed partial class PaginaNovoRelatorio
                 var emAndamento = rodada.Plano.Where(p => p.Estado == "em_andamento").Select(p => p.Secao).Order().ToArray();
                 if (emAndamento.Length > 0)
                     grupos += $"{Environment.NewLine}Em andamento · verificações {string.Join(", ", emAndamento)}";
-                var perfilExibido = status == "Pendente" ? "Perfil previsto · " + perfil.Texto : perfil.Texto;
+                var perfilExibido = !rodada.Confirmada ? "Perfil previsto · " + perfil.Texto : perfil.Texto;
                 corpo.Children.Add(CartaoChatGpt(rotulo, perfilExibido, grupos));
             }
         }
         else
         {
             var texto = etapa == "preparar_fontes"
-                ? "O Editor confere a conta ChatGPT, a seleção de documentos."
+                ? "O Editor confere a conta ChatGPT e a seleção de documentos."
                 : "O plugin gera o .rpmvni. O Editor confere o pacote e salva na etapa de despacho.";
             corpo.Children.Add(Texto(texto, "MnSecundario"));
         }

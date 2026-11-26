@@ -190,13 +190,7 @@ public sealed partial class OrquestradorAnalise
         finally { File.Delete(temporario); }
     }
 
-    static bool MatrizConfirmaGrupos(string caminho, IReadOnlyList<GrupoChatGpt> esperados)
-    {
-        if (!File.Exists(caminho)) return false;
-        if (JsonNode.Parse(LerJsonChatGpt(caminho)) is not JsonObject matriz || matriz["grupos"] is not JsonArray grupos)
-            return false;
-
-        return esperados.All(esperado => grupos.OfType<JsonObject>().Count(grupo =>
+    static bool MatrizConfirmaGrupo(JsonArray grupos, GrupoChatGpt esperado) => grupos.OfType<JsonObject>().Count(grupo =>
             grupo["id"] is JsonValue id && id.TryGetValue<int>(out var numero) && numero == esperado.Id &&
             grupo["modelo"]?.ToString() == esperado.Modelo && grupo["esforco"]?.ToString() == esperado.Esforco &&
             grupo["auditoria"]?.ToString() == "conferida" && grupo["secoes"] is JsonArray secoes &&
@@ -204,8 +198,7 @@ public sealed partial class OrquestradorAnalise
             esperado.Secoes.All(codigo => secoes.OfType<JsonObject>().Count(secao =>
                 secao["numero"] is JsonValue n && n.TryGetValue<int>(out var valor) && valor == codigo &&
                 secao["estado"]?.ToString() is "ANALISADO" or "NÃO APLICÁVEL" or "NÃO VERIFICÁVEL" &&
-                !string.IsNullOrWhiteSpace(secao["evidencia"]?.ToString())) == 1)) == 1);
-    }
+                !string.IsNullOrWhiteSpace(secao["evidencia"]?.ToString())) == 1)) == 1;
 
     static string RaizDosAnexos(PedidoExecucao pe)
     {

@@ -117,6 +117,15 @@ public partial class OrquestradorTestes
             esforco = i <= 2 ? "low" : "medium"
         }).ToArray();
         File.WriteAllText(Path.Combine(skill, "references", "grupos.json"), JsonSerializer.Serialize(grupos));
+        var fontesMonitor = Path.Combine(skill, "references");
+        var grupo = grupos[6];
+        var matriz = new { grupos = new[] { new { grupo.id, grupo.modelo, grupo.esforco, auditoria = "conferida",
+            secoes = grupo.secoes.Select(numero => new { numero, estado = "ANALISADO", evidencia = "Prancha fictícia 1" }) } } };
+        File.WriteAllText(Path.Combine(fontesMonitor, "matriz-evidencias.json"), JsonSerializer.Serialize(matriz));
+        var monitor = OrquestradorAnalise.LerMonitorChatGpt(fontesMonitor);
+        Assert.Equal(1, monitor.GruposConcluidos);
+        Assert.Equal(2, monitor.VerificacoesConcluidas);
+        Assert.True(monitor.Rodadas.Single(r => r.Perfil.Numero == grupo.id).Confirmada);
         var recebido = Path.Combine(c.Pasta, "fixture.rpmvni");
         var modelo = ModeloOficial.Carregar();
         var exemplo = Ambiente.Corpus("curto.json");

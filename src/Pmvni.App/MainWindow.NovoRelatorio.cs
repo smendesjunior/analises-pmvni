@@ -1050,8 +1050,11 @@ public sealed partial class MainWindow
             if (e.PastaAnaliseChatGpt is { } pasta)
             {
                 var monitor = await Task.Run(() => OrquestradorAnalise.LerMonitorChatGpt(pasta));
-                if (!fechada && ReferenceEquals(e, execucaoMostrada))
+                if (!fechada && ReferenceEquals(e, execucaoMostrada) && monitor.Rodadas.Count > 0)
+                {
                     NR.MonitorChatGpt = monitor;
+                    RenderizarExecucao(e);
+                }
                 return;
             }
             var controle = Path.Combine(e.PastaDeTrabalho, ResultadoAnalise.PastaControle(e.Provedor));
@@ -1152,7 +1155,11 @@ public sealed partial class MainWindow
         {
             var s = e.Situacao;
             erro = string.IsNullOrWhiteSpace(s?.Erro) ? null : s!.Erro;
-            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa ?? n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, s?.Codigo ?? "",
+            var etapa = s?.Etapa ?? n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa;
+            if (chatgpt && etapa == "analisar_grupos" && n.MonitorChatGpt is { Rodadas.Count: > 0 } monitor &&
+                monitor.Rodadas.Where(r => r.Perfil.Numero < 15).All(r => r.Confirmada))
+                etapa = "auditar_relatorio";
+            etapas = FluxoNovoRelatorio.Etapas(etapa, s?.Codigo ?? "",
                 ordem);
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();

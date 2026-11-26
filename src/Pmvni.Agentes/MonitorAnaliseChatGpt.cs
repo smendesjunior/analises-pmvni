@@ -43,21 +43,15 @@ public sealed partial class OrquestradorAnalise
             var consulta = Path.Combine(pasta, "consulta-qgis.json");
             var resultadoQgis = File.Exists(consulta) ? LerJsonChatGpt(consulta) : null;
             var rodadas = new List<RodadaDoMonitorChatGpt>();
-            var gruposAteAqui = new List<GrupoChatGpt>();
-            foreach (var rodada in OrganizarRodadas(grupos))
+            var caminho = Path.Combine(pasta, "matriz-evidencias.json");
+            var matriz = File.Exists(caminho) ? JsonNode.Parse(LerJsonChatGpt(caminho))?["grupos"] as JsonArray : null;
+            foreach (var grupo in grupos.OrderBy(g => g.Id))
             {
-                var numero = rodadas.Count + 1;
-                var perfil = rodada[0];
-                gruposAteAqui.AddRange(rodada);
-                var confirma = MatrizConfirmaGrupos(Path.Combine(pasta, "matriz-evidencias.json"), gruposAteAqui);
-                var planoAtivo = !confirma && rodadas.All(r => r.Confirmada)
-                    ? LerPlanoDaRodada(pasta, numero, rodada.SelectMany(g => g.Secoes))
-                    : [];
-                rodadas.Add(new(new(numero, perfil.Modelo, perfil.Esforco),
-                    rodada.Select(g => new GrupoDoMonitorChatGpt(g.Id, g.Nome ?? $"Grupo {g.Id}", g.Secoes)).ToArray(), confirma) { Plano = planoAtivo });
+                var confirmado = matriz is not null && MatrizConfirmaGrupo(matriz, grupo);
+                rodadas.Add(new(new(grupo.Id, grupo.Modelo, grupo.Esforco),
+                    [new GrupoDoMonitorChatGpt(grupo.Id, grupo.Nome ?? $"Grupo {grupo.Id}", grupo.Secoes)], confirmado));
             }
-            var qgis = rodadas.Any(r => r.Confirmada && r.Grupos.Any(g => g.Id == 2))
-                ? (resultadoQgis is null ? null : JsonNode.Parse(resultadoQgis)) : null;
+            var qgis = resultadoQgis is null ? null : JsonNode.Parse(resultadoQgis);
             return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
