@@ -363,7 +363,7 @@ public sealed class Ajustes
         if (Texto(j, "tema") is { } t && Temas.Contains(t)) a.Tema = t;
         if (j["intervalo_autosave_s"] is JsonValue iv && iv.TryGetValue<int>(out var s) && Intervalos.Contains(s)) a.IntervaloAutosaveS = s;
         if (j["marcas_revisao"] is JsonValue mv && mv.TryGetValue<bool>(out var marcas)) a.MarcasRevisao = marcas;
-        if (j["recentes_limpos_utc"] is JsonValue corte && corte.TryGetValue<long>(out var t)) a.RecentesLimposEmUtc = t;
+        if (j["recentes_limpos_utc"] is JsonValue corte && corte.TryGetValue<long>(out var instante)) a.RecentesLimposEmUtc = instante;
         if (j["recentes_max"] is JsonValue rm && rm.TryGetValue<int>(out var max) && OpcoesRecentes.Contains(max)) a.recentesMax = max;
         if (j["recentes"] is JsonArray rec)
             foreach (var r in rec)
