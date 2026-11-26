@@ -89,6 +89,23 @@ public sealed partial class EstadoVazio : UserControl
         else BotaoSecundario.Visibility = Visibility.Collapsed;
     }
 
+    internal void DefinirAcoesAdicionais(Modulo modulo, IEnumerable<ComandoFaixa> comandos)
+    {
+        AcoesAdicionais.Children.Clear();
+        foreach (var comando in comandos)
+        {
+            var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            conteudo.Children.Add(new FontIcon { Glyph = Glifos.Adicionar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] });
+            conteudo.Children.Add(new TextBlock { Text = comando.Rotulo });
+            var botao = new Button { Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch };
+            AutomationProperties.SetName(botao, comando.Rotulo);
+            Dicas.AplicarComando(botao, comando.Id, comando.Rotulo, modulo);
+            botao.Click += (_, _) => ComandoEscolhido?.Invoke(comando.Id);
+            AcoesAdicionais.Children.Add(botao);
+        }
+        AcoesAdicionais.Visibility = AcoesAdicionais.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Troca só a frase (ex.: "Nenhum processo combina com o filtro."); vazia = some.</summary>
     public void DefinirFrase(string frase)
     {

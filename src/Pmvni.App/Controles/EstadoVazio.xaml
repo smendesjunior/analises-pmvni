@@ -16,6 +16,7 @@
         <Button x:Name="BotaoSecundario" x:FieldModifier="internal" Visibility="Collapsed" VerticalAlignment="Center"/>
       </StackPanel>
     </StackPanel>
+    <StackPanel x:Name="AcoesAdicionais" HorizontalAlignment="Center" Spacing="8" Visibility="Collapsed"/>
     <!-- Recentes em lista (2026-11-17): ícone do relatório, nome e a pasta; a linha inteira é clicável, dentro de um cartão. -->
     <StackPanel x:Name="PainelRecentes" x:FieldModifier="internal" Spacing="6" Margin="0,18,0,0" Visibility="Collapsed" MinWidth="380">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
