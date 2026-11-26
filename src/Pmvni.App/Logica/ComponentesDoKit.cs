@@ -442,14 +442,14 @@ public static class ComponentesDoKit
         ArgumentNullException.ThrowIfNull(analisesEmAndamento);
         ArgumentNullException.ThrowIfNull(iniciar);
         if (analisesEmAndamento.Count > 0) return AtualizacaoKit.AvisoAnaliseEmAndamento(analisesEmAndamento);
-        var script = Path.Combine(pastaScripts, Script);
+        var script = Path.Combine(pastaScripts, parte is null ? "atualizar-kit.ps1" : Script);
         if (!File.Exists(script)) return "O script de instalação dos plugins não foi extraído (" + script + "). Nada foi iniciado.";
         if (parte is null && !File.Exists(Path.Combine(kitLocal, InstaladorDoKit)))
             return "Não achei o instalador do kit em " + Path.Combine(kitLocal, InstaladorDoKit) + ". Nada foi iniciado.";
         var cmd = Path.Combine(pastaScripts, parte is null ? CmdTodos : CmdDe(parte));
         var opcoes = parte switch
         {
-            null => " -AtualizarKit",
+            null => "",
             "reparar" => "",
             _ => " -Componente " + parte,
         };

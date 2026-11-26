@@ -345,7 +345,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
-        MarcaPrefeitura.MaxWidth = largura < 1100 ? 369 : 492;
+        ArteCabecalho.Width = largura < 1100 ? 369 : 492;
+        ArteCabecalho.Height = largura < 1100 ? 60 : 80;
         TextosAnalise.Visibility = Visibility.Visible;
         BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
         // Auditoria de interface (2026-11-17): em 1366 px a 125% os rótulos cortavam ("Próxim", "Pes"); abaixo de 1300 ficam só os
@@ -522,13 +523,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             var demoMonitor = Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1";
             // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
             if (args.Roteiro is null && !demoMonitor) { _ = TentarAsync(RetomarExecucoesClaudeAsync); _ = TentarAsync(RetomarExecucoesChatGptAsync); }
-            // Tarefa 16: instalação do motor PDF e dos plugins incompleta → primeira-abertura.ps1 fora do Editor (.cmd + explorer.exe).
-            // Revisão final I2: com análise em andamento ou pendente (as do Claude e do Gemini seguem com o Editor fechado), adia.
-            if (args.Roteiro is null && !demoMonitor)
-            {
-                var analisesNaAbertura = ProcessosComAnaliseEmAndamento();
-                _ = Task.Run(() => InstalacaoMotorPdf.PrimeiraAberturaAsync(analisesNaAbertura));
-            }
 #if !PMVNI_DISTRIBUICAO
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
             else

@@ -14,14 +14,15 @@
       <ResourceDictionary>
         <ResourceDictionary.ThemeDictionaries>
           <ResourceDictionary x:Key="Light">
-            <BitmapImage x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni.png" DecodePixelType="Logical" DecodePixelHeight="80"/>
+            <SvgImageSource x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni.svg"/>
           </ResourceDictionary>
           <ResourceDictionary x:Key="Default">
-            <BitmapImage x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni-escuro.png" DecodePixelType="Logical" DecodePixelHeight="80"/>
+            <SvgImageSource x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni-escuro.svg"/>
           </ResourceDictionary>
         </ResourceDictionary.ThemeDictionaries>
       </ResourceDictionary>
     </Grid.Resources>
+
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
@@ -40,7 +41,7 @@
         <StackPanel x:Name="CabecalhoEsquerdo" Grid.Column="1" Orientation="Horizontal" Spacing="14" Margin="8,0,8,0" VerticalAlignment="Center">
           <Border x:Name="MarcaPrefeitura" Background="Transparent"
                   VerticalAlignment="Center" AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante — Análise de Projetos">
-            <Image Height="80" UseLayoutRounding="True" Stretch="Uniform" Source="{ThemeResource ImagemCabecalhoPmvni}"
+            <Image x:Name="ArteCabecalho" Source="{ThemeResource ImagemCabecalhoPmvni}" Width="492" Height="80" UseLayoutRounding="True" Stretch="Uniform"
                    AutomationProperties.AccessibilityView="Raw"/>
           </Border>
           <Border x:Name="DivisoriaProcesso" Style="{StaticResource PmvniDivisoriaCabecalho}" Visibility="Collapsed"/>

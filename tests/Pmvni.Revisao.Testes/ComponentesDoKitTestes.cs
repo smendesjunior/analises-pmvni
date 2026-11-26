@@ -19,6 +19,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
     public ComponentesDoKitTestes()
     {
         foreach (var d in new[] { CodexHome, MotorPdf, Pmvni, KitLocal, Fonte, Scripts }) Directory.CreateDirectory(d);
+        File.WriteAllText(Path.Combine(Scripts, "atualizar-kit.ps1"), "# fictício");
         File.WriteAllText(Path.Combine(Scripts, ComponentesDoKit.Script), "# fictício");
     }
 
@@ -227,7 +228,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
         File.WriteAllText(Path.Combine(KitLocal, ComponentesDoKit.InstaladorDoKit), "rem fictício");
         ComponentesDoKit.IniciarAtualizacao(null, [], Scripts, KitLocal, (p, a) => chamadas.Add((p, a)));
         Assert.Equal(Path.Combine(Scripts, ComponentesDoKit.CmdTodos), Assert.Single(chamadas).Argumento);
-        Assert.Contains("\" -AtualizarKit -KitLocal \"" + KitLocal + "\"", File.ReadAllText(chamadas[0].Argumento));
+        Assert.Contains("atualizar-kit.ps1\" -KitLocal \"" + KitLocal + "\"", File.ReadAllText(chamadas[0].Argumento));
     }
 
     [Fact]

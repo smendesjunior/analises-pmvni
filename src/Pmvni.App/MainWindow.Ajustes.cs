@@ -411,6 +411,7 @@ public sealed partial class MainWindow
             ajustes.AtualizarAutomaticamente = p.AlternarAtualizarSozinho.IsOn;
             SalvarAjustes();
         };
+        p.BotaoRepararInstalacao.Visibility = RoteiroLegado ? Visibility.Visible : Visibility.Collapsed;
         p.BotaoRepararInstalacao.Click += async (_, _) => await AtualizarComponenteAsync(null, reparar: true);
         p.BotaoVerificarAtualizacoes.Click += async (_, _) => await Atualizador.VerificarAsync();
         p.BotaoReiniciarAtualizacao.Click += (_, _) =>
@@ -502,7 +503,7 @@ public sealed partial class MainWindow
         p.TextoResultadoComponentes.Text = "Verificando as versões…";
         try
         {
-            var leitura = await ComponentesDoKit.LerAsync(OrigensDoKitDoComputador(), RoteiroLegado ? null : ComponentesDoKit.FerramentasPdf);
+            var leitura = await ComponentesDoKit.LerAsync(OrigensDoKitDoComputador(), RoteiroLegado ? null : Array.Empty<ComponenteDoKit>());
             string? fontesAnalise = null;
             if (!RoteiroLegado)
             {

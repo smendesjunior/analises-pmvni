@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.7.2
+
+- O cabeçalho usa a marca vetorial nos temas claro e escuro. A renderização acompanha a largura disponível e a escala do monitor.
+- As configurações apresentam os 15 grupos em cartões, e Modelos da análise tem entrada própria no menu.
+- A distribuição usa o instalador oficial do kit e deixa de incluir o servidor Python e o reparo automático do motor antigo na primeira abertura.
+
 ## 4.7.1
 
 - A marca do cabeçalho ganhou suavização de contorno nos temas claro e escuro e acompanha a escala de exibição do Windows.
