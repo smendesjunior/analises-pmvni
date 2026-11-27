@@ -18,6 +18,9 @@
   @bottom-left { content: "PREFEITURA MUNICIPAL DE VENDA NOVA DO IMIGRANTE  •  SECRETARIA MUNICIPAL DE OBRAS"; font: 6.2pt Verdana; color: #637083; border-top: .6pt solid #DDE4EB; vertical-align: top; padding-top: 2.5mm; }
   @bottom-right { content: "RELATÓRIO TÉCNICO  •  PÁGINA " counter(page) " DE " counter(pages); font: bold 6.2pt Verdana; color: #1D3D5E; border-top: .6pt solid #DDE4EB; vertical-align: top; padding-top: 2.5mm; }
 }
+.brilliant .lk.zona { background:#CEB0EF; border:1px dashed #674395; }
+.brilliant .lk.dnit { background:none; border:1.5px dashed #A35B15; }
+.brilliant .lmap { background:white; }
 </style>
 </head>
 <body>
@@ -49,7 +52,7 @@ confirmado e "y" (amarelo) quando há algo a confirmar. Em "pontos a confirmar",
 
 {# ───────────────────── LOCALIZAÇÃO NA BASE MUNICIPAL ───────────────────── #}
 {% if localizacao %}
-<div class="locblk"><div class="sec"><div><h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>{% if localizacao.subtitulo %}<p>{{ localizacao.subtitulo }}</p>{% endif %}</div>{{ localizacao.situacao|pill }}</div>
+<div class="locblk{% if localizacao.grafica_brilliant %} brilliant{% endif %}"><div class="sec"><div><h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>{% if localizacao.subtitulo %}<p>{{ localizacao.subtitulo }}</p>{% endif %}</div>{% if localizacao.grafica_brilliant %}{% else %}{{ localizacao.situacao|pill }}{% endif %}</div>
 <div class="lmrow"><div class="lmap"><img src="{{ localizacao.imagem_uri|safe }}"></div>
 <div class="lside">{% if localizacao.texto %}<div class="lbl">SITUAÇÃO DO LOTE NA BASE</div><p>{{ localizacao.texto }}</p>{% endif %}<div class="lbl">LEGENDA</div><div class="lleg">{% for i in localizacao.legenda %}<span><i class="lk {{ i.tipo }}"></i>{{ i.texto }}</span>{% endfor %}</div>
 {% if localizacao.observacoes %}<div class="lbl">OBSERVAÇÕES DO PDM PARA A ÁREA</div>{% for o in localizacao.observacoes %}<p>{{ o }}</p>{% endfor %}{% endif %}<div class="src">FONTE: {{ localizacao.fonte }}</div></div></div>

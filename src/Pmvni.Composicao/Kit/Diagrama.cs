@@ -174,6 +174,22 @@ public static class Diagrama
     /// marcada em vermelho). Sem essas chaves o desenho é o mesmo de sempre.</summary>
     public static string VolumetriaSvg(IReadOnlyDictionary<string, object?> v, IEnumerable<(string Ancora, int Numero)> marcas)
     {
+        if (v.TryGetValue("faces", out var faces))
+        {
+            var desenho = new System.Text.StringBuilder();
+            foreach (var item in Dados.Lista(faces))
+            {
+                if (item is not IReadOnlyDictionary<string, object?> face) continue;
+                var classe = Dados.Obter(face, "classe") as string;
+                var pontos = Dados.Obter(face, "pontos") as string;
+                if (classe is not ("str" or "gnd" or "wl" or "wr" or "rff" or "rfb" or "win" or "door") || pontos is null ||
+                    !System.Text.RegularExpressions.Regex.IsMatch(pontos, @"^[0-9]{1,3},[0-9]{1,3}( +[0-9]{1,3},[0-9]{1,3}){2,100}$")) continue;
+                desenho.Append($"""<polygon class="{classe}" points="{pontos}"/>""");
+            }
+            if (desenho.Length == 0) desenho.Append("""<text x="150" y="145" text-anchor="middle" class="t7">Cortes e fachadas insuficientes para a volumetria</text>""");
+            else desenho.Append(Marcadores(marcas, PosVolumeTodas));
+            return $"""<svg viewBox="0 0 300 300" class="dg"><title>{E(Dados.Obter(v, "fonte"))}</title>{desenho}</svg>""";
+        }
         if (!v.ContainsKey("pavimentos") && !v.ContainsKey("telhado") && !v.ContainsKey("destaque")) return VolumetriaOriginal(v, marcas);
         var pav = int.TryParse(Dados.Obter(v, "pavimentos", "2") as string, NumberStyles.Integer, CultureInfo.InvariantCulture, out var np) ? Math.Clamp(np, 1, 6) : 2;
         var telhadoTexto = (Dados.Obter(v, "telhado", "duas águas") as string ?? "").Trim().ToLowerInvariant();

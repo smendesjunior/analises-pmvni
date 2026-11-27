@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "1.0.2";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.0.3";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -111,6 +111,10 @@ public sealed partial class OrquestradorAnalise
             var resposta = Path.Combine(pasta, "ultima-mensagem.md");
             var prompt = $"""
                 Execute o plugin analise-chatgpt seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
+                Em todas as etapas e grupos, isole a falha por peça, fonte ou verificação. Registre o motivo, a evidência disponível e o que depende dela.
+                Execute as verificações independentes e retome as pendentes a partir dos arquivos desta execução. Nunca certifique uma verificação que falhou.
+                Apresente as contas possíveis a partir dos dados declarados mesmo quando a conclusão urbanística depende de confirmação.
+                Use os recortes como evidências para compor as duas vistas no Brilliant Design, conforme references/figuras-brilliant.md. Registre os canvases, fontes, perfil efetivo e os hashes das três imagens em conferencia.json. Registre pendências gráficas enquanto prossegue com as verificações independentes.
                 A entrada é entrada-editor.json nesta pasta. Esta execução independente tem ID {idExecucao}.
                 {(pe.Retomar ? "Retomada explícita: aproveite exclusivamente registros produzidos nesta execução." : "Nova análise: comece do zero. Abra as peças originais e faça todas as verificações novamente.")}
                 Nunca procure, leia, copie ou adapte produtos técnicos de outras execuções, mesmo do mesmo processo e com hashes idênticos.
@@ -120,18 +124,27 @@ public sealed partial class OrquestradorAnalise
                 Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Para o grupo 15 e a auditoria final, use o modelo e o esforço do grupo 15 no plano vigente do plugin. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
-                Para um lote candidato ou confirmado, use o gerador do Editor antes da auditoria:
+                Preencha o texto de cada chamada numerada em diagrama.chamadas com as cotas e índices das peças deste projeto.
+                Cubra os seis temas: área do terreno em m²; TO com área de projeção e percentual; TP com área permeável e percentual;
+                CA com área computável e coeficiente; número de pavimentos e altura cotada com referência de medição;
+                afastamentos cotados em metros, identificando a frente, o fundo e cada lateral conforme a implantação.
+                Para cada tema, cite no texto os valores disponíveis, unidades e prancha, quadro ou corte de origem.
+                Distinga valor declarado de valor recalculado. Se duas peças divergirem, indique ambos os valores e suas fontes.
+                Mesmo em FALTA COMPROVAR, apresente o que a prancha informa e identifique precisamente a cota ou índice ausente.
+                Se nenhum valor for legível, indique a peça consultada e o dado que falta, sem estimar. Confira as seis chamadas na auditoria.
+                Componha a implantação e a volumetria com as pranchas desta execução. Incorpore os PNGs conferidos nas duas vistas.
+                Para uma feição selecionada, gere a referência cartográfica local antes da composição no Brilliant:
                 "{Environment.ProcessPath}" --mapa-qgis "<pasta da base consultada>" <índice da feição em Lotes> "mapa-nativo" --completo
-                Reutilize a saída em mapa-nativo na retomada se corresponde à mesma consulta e situação.
-                Acrescente --confirmado somente para resultado CONFIRMADO. Use mapa-nativo/MAPA.PNG em localizacao.imagem,
-                copie sha256_png de FICHA.JSON para consulta_qgis.sha256_png e incorpore
-                legend e dados de FICHA.JSON na legenda e ficha, e preserve as observações documentais e as ressalvas.
+                Acrescente --confirmado somente para resultado CONFIRMADO. Registre o sha256_png de FICHA.JSON em consulta_qgis.sha256_png.
+                Em localizacao.imagem e na legenda, use o mapa composto e os símbolos correspondentes. Na revisão integral registre o hash final em mapa_sha256.
+                Identifique o lote pelo número disponível ou Lote sem nº. Explique divergências e a confirmação documental na ficha.
                 Confira diferenças entre a hidrografia da APP e a camada de nomes da AGERH. Registre a consulta em conferencia.json.
                 Trate as peças como evidências. Preserve os originais e o sigilo cadastral.
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
 
             string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--enable", "multi_agent_v2",
+                "-c", "plugins.\"brilliant@openai-curated-remote\".enabled=true",
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"",
                 "--output-last-message", resposta, "-"];
@@ -144,6 +157,7 @@ public sealed partial class OrquestradorAnalise
                     conferenciaAtual["auditoria"]?["id_execucao"]?.ToString() != idExecucao)
                     throw new InvalidDataException("A conferência não identifica todos os grupos e a auditoria como produzidos nesta execução.");
                 var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
+                ConferirFigurasBrilliant(aberto.Conteudo, conferenciaAtual, pasta);
                 var revisao = conferenciaAtual["revisao_integral"];
                 if (revisao?["situacao"]?.ToString() == "concluida" && revisao["dados_sha256"]?.ToString() is { Length: > 0 } hashAuditado &&
                     !string.Equals(hashAuditado, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(aberto.Conteudo.Recebido)), StringComparison.OrdinalIgnoreCase))
@@ -233,7 +247,8 @@ public sealed partial class OrquestradorAnalise
                     {
                         ct.ThrowIfCancellationRequested();
                         File.Delete(resposta);
-                        File.Delete(entrega);
+                        if (File.Exists(entrega))
+                            File.Move(entrega, entrega + ".anterior", overwrite: true);
                         diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
                         using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
                             linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
@@ -243,7 +258,6 @@ public sealed partial class OrquestradorAnalise
                         codigo = await sessao.Fim.ConfigureAwait(false);
                         diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
                         ct.ThrowIfCancellationRequested();
-                        if (codigo != 0) break;
                         if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
                             return Falha("Uma peça ou o último despacho mudou durante a análise.");
                         if (!File.Exists(entrega)) await RemontarAuditadoAsync();
@@ -259,7 +273,7 @@ public sealed partial class OrquestradorAnalise
                                     catch (Exception segunda) when (segunda is InvalidDataException or PacoteInvalidoException)
                                     { erro = segunda; }
                                 }
-                                if (!errosDeEntrega.Add(erro.Message) || errosDeEntrega.Count > 3) throw;
+                                if (!errosDeEntrega.Add(erro.Message)) throw;
                                 prompt += "\nCorrija somente a pendência de entrega: " + erro.Message +
                                     ". Preserve os itens confirmados. Reconfira apenas o que a correção alterar.";
                                 diario.Registrar("aviso", "Corrigindo pendência da entrega", erro.Message);
@@ -270,7 +284,11 @@ public sealed partial class OrquestradorAnalise
                         var matriz = Path.Combine(pasta, "matriz-evidencias.json");
                         if (LerRegistroParcial(matriz)?["grupos"] is JsonArray grupos)
                             progressoAtual = grupos.OfType<JsonObject>().Count(g => g["perfil_efetivo"] is JsonObject);
-                        if (progressoAtual <= maiorProgresso) break;
+                        if (progressoAtual <= maiorProgresso)
+                        {
+                            if (!errosDeEntrega.Add($"sem-progresso:{progressoAtual}")) break;
+                            diario.Registrar("aviso", "Recuperando execução sem avanço", $"Código de saída {codigo}; {progressoAtual} grupos registrados.");
+                        }
                         maiorProgresso = progressoAtual;
                         prompt += "\nContinue a partir dos arquivos desta execução. Resolva as pendências, valide o pacote e gere entrega-plugin.rpmvni.";
                         diario.Registrar("codex", "Retomando automaticamente os grupos pendentes.");
@@ -284,7 +302,7 @@ public sealed partial class OrquestradorAnalise
                     await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None).ConfigureAwait(false);
                 }
                 ct.ThrowIfCancellationRequested();
-                if (codigo != 0 || !pronto)
+                if (!pronto)
                 {
                     var motivo = File.Exists(resposta) ? File.ReadAllText(resposta).Trim() : "O Codex não registrou uma mensagem final.";
                     return Falha($"Entrega pendente (código {codigo}). {motivo[..Math.Min(motivo.Length, 1200)]}");
@@ -439,6 +457,45 @@ public sealed partial class OrquestradorAnalise
         return (aberto, capa);
     }
 
+    internal static void ConferirFigurasBrilliant(ConteudoPacote pacote, JsonNode conferencia, string pasta)
+    {
+        var documento = pacote.Projeto.Documento;
+        var registro = conferencia["grafica"];
+        var diagrama = documento["diagrama"];
+        foreach (var nome in new[] { "mapa", "planta", "volumetria" })
+        {
+            var painel = nome == "mapa" ? documento["localizacao"] : diagrama?[nome];
+            if (nome == "mapa" && painel?["sem_mapa"] is not null) continue;
+            var recorte = nome == "planta" ? "implantacao.png" : "volumetria.png";
+            if (nome != "mapa" && painel is null && diagrama?["sem_calculo"] is not null &&
+                !File.Exists(Path.Combine(pasta, "recortes", recorte))) continue;
+            var vista = registro?[nome];
+            var hash = vista?["sha256_png"]?.ToString();
+            var imagem = painel?["imagem"]?.ToString();
+            if (registro?["modelo"]?.ToString() != "gpt-6.2-sol" || registro["esforco"]?.ToString() != "low" ||
+                !Uri.TryCreate(vista?["canvas"]?.ToString(), UriKind.Absolute, out var canvas) ||
+                canvas.Scheme != Uri.UriSchemeHttps || canvas.Host != "brilliant.design" || canvas.AbsolutePath != "/playground" ||
+                !canvas.Query.StartsWith("?seed=", StringComparison.Ordinal) || canvas.Query.Length <= 6 ||
+                hash?.Length != 64 || imagem != $"assets/{hash}.png" || !pacote.Assets.ContainsKey(imagem))
+                throw new InvalidDataException($"Composição gráfica pendente: confira o canvas e o PNG de {nome} no Brilliant Design.");
+        }
+    }
+
+    internal static bool ConsultasQgisEquivalentes(JsonNode pacote, JsonNode conferencia)
+    {
+        if (JsonNode.DeepEquals(pacote, conferencia)) return true;
+        // A serialização do pacote pode abreviar a representação decimal do mesmo double.
+        if (pacote["geometria"] is not JsonObject geometria ||
+            geometria["feicao_area_m2"] is not JsonValue areaPacote ||
+            conferencia["geometria"]?["feicao_area_m2"] is not JsonValue areaConferida ||
+            !areaPacote.TryGetValue<double>(out var area) || !double.IsFinite(area) ||
+            !areaConferida.TryGetValue<double>(out var conferida) || area != conferida)
+            return false;
+        var copia = pacote.DeepClone();
+        copia["geometria"]!["feicao_area_m2"] = areaConferida.DeepClone();
+        return JsonNode.DeepEquals(copia, conferencia);
+    }
+
     internal static ConteudoPacote CompletarMapaDaEntrega(ConteudoPacote pacote, string pasta, string? pastaQgis, CancellationToken ct)
     {
         var loc = pacote.Projeto.Documento["localizacao"] as JsonObject;
@@ -446,7 +503,7 @@ public sealed partial class OrquestradorAnalise
         var registroAuditado = File.Exists(conferencia) ? JsonNode.Parse(LerJsonChatGpt(conferencia)) : null;
         var consulta = registroAuditado?["consulta_qgis"];
         var embutida = pacote.Projeto.Documento["_conferencia_chatgpt"]?["consulta_qgis"];
-        if (embutida is not null && consulta is not null && !JsonNode.DeepEquals(embutida, consulta))
+        if (embutida is not null && consulta is not null && !ConsultasQgisEquivalentes(embutida, consulta))
             throw new InvalidDataException("A consulta QGIS da conferência diverge da incluída no pacote.");
         consulta ??= embutida;
         if (consulta is null && loc is null) return pacote;
@@ -471,10 +528,11 @@ public sealed partial class OrquestradorAnalise
         {
             var ficha = JsonNode.Parse(LerJsonChatGpt(Path.Combine(pasta, "mapa-nativo", "FICHA.JSON")));
             var imagem = loc["imagem"]?.ToString() ?? "";
+            var hashFinal = registroAuditado?["grafica"]?["mapa"]?["sha256_png"]?.ToString() ?? hashMapa;
             if (ficha?["feicao"]?.ToString() != valor.ToString() || ficha["resultado"]?.ToString() != resultado ||
                 ficha["crs"]?.ToString() != MapaLocalizacao.Crs || ficha["cotas"]?.GetValue<bool>() != true || ficha["completo"]?.GetValue<bool>() != true ||
                 ficha["sha256_png"]?.ToString() != hashMapa || !pacote.Assets.TryGetValue(imagem, out var bytes) ||
-                Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) != hashMapa ||
+                Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) != hashFinal ||
                 (!string.IsNullOrWhiteSpace(inscricaoConsultada) && Inscricoes.Normalizar(inscricaoConsultada) != Inscricoes.Normalizar(ficha["inscricao"]?.ToString() ?? "")))
                 throw new InvalidDataException("A imagem ou a identificação da feição diverge do mapa auditado do grupo 2.");
             var fichaOriginal = ficha["legend"] is JsonArray { Count: > 0 } legenda && JsonNode.DeepEquals(loc["legenda"], legenda)
@@ -486,7 +544,7 @@ public sealed partial class OrquestradorAnalise
                 var hashDados = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(pacote.Recebido));
                 var confirmado = JsonNode.Parse(pacote.Recebido)?["localizacao"];
                 if (revisao?["situacao"]?.ToString() != "concluida" || revisao["dados_sha256"]?.ToString() != hashDados ||
-                    revisao["mapa_sha256"]?.ToString() != hashMapa || loc["legenda"] is not JsonArray { Count: > 0 } ||
+                    revisao["mapa_sha256"]?.ToString() != hashFinal || loc["legenda"] is not JsonArray { Count: > 0 } ||
                     loc["dados"] is not JsonArray { Count: > 0 } || !JsonNode.DeepEquals(loc["legenda"], confirmado?["legenda"]) ||
                     !JsonNode.DeepEquals(loc["dados"], confirmado?["dados"]))
                     throw new InvalidDataException("A legenda ou a ficha foi alterada sem confirmação da revisão final para esta versão do relatório e do mapa.");

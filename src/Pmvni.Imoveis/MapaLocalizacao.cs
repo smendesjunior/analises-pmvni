@@ -519,7 +519,7 @@ public static class MapaLocalizacao
         var edif = EdificacoesDoLote(b, alvo);
         var areaEdif = edif.Count > 0 ? Math.Round(edif.Sum(e => Numero(e.Campo("area", "AREA")) is { } v && v != 0 ? v : Area(e.Partes)), 2) : 0;
         var viz = o.ComDonos ? Vizinhos(b, alvo, proprios) : [];
-        var donos = o.ComDonos ? Proprietarios(b, viz.Select(v => v.Campo("InscImob")).Prepend(ins)) : [];
+        var donos = o.ComDonos || o.Candidato ? Proprietarios(b, viz.Select(v => v.Campo("InscImob")).Prepend(ins)) : [];
         var proprietario = o.ComDonos ? o.Proprietario ?? donos.GetValueOrDefault(ins, "") : "";
         var cad = ins.Length > 0 ? b.Cadastro.PorInscricao(ins).FirstOrDefault() : null;
         var confrontantes = new List<VizinhoMapa>();
@@ -532,14 +532,20 @@ public static class MapaLocalizacao
         var rotulos = viz.Where(v => donos.ContainsKey(v.Campo("InscImob"))).Select(v => (v, Curto(donos[v.Campo("InscImob")]))).ToList();
 
         // o balão do lote
-        var ficha = new List<string> { (o.Candidato ? "LOTE CANDIDATO " : "LOTE ") + (loteN.Length > 0 ? loteN : "s/ nº") + (quadra.Length > 0 ? $" · QUADRA {quadra}" : ""), $"Inscrição {ins}" };
-        if (proprietario.Length > 0) ficha.Insert(1, Encurtar(proprietario, 44));
+        var titulo = "LOTE " + (loteN.Length > 0 ? loteN : "s/ nº") + (quadra.Length > 0 ? $" · QUADRA {quadra}" : "");
+        if (o.Candidato)
+        {
+            var nome = donos.GetValueOrDefault(ins, "");
+            titulo = SemNome(nome) ? "A CONFIRMAR" : nome;
+        }
+        var ficha = new List<string> { titulo, $"Inscrição {ins}" };
+        if (!o.Candidato && proprietario.Length > 0) ficha.Insert(1, Encurtar(proprietario, 44));
         var areas = string.Join(" · ", new[] { areaBase is > 0 ? $"base {Num(areaBase.Value)} m²" : $"calculada {Num(Area(alvo.Partes))} m²", o.AreaDeclarada is > 0 ? $"declarada {Num(o.AreaDeclarada.Value)} m²" : "" }.Where(x => x.Length > 0));
         ficha.Add(string.Join(" · ", new[] { zona.Length > 0 ? $"Zona {zona}" : "", areas }.Where(x => x.Length > 0)));
         if (appAtinge) ficha.Add(o.Candidato ? "APP NA BASE: SOBREPOSIÇÃO A CONFERIR" : "APP ATINGE O LOTE");
         // como o kit (atinge_dominio / atinge_nao_edificavel): o domínio do DNIT (< 40 m do eixo) é o caso mais grave
-        if (br is { AtingeDominio: true }) ficha.Add(o.Candidato ? "BR-262: DOMÍNIO SIMULADO, A CONFIRMAR" : "DOMÍNIO DNIT DA BR-262 ATINGE O LOTE");
-        else if (br is { AtingeNaoEdificavel: true }) ficha.Add(o.Candidato ? "BR-262: FAIXA SIMULADA, A CONFIRMAR" : "FAIXA DA BR-262 ATINGE O LOTE");
+        if (br is { AtingeDominio: true }) ficha.Add(o.Candidato ? "A CONFIRMAR" : "DOMÍNIO DNIT DA BR-262 ATINGE O LOTE");
+        else if (br is { AtingeNaoEdificavel: true }) ficha.Add(o.Candidato ? "A CONFIRMAR" : "FAIXA DA BR-262 ATINGE O LOTE");
 
         var nomeRio = o.NomeRio;
         var nomeInformado = nomeRio.Length > 0;

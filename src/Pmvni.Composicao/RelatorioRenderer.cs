@@ -97,21 +97,47 @@ public static class RelatorioRenderer
             if (Dados.Obter(dadosDiagrama, "sem_calculo") is IReadOnlyDictionary<string, object?> falta
                 && !PythonTexto.Verdadeiro(Dados.Obter(dadosDiagrama, "chamadas")))
             {
-                ctx["diagrama"] = new Dictionary<string, object?>
+                var vistas = new Dictionary<string, object?>
                 {
-                    ["planta_svg"] = new Seguro(""),
-                    ["volumetria_svg"] = new Seguro(""),
                     ["chamadas_planta"] = Array.Empty<object>(),
                     ["chamadas_volumetria"] = Array.Empty<object>(),
                     ["nota"] = Dados.Txt(Dados.Exigir(falta, "motivo")) + " " + Dados.Txt(Dados.Exigir(falta, "evidencia")),
                 };
+                foreach (var nome in new[] { "planta", "volumetria" })
+                {
+                    var imagem = dadosDiagrama.TryGetValue(nome, out var vista) && vista is IReadOnlyDictionary<string, object?> campos
+                        ? Dados.Obter(campos, "imagem") as string : null;
+                    if (imagem is not null && CaminhoImagem.Resolver(baseDir, imagem, estrito) is { } caminho && CaminhoImagem.ImagemAceita(imagem, caminho))
+                        vistas[nome + "_svg"] = new Seguro($"""<img style="width:100%;height:auto" alt="{nome} do projeto" src="{DataUriPng(baseDir, imagem, estrito).Valor}">""");
+                    else
+                        vistas[nome + "_svg"] = new Seguro("<p>Vista pendente de comprovação.</p><p>" + Dados.E(Dados.Obter(falta, "motivo")) + "</p>");
+                }
+                ctx["diagrama"] = vistas;
             }
-            else ctx["diagrama"] = Diagrama.MontarDiagrama(dadosDiagrama, editarTextos);
+            else
+            {
+                var vistas = Diagrama.MontarDiagrama(dadosDiagrama, editarTextos);
+                foreach (var nome in new[] { "planta", "volumetria" })
+                {
+                    var vista = Dados.Dict(Dados.Exigir(dadosDiagrama, nome));
+                    if (Dados.Obter(vista, "imagem") is string imagem && imagem.Length > 0)
+                    {
+                        var uri = DataUriPng(baseDir, imagem, estrito).Valor;
+                        vistas[nome + "_svg"] = new Seguro($"""<img data-vista-diagrama="{nome}" style="width:100%;height:auto" alt="{nome} do projeto" src="{uri}">""");
+                    }
+                }
+                ctx["diagrama"] = vistas;
+            }
         }
 
         var revisoes = Dados.Obter(d, "_textos_da_revisao") as IReadOnlyDictionary<string, object?> ?? new Dictionary<string, object?>();
         var textos = editarTextos || revisoes.Count > 0 ? new TextosDoModelo(revisoes) : null;
         var fonte = NovasLinhas(m.Html);
+        if (op.Instrucoes)
+            fonte = fonte.Replace("Ele é desenhado pelo gerador a partir dos rótulos do JSON: não é cópia do projeto e não tem escala.",
+                "A vista superior segue a situação e a implantação da prancha. A volumetria mostra os níveis do terreno e dos acessos observados nos cortes, com a forma e as alturas das fachadas.")
+                .Replace("A nota deve dizer que o esquema não representa a implantação real.",
+                    "Identifique na nota as pranchas usadas e as limitações do perfil natural ou projetado.");
         if (editarTextos)
             fonte = fonte.Replace("{{ a.situacao|pill_vao }}", """
                 {% if a._situacao_nominal %}{{ a._situacao_nominal|pill_vao }}{% if a._situacao_tecnica %} {{ a._situacao_tecnica|pill }}{% endif %}{% else %}{{ a.situacao|pill_vao }}{% endif %}{% if a._pendencia_nominal %}<div class="st">{{ a._pendencia_nominal }}</div>{% endif %}

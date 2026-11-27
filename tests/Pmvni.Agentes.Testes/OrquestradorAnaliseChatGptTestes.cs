@@ -9,6 +9,19 @@ namespace Pmvni.Agentes.Testes;
 
 public partial class OrquestradorTestes
 {
+    [Fact]
+    public void AnaliseChatGpt_ReconheceAMesmaAreaSerializadaSemIgnorarDivergencias()
+    {
+        var conferencia = JsonNode.Parse("""{"feicao":6130,"geometria":{"feicao_area_m2":2660.6266925285272}}""")!;
+        var pacote = JsonNode.Parse("""{"feicao":6130,"geometria":{"feicao_area_m2":2660.626692528527}}""")!;
+        Assert.True(OrquestradorAnalise.ConsultasQgisEquivalentes(pacote, conferencia));
+        pacote["feicao"] = 6131;
+        Assert.False(OrquestradorAnalise.ConsultasQgisEquivalentes(pacote, conferencia));
+        pacote["feicao"] = 6130;
+        pacote["geometria"]!["feicao_area_m2"] = 2660.626692528528;
+        Assert.False(OrquestradorAnalise.ConsultasQgisEquivalentes(pacote, conferencia));
+    }
+
     [Theory]
     [InlineData(300, 0)]
     [InlineData(10080, 0)]

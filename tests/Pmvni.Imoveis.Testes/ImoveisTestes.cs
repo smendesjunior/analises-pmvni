@@ -171,7 +171,7 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.Equal(0, MapaParaAnalise.Executar([MapaParaAnalise.Comando, pasta, feicao.ToString(), mapa], TextWriter.Null));
         using var ficha = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(mapa, "FICHA.JSON")));
         Assert.Equal(feicao, ficha.RootElement.GetProperty("feicao").GetInt32());
-        Assert.DoesNotContain("FULANO DE TAL EXEMPLO", File.ReadAllText(Path.Combine(mapa, "MAPA.SVG")));
+        Assert.Contains("FULANO DE TAL EXEMPLO", File.ReadAllText(Path.Combine(mapa, "MAPA.SVG")));
 
         var fallback = ConsultaParaAnalise.ConsultarArquivo(Path.Combine(pasta, "ausente"), pasta, entrada, CancellationToken.None);
         Assert.Equal("CONSULTADA", fallback["situacao"]!.GetValue<string>());
@@ -296,7 +296,8 @@ public class MapaLocalizacaoTestes : IDisposable
         var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { Candidato = true, ComDonos = false });
         Assert.Equal("CANDIDATE_POINT", m.Modo);
         Assert.Contains("stroke=\"#E22D28\" stroke-width=\"6\"", m.Svg); // identidade a confirmar: traço mais fino
-        Assert.DoesNotContain("FULANO", m.Svg);
+        Assert.Equal("FULANO DE TAL EXEMPLO", m.Ficha[0]);
+        Assert.Contains("A CONFIRMAR", m.Ficha);
         Assert.DoesNotContain("Beltrana", m.Svg);
         Assert.DoesNotContain(m.Dados, x => x.Rotulo is "Proprietário" or "Confrontantes");
         Assert.Throws<ArgumentException>(() => MapaLocalizacao.PorInscricao(b, "99999999999999"));
@@ -314,8 +315,8 @@ public class MapaLocalizacaoTestes : IDisposable
         var svg = File.ReadAllText(Path.Combine(saida, "MAPA.SVG"));
         Assert.Contains(">30,00 m<", svg);
         Assert.Contains("stroke=\"#E22D28\" stroke-width=\"6\"", svg);
-        Assert.DoesNotContain("FULANO", svg, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("BELTRANA", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(indice == 0 ? "FULANO" : "BELTRANA", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(indice == 0 ? "BELTRANA" : "FULANO", svg, StringComparison.OrdinalIgnoreCase);
         using var ficha = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(saida, "FICHA.JSON")));
         var raiz = ficha.RootElement;
         Assert.Equal(indice, raiz.GetProperty("feicao").GetInt32());
@@ -327,7 +328,7 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.True(ext.Length == 4 && ext[0] < ext[2] && ext[1] < ext[3]);
         Assert.All(raiz.GetProperty("legend").EnumerateArray(), x => Assert.True(x.TryGetProperty("texto", out _) && x.TryGetProperty("tipo", out _)));
         var loteNaLegenda = raiz.GetProperty("legend").EnumerateArray().Single(x => x.GetProperty("tipo").GetString() == "lote");
-        Assert.Equal("Lote candidato na base municipal", loteNaLegenda.GetProperty("texto").GetString());
+        Assert.Equal("Lote na base municipal", loteNaLegenda.GetProperty("texto").GetString());
         Assert.Contains(raiz.GetProperty("layers").EnumerateArray(), x => x.GetString() == "Lotes");
         var dados = raiz.GetProperty("dados").EnumerateArray().ToList();
         Assert.Contains(dados, x => x.GetProperty("rotulo").GetString() == "Inscrição" && x.GetProperty("valor").GetString() == inscricao);
