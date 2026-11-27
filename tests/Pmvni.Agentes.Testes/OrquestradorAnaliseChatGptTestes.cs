@@ -307,9 +307,24 @@ public partial class OrquestradorTestes
         var retomar = pedido with { Retomar = true, Texto = "", RotaCodex = rota == "openai" ? "codex-lb" : "openai" };
         using var prazo = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var recuperando = orq.ExecutarAsync(retomar, c.Progresso, prazo.Token);
-        while (File.ReadAllLines(rodadas).Length < 3) await Task.Delay(40, prazo.Token);
-        Assert.Empty(Directory.EnumerateFiles(pedido.Processo.Pasta, "*.rpmvni", SearchOption.AllDirectories));
-        File.Delete(invalida);
+        bool IniciouTerceiraRodada()
+        {
+            using var arquivo = new FileStream(rodadas, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var leitor = new StreamReader(arquivo);
+            return leitor.ReadLine() is not null && leitor.ReadLine() is not null && leitor.ReadLine() == "exec";
+        }
+        try
+        {
+            while (!IniciouTerceiraRodada()) await Task.Delay(40, prazo.Token);
+            Assert.Empty(Directory.EnumerateFiles(pedido.Processo.Pasta, "*.rpmvni", SearchOption.AllDirectories));
+            File.Delete(invalida);
+        }
+        catch
+        {
+            await prazo.CancelAsync();
+            await recuperando;
+            throw;
+        }
         var entrega = await recuperando;
         Assert.True(entrega.Situacao == "concluida", entrega.Mensagem);
         var tentativas = DiarioAnaliseChatGpt.Listar(Path.Combine(trabalho, DiarioAnaliseChatGpt.Pasta));
