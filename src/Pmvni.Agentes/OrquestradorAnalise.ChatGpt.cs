@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "1.0.4";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.0.5";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -140,7 +140,7 @@ public sealed partial class OrquestradorAnalise
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Sol baixo. Auditoria final integral em Sol médio. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID da sessão filha em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Sol baixo. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID da sessão filha em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Preencha o texto de cada chamada numerada em diagrama.chamadas com as cotas e índices das peças deste projeto.

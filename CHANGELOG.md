@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.0.3
+
+- A auditoria integral usa Sol com esforço baixo conforme o perfil publicado no plugin 1.0.5. A revisão continua cobrindo as 28 seções e todos os achados.
+
 ## 5.0.2
 
 - A análise conserva o progresso durante a recuperação de falhas e aceita o perfil Sol 6.1 equivalente. O monitor registra as sessões técnicas e a janela de cinco horas quando informada.
