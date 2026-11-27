@@ -74,6 +74,9 @@ public sealed partial class OrquestradorAnalise
         IProgress<ProgressoAnalise> progresso, CancellationToken ct, string pasta, DiarioAnaliseChatGpt diario)
     {
         var registro = pe.Registro;
+        var escolha = pe.Retomar ? registro.AcessoDaExecucao().RotaCodex ?? pe.RotaCodex : pe.RotaCodex;
+        var conexao = RotaCodex.Resolver(ModoAcesso.Conta, escolha, pe.Pecas.CodexHome);
+        if (conexao.Rota is not { } rota) return Falha(conexao.Recusa!);
         var plugin = pe.Pecas.AnaliseChatGpt!;
         var codex = pe.Pecas.Codex!;
         var pacote = Path.Combine(pasta, NomePacoteChatGpt);
@@ -143,10 +146,10 @@ public sealed partial class OrquestradorAnalise
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
 
-            string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--enable", "multi_agent_v2",
+            string[] args = ["exec", "--json", "--color", "never", .. (rota == "openai" ? new[] { "--ignore-user-config" } : Array.Empty<string>()), "--enable", "multi_agent_v2",
                 "--enable", "apps",
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
-                "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"",
+                .. RotaCodex.ArgumentosConta(rota),
                 "--output-last-message", resposta, "-"];
             void ValidarEntrega()
             {
@@ -223,8 +226,8 @@ public sealed partial class OrquestradorAnalise
             }
             if (!pronto)
             {
-                Informar("preparar_fontes", "Conferindo a conta ChatGPT.");
-                if (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex).ConfigureAwait(false))
+                Informar("preparar_fontes", "Conferindo a conta ChatGPT. " + RotaCodex.Descrever(conexao));
+                if (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex, rota).ConfigureAwait(false))
                     return Falha(SemContaChatGpt);
                 var plano = File.ReadAllText(Path.Combine(plugin, "references", "grupos.json"));
                 var planoSalvo = Path.Combine(pasta, "grupos.json");
@@ -232,12 +235,12 @@ public sealed partial class OrquestradorAnalise
                     return Falha("O plano do plugin mudou. Inicie uma nova análise.");
                 GravarJsonChatGpt(planoSalvo, plano);
                 Iniciou(pe, inicio, codex, [codex, "exec"]);
-                registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = "openai"; });
+                registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = rota; });
                 Informar("analisar_grupos", "O plugin está executando a análise e a auditoria no Codex.");
-                await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct).ConfigureAwait(false);
+                await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct, rota).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
                 using var acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token);
+                var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token, rota);
                 int codigo;
                 var errosDeEntrega = new HashSet<string>();
                 try
@@ -299,7 +302,7 @@ public sealed partial class OrquestradorAnalise
                     acompanhamento.Cancel();
                     await observar.ConfigureAwait(false);
                     diario.Arquivos(pasta);
-                    await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None).ConfigureAwait(false);
+                    await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None, rota).ConfigureAwait(false);
                 }
                 ct.ThrowIfCancellationRequested();
                 if (!pronto)
@@ -320,11 +323,11 @@ public sealed partial class OrquestradorAnalise
     internal const string SemContaChatGpt = "Entre no Codex com sua conta ChatGPT e tente novamente. Esta análise usa a cota da conta ChatGPT.";
 
     internal static async Task<bool> ContaChatGptConfirmadaAsync(Pecas pecas, string pasta, CancellationToken ct,
-        Action<IDictionary<string, string?>>? ambiente = null)
+        Action<IDictionary<string, string?>>? ambiente = null, string rota = "openai")
     {
         if (pecas.Codex is null) return false;
         var acesso = await ExecucaoProcesso.RodarAsync(pecas.Codex,
-            ["-c", "forced_login_method=\"chatgpt\"", "-c", "model_provider=\"openai\"", "login", "status"],
+            [.. RotaCodex.ArgumentosConta(rota), "login", "status"],
             pasta, ambiente ?? (env => LimparAmbienteChatGpt(env, pecas.CodexHome)),
             TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
         return acesso.Codigo == 0 && acesso.Saida.Split('\n')

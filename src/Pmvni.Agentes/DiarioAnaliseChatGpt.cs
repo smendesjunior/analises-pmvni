@@ -200,11 +200,11 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         }
     }
 
-    public async Task MedirAsync(string exe, string pasta, Action<IDictionary<string,string?>> ambiente, string fase, CancellationToken ct)
+    public async Task MedirAsync(string exe, string pasta, Action<IDictionary<string,string?>> ambiente, string fase, CancellationToken ct, string rota = "openai")
     {
         try
         {
-            var amostra = await AmostraDaConta.ConsultarAsync(exe,pasta,ambiente,ct).ConfigureAwait(false);
+            var amostra = await AmostraDaConta.ConsultarAsync(exe,pasta,ambiente,ct,rota).ConfigureAwait(false);
             lock (trava)
             {
                 if (fase == "inicial") consumo.Inicial = amostra;
@@ -234,7 +234,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         }
     }
 
-    public async Task AcompanharAsync(string exe,string pasta,Action<IDictionary<string,string?>> ambiente,CancellationToken ct)
+    public async Task AcompanharAsync(string exe,string pasta,Action<IDictionary<string,string?>> ambiente,CancellationToken ct, string rota = "openai")
     {
         var proxima = DateTimeOffset.UtcNow.AddMinutes(1);
         try
@@ -244,7 +244,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
                 Arquivos(pasta);
                 if (DateTimeOffset.UtcNow >= proxima)
                 {
-                    await MedirAsync(exe,pasta,ambiente,"intermediária",ct).ConfigureAwait(false);
+                    await MedirAsync(exe,pasta,ambiente,"intermediária",ct,rota).ConfigureAwait(false);
                     proxima = DateTimeOffset.UtcNow.AddMinutes(1);
                 }
                 await Task.Delay(2000,ct).ConfigureAwait(false);

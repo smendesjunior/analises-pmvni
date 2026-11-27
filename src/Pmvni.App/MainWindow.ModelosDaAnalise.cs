@@ -61,7 +61,7 @@ public sealed partial class MainWindow
         : ajustes.Agentes[Provedor.Claude].Modo == ModoAcesso.Chave ? FonteIa.AnthropicApi : FonteIa.ClaudeCode;
 
     RotaResolvida ConexaoCodexDoComputador() =>
-        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, "herdar", pecasAgentes.CodexHome);
+        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecasAgentes.CodexHome);
 
     bool UsaCatalogoIndicativoDoCodex(string rota) => rota == "codex" && ConexaoCodexDoComputador().Rota == "codex-lb";
 

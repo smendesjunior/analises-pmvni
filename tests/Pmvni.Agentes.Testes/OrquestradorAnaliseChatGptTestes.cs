@@ -153,8 +153,10 @@ public partial class OrquestradorTestes
         Assert.Empty(Directory.EnumerateFiles(anterior));
     }
 
-    [Fact]
-    public async Task AnaliseChatGpt_SessaoUnicaCancelaRetomaEImportaSomentePacoteValido()
+    [Theory]
+    [InlineData("openai")]
+    [InlineData("codex-lb")]
+    public async Task AnaliseChatGpt_SessaoUnicaCancelaRetomaEImportaSomentePacoteValido(string rota)
     {
         using var c = new Cena("analise-chatgpt-rodadas", "ok", Provedor.ChatGpt);
         var skill = Directory.CreateDirectory(Path.Combine(c.Pasta, "analise-chatgpt")).FullName;
@@ -210,11 +212,11 @@ public partial class OrquestradorTestes
         var arquivoCenario = Path.Combine(c.Pasta, "cenario-plugin.json");
         File.WriteAllText(arquivoCenario, JsonSerializer.Serialize(new
         {
-            analise_chatgpt = new { pacote = recebido, pausa = bloqueio, montagem_invalida = invalida, rodadas, grupos }
+            analise_chatgpt = new { pacote = recebido, rota, pausa = bloqueio, montagem_invalida = invalida, rodadas, grupos }
         }));
         var pedido = c.Pedido(Provedor.ChatGpt) with
         {
-            UsarAnaliseChatGpt = true,
+            UsarAnaliseChatGpt = true, RotaCodex = rota,
             Pecas = c.Pecas with { AnaliseChatGpt = skill, VersaoAnaliseChatGpt = OrquestradorAnalise.VersaoMinimaAnaliseChatGpt, Node = c.Pecas.Codex }
         };
         var orq = new OrquestradorAnalise { AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = arquivoCenario } };
@@ -231,7 +233,8 @@ public partial class OrquestradorTestes
         var trabalho = OrquestradorAnalise.PastaAnaliseChatGpt(pedido.RaizDados, pedido.Processo.Pasta, pedido.Registro.Pasta);
         File.Delete(bloqueio);
         File.WriteAllText(invalida, "recusar");
-        var retomar = pedido with { Retomar = true, Texto = "" };
+        Assert.Equal(rota, pedido.Registro.AcessoDaExecucao().RotaCodex);
+        var retomar = pedido with { Retomar = true, Texto = "", RotaCodex = rota == "openai" ? "codex-lb" : "openai" };
         var falhou = await orq.ExecutarAsync(retomar, c.Progresso, CancellationToken.None);
         Assert.Equal("falhou", falhou.Situacao);
         Assert.Empty(Directory.EnumerateFiles(pedido.Processo.Pasta, "*.rpmvni", SearchOption.AllDirectories));

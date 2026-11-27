@@ -180,6 +180,7 @@ public sealed partial class MainWindow
             p.TextoProfissionalSalvo.Text = "Dados salvos. Valem a partir do próximo despacho e relatório.";
         };
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
+        AoEscolher(p.CaixaRotaCodex, valor => ajustes.RotaCodex = (string)valor);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();
         p.BotaoCopiarVersoes.Click += (_, _) => { AreaTransferencia.Copiar(p.TextoVersoes.Text); ToolTipService.SetToolTip(p.BotaoCopiarVersoes, "Diagnóstico copiado."); Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer.FromElement(p.BotaoCopiarVersoes)?.RaiseNotificationEvent(Microsoft.UI.Xaml.Automation.Peers.AutomationNotificationKind.ActionCompleted, Microsoft.UI.Xaml.Automation.Peers.AutomationNotificationProcessing.ImportantMostRecent, "Diagnóstico copiado.", "copiado"); p.BotaoCopiarVersoes.Content = "Copiado"; };
@@ -274,6 +275,7 @@ public sealed partial class MainWindow
             p.AlternarAbrirPdf.IsOn = ajustes.DespachoAbrirPdf;
             p.AlternarDetectarAcompanhamento.IsOn = ajustes.AcompanhamentoDetectar;
             p.AlternarConfirmarCancelar.IsOn = ajustes.ConfirmarCancelar;
+            Escolher(p.CaixaRotaCodex, ajustes.RotaCodex);
             p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;
             p.AlternarAtualizarSozinho.IsOn = ajustes.AtualizarAutomaticamente;
             p.CaixaPedidoPadrao.Text = ajustes.PedidoPadrao;

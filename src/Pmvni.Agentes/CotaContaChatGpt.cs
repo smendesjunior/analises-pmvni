@@ -28,13 +28,14 @@ internal sealed record AmostraDaConta(DateTimeOffset Hora, string? Conta, string
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(conta))), limite["planType"]?.ToString(), janelas.ToArray());
     }
 
-    internal static async Task<AmostraDaConta> ConsultarAsync(string exe, string pasta, Action<IDictionary<string,string?>> ambiente, CancellationToken ct)
+    internal static async Task<AmostraDaConta> ConsultarAsync(string exe, string pasta, Action<IDictionary<string,string?>> ambiente, CancellationToken ct, string rota = "openai")
     {
         using var prazo = CancellationTokenSource.CreateLinkedTokenSource(ct);
         prazo.CancelAfter(TimeSpan.FromSeconds(6));
         var inicio = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = pasta,
             RedirectStandardInput = true, RedirectStandardOutput = true, StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8 };
-        foreach (var arg in new[] { "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"", "app-server" }) inicio.ArgumentList.Add(arg);
+        foreach (var arg in RotaCodex.ArgumentosConta(rota)) inicio.ArgumentList.Add(arg);
+        inicio.ArgumentList.Add("app-server");
         ambiente(inicio.Environment);
         using var servidor = ProcessoInterno.Iniciar(inicio);
         using var cancelar = prazo.Token.Register(() => {

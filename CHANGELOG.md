@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.0.1
+
+- Em Ajustes › Inteligência artificial › Novo relatório, escolha entre OpenAI direta, Codex-LB e a configuração do Codex deste PC. A análise registra a rota usada e a conserva ao retomar.
+
 ## 4.7.11
 
 - O cartão Consumo mostra as cotas de 5 horas e semanal. O Editor reconhece cada janela pela duração que a conta informa, registra as duas quando disponíveis e identifica as janelas sem medição.

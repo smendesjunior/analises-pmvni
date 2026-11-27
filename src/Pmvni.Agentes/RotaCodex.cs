@@ -13,6 +13,9 @@ public static class RotaCodex
     /// <summary>A variável com que o editor declara ao <c>executar_analise_62.py</c> a rota das sessões técnicas: <c>openai</c> ou <c>codex-lb</c>.</summary>
     public const string Variavel = "PMVNI_ANALISE_ROTA_CODEX";
 
+    internal static string[] ArgumentosConta(string rota) =>
+        ["-c", $"model_provider=\"{rota}\"", "-c", "forced_login_method=\"chatgpt\""];
+
     static readonly string[] Aceitas = ["openai", "codex-lb"];
 
     public static RotaResolvida Resolver(ModoAcesso modo, string? escolhida, string? codexHome)

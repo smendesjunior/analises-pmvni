@@ -54,6 +54,11 @@ static class Program
 
     static int AnaliseChatGpt(string[] args, JsonObject dados)
     {
+        if (dados["rota"]?.ToString() is { } rota && !args.Contains("--version"))
+        {
+            if (!args.Contains($"model_provider=\"{rota}\"")) return Uso();
+            if (args[0] == "exec" && args.Contains("--ignore-user-config") != (rota == "openai")) return Uso();
+        }
         if (args.TakeLast(2).SequenceEqual(new[] { "login", "status" })) return LoginStatus();
         if (args is ["--version"]) return Versao();
         if (args.LastOrDefault() == "app-server")

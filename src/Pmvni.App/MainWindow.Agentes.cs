@@ -319,9 +319,10 @@ public sealed partial class MainWindow
             var pecas = await LerPecasAsync();
             if (!RoteiroLegado && p == Provedor.ChatGpt)
             {
-                var motivo = OrquestradorAnalise.MotivoAnaliseChatGpt(pecas);
+                var conexao = RotaCodex.Resolver(ModoAcesso.Conta, ajustes.RotaCodex, pecas.CodexHome);
+                var motivo = conexao.Recusa ?? OrquestradorAnalise.MotivoAnaliseChatGpt(pecas);
                 resultado = new SituacaoProvedor(motivo ?? (await OrquestradorAnalise.ContaChatGptConfirmadaAsync(
-                    pecas, PastaDados.Raiz, CancellationToken.None) ? "Conta ChatGPT confirmada para esta análise." : OrquestradorAnalise.SemContaChatGpt), []);
+                    pecas, PastaDados.Raiz, CancellationToken.None, rota: conexao.Rota!) ? "Conta ChatGPT confirmada para esta análise." : OrquestradorAnalise.SemContaChatGpt), []);
             }
             else if (!RoteiroLegado && p == Provedor.Claude)
                 resultado = new SituacaoProvedor(pecas.Claude is null ? "Claude Code não encontrado." : "Claude Code encontrado para revisão pontual.", []);

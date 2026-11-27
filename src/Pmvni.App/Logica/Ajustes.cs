@@ -196,6 +196,8 @@ public sealed class Ajustes
     /// <summary>Alvo da pesquisa ao abrir uma lei: <c>lei</c> (Nesta lei) ou <c>todas</c>.</summary>
     public string LegislacaoEscopo { get; set; } = "lei";
     string pedidoPadrao = "";
+    public string RotaCodex { get; set; } = "openai";
+
     /// <summary>O texto que já vem na caixa do Novo relatório (até <see cref="MaxPedidoPadrao"/> caracteres).</summary>
     public string PedidoPadrao
     {
@@ -267,6 +269,7 @@ public sealed class Ajustes
         MostrarCertificadoCarimbo = p.MostrarCertificadoCarimbo;
         DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
+        RotaCodex = "openai";
         PedidoPadrao = "";
         ConfirmarCancelar = p.ConfirmarCancelar;
         IaRevisaoFonte = p.IaRevisaoFonte;
@@ -340,7 +343,7 @@ public sealed class Ajustes
         : string.IsNullOrWhiteSpace(PastaKit) ? PastaKitPadrao : PastaKit;
 
     /// <summary>Chaves que o app deixou de usar de propósito: saem do arquivo na próxima gravação (as desconhecidas, não).</summary>
-    static readonly HashSet<string> Aposentadas = new(StringComparer.Ordinal) { "pasta_legislacao", "rota_codex" };
+    static readonly HashSet<string> Aposentadas = new(StringComparer.Ordinal) { "pasta_legislacao" };
 
     public static Ajustes Carregar(string raizDados)
     {
@@ -494,6 +497,7 @@ public sealed class Ajustes
             ["profissional_registro"] = ProfissionalRegistro,
             ["profissional_matricula"] = ProfissionalMatricula,
             ["legislacao_escopo"] = LegislacaoEscopo,
+            ["rota_codex"] = RotaCodex,
             ["pedido_padrao"] = PedidoPadrao,
             ["confirmar_cancelar"] = ConfirmarCancelar,
             // Modelos de IA: só o nome do modelo e o nível de cada fonte. Nenhuma chave nem token vem para este arquivo.
@@ -581,6 +585,7 @@ public sealed class Ajustes
         a.ProfissionalRegistro = Texto(j, "profissional_registro");
         a.ProfissionalMatricula = Texto(j, "profissional_matricula");
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
+        a.RotaCodex = Escolha("rota_codex", ["openai", "codex-lb", "herdar"], a.RotaCodex);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
         // ia_ajuste_modelo/ia_ajuste_esforco (antes de 2026-11-17): só lidos, para migrar o Codex para ia_modelos; não são mais gravados.

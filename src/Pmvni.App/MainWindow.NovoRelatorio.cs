@@ -206,7 +206,7 @@ public sealed partial class MainWindow
 
     void IniciarNovoRelatorio()
     {
-        sessaoNR = new SessaoNovoRelatorio(DispatcherQueue.GetForCurrentThread(), () => Orquestrador, () => pecasAgentes, p => ajustes.Agentes[p].Modo, PastaDados.Raiz, () => "herdar",
+        sessaoNR = new SessaoNovoRelatorio(DispatcherQueue.GetForCurrentThread(), () => Orquestrador, () => pecasAgentes, p => ajustes.Agentes[p].Modo, PastaDados.Raiz, () => ajustes.RotaCodex,
             DecidirAsync);
         sessaoNR.Atualizada += e => { if (ReferenceEquals(e, execucaoMostrada)) RenderizarExecucao(e); };
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
@@ -344,7 +344,7 @@ public sealed partial class MainWindow
         linha.Visibility = Visibility.Collapsed;
         if (!RoteiroLegado) return;
         var pecas = pecasAgentes;
-        if (RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, "herdar", pecas.CodexHome).Rota != "codex-lb") return;
+        if (RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecas.CodexHome).Rota != "codex-lb") return;
         var scripts = pecas.Analise62 is null ? null : Directory.GetParent(pecas.Analise62)?.Parent?.Parent;
         var consulta = scripts is null ? null : Path.Combine(scripts.FullName, "orcamento_lb.py");
         var texto = "Leitura de cota do Codex-LB indisponível.";
