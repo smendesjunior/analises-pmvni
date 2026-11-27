@@ -166,6 +166,8 @@ public static class Importador
         }
 
         Reescrever(documento["localizacao"]);
+        Reescrever(documento["diagrama"]?["planta"]);
+        Reescrever(documento["diagrama"]?["volumetria"]);
         if (documento["figuras"] is JsonArray figuras) foreach (var f in figuras) Reescrever(f);
 
         if (erros.Count > 0) throw new ImportacaoRecusadaException(erros) { Sha256 = shaRecebido };

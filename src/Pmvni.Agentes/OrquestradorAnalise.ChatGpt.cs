@@ -144,7 +144,7 @@ public sealed partial class OrquestradorAnalise
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
 
             string[] args = ["exec", "--json", "--color", "never", "--ignore-user-config", "--enable", "multi_agent_v2",
-                "-c", "plugins.\"brilliant@openai-curated-remote\".enabled=true",
+                "--enable", "apps",
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 "-c", "model_provider=\"openai\"", "-c", "forced_login_method=\"chatgpt\"",
                 "--output-last-message", resposta, "-"];

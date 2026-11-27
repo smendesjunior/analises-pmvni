@@ -124,15 +124,6 @@ public partial class OrquestradorTestes
         var exemplo = Ambiente.Corpus("curto.json");
         var dados = JsonFiel.Ler(File.ReadAllBytes(exemplo));
         dados["capa"]!["processo"] = "0001/2099";
-        var lacuna = new JsonObject { ["motivo"] = "Base indisponível na execução fictícia.", ["evidencia"] = "Consulta fictícia." };
-        dados["localizacao"] = new JsonObject
-        {
-            ["situacao"] = "A_CONFIRMAR", ["texto"] = "A consulta fictícia registrou indisponibilidade.",
-            ["imagem"] = "img/mapa.png", ["sem_mapa"] = lacuna.DeepClone(),
-            ["dados"] = new JsonArray(new[] { "Inscrição", "Lote", "Ruas" }.Select(rotulo =>
-                new JsonObject { ["rotulo"] = rotulo, ["valor"] = "Indisponível" }).ToArray())
-        };
-        dados["diagrama"] = new JsonObject { ["sem_calculo"] = lacuna };
         Pacote.Gravar(recebido, Importador.Importar(JsonFiel.Escrever(dados), exemplo, modelo, ContextoUsuario.Atual()), null);
 
         var outroProcesso = c.Processo with { Numero = 2 };
@@ -202,6 +193,15 @@ public partial class OrquestradorTestes
         var exemplo = Ambiente.Corpus("curto.json");
         var dados = JsonFiel.Ler(File.ReadAllBytes(exemplo));
         dados["capa"]!["processo"] = "0001/2099";
+        var lacuna = new JsonObject { ["motivo"] = "Base indisponível na execução fictícia.", ["evidencia"] = "Consulta fictícia." };
+        dados["localizacao"] = new JsonObject
+        {
+            ["situacao"] = "A_CONFIRMAR", ["texto"] = "A consulta fictícia registrou indisponibilidade.",
+            ["imagem"] = "img/mapa.png", ["sem_mapa"] = lacuna.DeepClone(),
+            ["dados"] = new JsonArray(new[] { "Inscrição", "Lote", "Ruas" }.Select(rotulo =>
+                new JsonObject { ["rotulo"] = rotulo, ["valor"] = "Indisponível" }).ToArray())
+        };
+        dados["diagrama"] = new JsonObject { ["sem_calculo"] = lacuna };
         Pacote.Gravar(recebido, Importador.Importar(JsonFiel.Escrever(dados), exemplo, modelo, ContextoUsuario.Atual()), null);
         var bloqueio = Path.Combine(c.Pasta, "pausar.txt");
         var invalida = Path.Combine(c.Pasta, "invalidar.txt");
