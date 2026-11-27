@@ -104,7 +104,11 @@ public sealed partial class MainWindow
             NR.MostrarResumo(false, null, [], "ChatGPT");
             NR.MonitorChatGpt = null;
             d["progresso_plano_chatgpt"] = semPlano && parcial && completo && entregue;
-            d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca && semPlano && parcial && completo && entregue;
+            MostrarAvisoDeRetomada(new InfoBar { Severity = InfoBarSeverity.Warning, Title = "Análise interrompida", Message = "Teste de retomada" },
+                new Pmvni.Revisao.Processo("teste", "teste", 1, 2099, null), "registro-teste");
+            var acaoVisivel = AvisoDoModulo.IsOpen && AvisoDoModulo.ActionButton is Button { Content: "Retomar análise", IsEnabled: true, Visibility: Visibility.Visible };
+            d["retomar_no_aviso"] = acaoVisivel;
+            d["ok"] = acaoVisivel && botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca && semPlano && parcial && completo && entregue;
             if (!(bool)d["ok"]!) d["erro"] = "Confira as rotas de análise disponíveis em Novo relatório e Ajustes.";
         }
         catch (Exception e)

@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "1.0.5";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.0.6";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -133,14 +133,14 @@ public sealed partial class OrquestradorAnalise
                 Em todas as etapas e grupos, isole a falha por peça, fonte ou verificação. Registre o motivo, a evidência disponível e o que depende dela.
                 Execute as verificações independentes e retome as pendentes a partir dos arquivos desta execução. Nunca certifique uma verificação que falhou.
                 Apresente as contas possíveis a partir dos dados declarados mesmo quando a conclusão urbanística depende de confirmação.
-                Use os recortes como evidências para compor as duas vistas no Brilliant Design, conforme references/figuras-brilliant.md. Registre os canvases, fontes, perfil efetivo e os hashes das três imagens em conferencia.json. Registre pendências gráficas enquanto prossegue com as verificações independentes.
+                O Terra 6.1 médio desenha o mapa, a implantação e a volumetria a partir das peças, conforme references/composicao-grafica.md. Para converter cada desenho SVG em PNG use "{Environment.ProcessPath}" --rasterizar-vista "vista.svg" "vista.png". O Terra abre os PNGs na largura final, compara com as fontes, corrige e registra em conferencia.json geometrias, fontes, perfil efetivo e hashes. Registre pendências gráficas enquanto prossegue com as verificações independentes.
                 A entrada é entrada-editor.json nesta pasta. Esta execução independente tem ID {idExecucao}.
                 {(pe.Retomar ? "Retomada explícita: aproveite exclusivamente registros produzidos nesta execução." : "Nova análise: comece do zero. Abra as peças originais e faça todas as verificações novamente.")}
                 Use scripts/preparar-peca.mjs para reaproveitar textos, páginas e recortes mecânicos das mesmas peças por hash, inclusive em uma nova tentativa. Cada grupo confirma no original as evidências decisivas. Nova análise técnica é independente dos achados e conclusões de outras execuções.
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Sol baixo. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID da sessão filha em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Terra médio. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID da sessão filha em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Preencha o texto de cada chamada numerada em diagrama.chamadas com as cotas e índices das peças deste projeto.
@@ -152,7 +152,7 @@ public sealed partial class OrquestradorAnalise
                 Mesmo em FALTA COMPROVAR, apresente o que a prancha informa e identifique precisamente a cota ou índice ausente.
                 Se nenhum valor for legível, indique a peça consultada e o dado que falta, sem estimar. Confira as seis chamadas na auditoria.
                 Componha a implantação e a volumetria com as pranchas desta execução. Incorpore os PNGs conferidos nas duas vistas.
-                Para uma feição selecionada, gere a referência cartográfica local antes da composição no Brilliant:
+                Para uma feição selecionada, gere a referência cartográfica local antes do desenho pelo Terra:
                 "{Environment.ProcessPath}" --mapa-qgis "<pasta da base consultada>" <índice da feição em Lotes> "mapa-nativo" --completo
                 Acrescente --confirmado somente para resultado CONFIRMADO. Registre o sha256_png de FICHA.JSON em consulta_qgis.sha256_png.
                 Em localizacao.imagem e na legenda, use o mapa composto e os símbolos correspondentes. Na revisão integral registre o hash final em mapa_sha256.
@@ -176,7 +176,7 @@ public sealed partial class OrquestradorAnalise
                     conferenciaAtual["auditoria"]?["id_execucao"]?.ToString() != idExecucao)
                     throw new InvalidDataException("A conferência não identifica todos os grupos e a auditoria como produzidos nesta execução.");
                 var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
-                ConferirFigurasBrilliant(aberto.Conteudo, conferenciaAtual, pasta);
+                ConferirFigurasTerra(aberto.Conteudo, conferenciaAtual, pasta);
                 var revisao = conferenciaAtual["revisao_integral"];
                 if (revisao?["situacao"]?.ToString() == "concluida" && revisao["dados_sha256"]?.ToString() is { Length: > 0 } hashAuditado &&
                     !string.Equals(hashAuditado, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(aberto.Conteudo.Recebido)), StringComparison.OrdinalIgnoreCase))
@@ -257,7 +257,7 @@ public sealed partial class OrquestradorAnalise
                     var anterior = File.ReadAllText(planoSalvo);
                     if (!PlanoCompativel(anterior, plano)) return Falha("As seções do plano mudaram. Confira a seleção de entrada.");
                     var matrizAnterior = Path.Combine(pasta, "matriz-evidencias.json");
-                    var copia = Path.Combine(pasta, "matriz-antes-perfis-1.0.4.json");
+                    var copia = Path.Combine(pasta, "matriz-antes-perfis-1.0.6.json");
                     if (!JsonNode.DeepEquals(JsonNode.Parse(anterior), JsonNode.Parse(plano)) && File.Exists(matrizAnterior) && !File.Exists(copia))
                         GravarJsonChatGpt(copia, File.ReadAllText(matrizAnterior));
                 }
@@ -418,7 +418,9 @@ public sealed partial class OrquestradorAnalise
 
     static bool MatrizConfirmaGrupo(JsonArray grupos, GrupoChatGpt esperado) => grupos.OfType<JsonObject>().Count(grupo =>
             grupo["id"] is JsonValue id && id.TryGetValue<int>(out var numero) && numero == esperado.Id &&
-            grupo["modelo"]?.ToString() == esperado.Modelo && (grupo["esforco"]?.ToString() == esperado.Esforco || esperado.Modelo == "gpt-6.2-sol" && esperado.Esforco == "low" && grupo["esforco"]?.ToString() == "medium") &&
+            (grupo["modelo"]?.ToString() == esperado.Modelo && grupo["esforco"]?.ToString() == esperado.Esforco ||
+             PerfilSolMigravel(grupo, esperado.Modelo, esperado.Esforco) && grupo["perfil_efetivo"]?["modelo"]?.ToString() is ("gpt-6.2-sol" or "gpt-6.1-sol") &&
+             grupo["perfil_efetivo"]?["esforco"]?.ToString() == grupo["esforco"]?.ToString() && !string.IsNullOrWhiteSpace(grupo["perfil_efetivo"]?["sessao"]?.ToString())) &&
             grupo["auditoria"]?.ToString() == "conferida" && grupo["secoes"] is JsonArray secoes &&
             secoes.Count == esperado.Secoes.Length &&
             esperado.Secoes.All(codigo => secoes.OfType<JsonObject>().Count(secao =>
@@ -495,7 +497,7 @@ public sealed partial class OrquestradorAnalise
         return (aberto, capa);
     }
 
-    internal static void ConferirFigurasBrilliant(ConteudoPacote pacote, JsonNode conferencia, string pasta)
+    internal static void ConferirFigurasTerra(ConteudoPacote pacote, JsonNode conferencia, string pasta)
     {
         var documento = pacote.Projeto.Documento;
         var registro = conferencia["grafica"];
@@ -510,15 +512,42 @@ public sealed partial class OrquestradorAnalise
             var vista = registro?[nome];
             var hash = vista?["sha256_png"]?.ToString();
             var imagem = painel?["imagem"]?.ToString();
-            if (!(registro?["modelo"]?.ToString() == "gpt-6.2-sol" || registro?["modelo"]?.ToString() == "gpt-6.1-sol" &&
-                registro["perfil_efetivo"]?["modelo"]?.ToString() == "gpt-6.1-sol" && registro["perfil_efetivo"]?["esforco"]?.ToString() == "low" &&
-                !string.IsNullOrWhiteSpace(registro["perfil_efetivo"]?["sessao"]?.ToString()) && !string.IsNullOrWhiteSpace(registro["perfil_efetivo"]?["fonte"]?.ToString())) || registro?["esforco"]?.ToString() != "low" ||
-                !Uri.TryCreate(vista?["canvas"]?.ToString(), UriKind.Absolute, out var canvas) ||
-                canvas.Scheme != Uri.UriSchemeHttps || canvas.Host != "brilliant.design" || canvas.AbsolutePath != "/playground" ||
-                !canvas.Query.StartsWith("?seed=", StringComparison.Ordinal) || canvas.Query.Length <= 6 ||
-                hash?.Length != 64 || imagem != $"assets/{hash}.png" || !pacote.Assets.ContainsKey(imagem))
-                throw new InvalidDataException($"Composição gráfica pendente: confira o canvas e o PNG de {nome} no Brilliant Design.");
+            var perfil = registro?["perfil_efetivo"];
+            var visual = vista?["conferencia_visual"];
+            if (registro?["modelo"]?.ToString() != "gpt-6.1-terra" || registro["esforco"]?.ToString() != "medium" ||
+                perfil?["modelo"]?.ToString() != "gpt-6.1-terra" || perfil["esforco"]?.ToString() != "medium" ||
+                !Guid.TryParse(perfil["sessao"]?.ToString(), out _) || string.IsNullOrWhiteSpace(perfil["fonte"]?.ToString()) ||
+                vista?["origem"]?.ToString() != "terra_vetorial" || vista["situacao"]?.ToString() != "conferida" ||
+                string.IsNullOrWhiteSpace(visual?["comparacao_fontes"]?.ToString()) || string.IsNullOrWhiteSpace(visual?["legibilidade"]?.ToString()) ||
+                visual?["largura_mm"] is not JsonValue medida || !medida.TryGetValue<double>(out var largura) || !double.IsFinite(largura) || largura <= 0 ||
+                hash?.Length != 64 || imagem != $"assets/{hash}.png" || !pacote.Assets.TryGetValue(imagem, out var bytes) ||
+                Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) != hash ||
+                vista["fontes"] is not JsonArray { Count: > 0 } fontes)
+                throw new InvalidDataException($"Composição gráfica pendente: confira o PNG de {nome}, as fontes e a revisão visual pelo Terra.");
+            ConferirArquivoDaVista(pasta, vista["arquivo_png"], hash);
+            foreach (var fonte in fontes.Prepend(vista["geometria"]))
+            {
+                var hashFonte = fonte?["sha256"]?.ToString();
+                if (hashFonte == hash) throw new InvalidDataException($"A fonte de {nome} repete o PNG final.");
+                ConferirArquivoDaVista(pasta, fonte?["arquivo"], hashFonte);
+            }
         }
+    }
+
+    static void ConferirArquivoDaVista(string pasta, JsonNode? nome, string? hash)
+    {
+        var relativo = nome?.ToString();
+        if (string.IsNullOrWhiteSpace(relativo) || Path.IsPathRooted(relativo) ||
+            relativo.Split('/', (char)92).Any(parte => parte is "" or "." or "..") || hash?.Length != 64)
+            throw new InvalidDataException("A prova gráfica precisa identificar um arquivo relativo da execução e seu SHA-256.");
+        var arquivo = new FileInfo(Path.Combine(pasta, relativo));
+        for (FileSystemInfo? item = arquivo; item is not null && !string.Equals(item.FullName, Path.GetFullPath(pasta), StringComparison.OrdinalIgnoreCase);
+             item = item is FileInfo f ? f.Directory : ((DirectoryInfo)item).Parent)
+            if (item.LinkTarget is not null) throw new InvalidDataException("A prova gráfica deve estar na pasta da execução.");
+        if (!arquivo.Exists) throw new InvalidDataException($"Arquivo da prova gráfica ausente: {relativo}.");
+        using var leitura = arquivo.OpenRead();
+        if (Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(leitura)) != hash)
+            throw new InvalidDataException($"Arquivo da prova gráfica divergente: {relativo}.");
     }
 
     internal static bool ConsultasQgisEquivalentes(JsonNode pacote, JsonNode conferencia)
@@ -704,18 +733,24 @@ public sealed partial class OrquestradorAnalise
         return porPerfil;
     }
 
-    static bool PlanoCompativel(string salvo, string atual)
+    static bool PerfilSolMigravel(JsonObject grupo, string? modelo, string? esforco) =>
+        modelo == "gpt-6.1-terra" && esforco == "medium" && grupo["id"]?.ToString() is ("4" or "6" or "7" or "10" or "13" or "14" or "15") &&
+        grupo["modelo"]?.ToString() == "gpt-6.2-sol" && (grupo["esforco"]?.ToString() is "low" or "medium" ||
+            grupo["id"]?.ToString() == "15" && grupo["esforco"]?.ToString() == "high");
+
+    internal static bool PlanoCompativel(string salvo, string atual)
     {
         var anterior = JsonNode.Parse(salvo) as JsonArray;
         var novo = JsonNode.Parse(atual) as JsonArray;
         if (anterior is null || novo is null) return false;
         if (JsonNode.DeepEquals(anterior, novo)) return true;
         foreach (var grupo in anterior.OfType<JsonObject>())
-            if (grupo["modelo"]?.ToString() == "gpt-6.2-sol" &&
-                (grupo["esforco"]?.ToString() == "medium" || grupo["id"]?.ToString() == "15" && grupo["esforco"]?.ToString() == "high") &&
-                novo.OfType<JsonObject>().FirstOrDefault(g => g["id"]?.ToString() == grupo["id"]?.ToString()) is { } destino &&
-                destino["esforco"]?.ToString() is "low" or "medium")
-                grupo["esforco"] = destino["esforco"]?.DeepClone();
+        {
+            var destino = novo.OfType<JsonObject>().FirstOrDefault(g => g["id"]?.ToString() == grupo["id"]?.ToString());
+            if (destino is null || !PerfilSolMigravel(grupo, destino["modelo"]?.ToString(), destino["esforco"]?.ToString())) continue;
+            grupo["modelo"] = destino["modelo"]?.DeepClone();
+            grupo["esforco"] = destino["esforco"]?.DeepClone();
+        }
         return JsonNode.DeepEquals(anterior, novo);
     }
 

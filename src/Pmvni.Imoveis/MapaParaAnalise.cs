@@ -44,6 +44,22 @@ public static class MapaParaAnalise
         return saida.ToArray();
     }
 
+    public static void RasterizarVista(string entrada, string saida)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        if (!string.Equals(Path.GetExtension(entrada), ".svg", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(Path.GetExtension(saida), ".png", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Uso: --rasterizar-vista <desenho.svg> <imagem.png>");
+        var svg = Svg.SvgDocument.FromSvg<Svg.SvgDocument>(File.ReadAllText(entrada));
+        var tamanho = svg.GetDimensions();
+        if (!(tamanho.Width >= 1 && tamanho.Height >= 1 && tamanho.Width <= 8192 && tamanho.Height <= 8192 && tamanho.Width * tamanho.Height <= 32_000_000))
+            throw new InvalidDataException("Confira as dimensões em pixels do SVG.");
+        using var bitmap = svg.Draw();
+        using var png = new MemoryStream();
+        bitmap.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+        File.WriteAllBytes(saida, png.ToArray());
+    }
+
     public static int Executar(string[] args, TextWriter erros)
     {
         var opcoes = args.Skip(4).ToArray();

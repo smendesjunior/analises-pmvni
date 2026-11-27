@@ -10,6 +10,57 @@ namespace Pmvni.Agentes.Testes;
 public partial class OrquestradorTestes
 {
     [Fact]
+    public void AnaliseChatGpt_MigraPerfilSemAlterarCobertura()
+    {
+        const string antigo = """[{"id":4,"secoes":[5,23],"modelo":"gpt-6.2-sol","esforco":"low"}]""";
+        var atual = antigo.Replace("gpt-6.2-sol", "gpt-6.1-terra").Replace("low", "medium");
+        Assert.True(OrquestradorAnalise.PlanoCompativel(antigo, atual));
+        Assert.False(OrquestradorAnalise.PlanoCompativel(antigo, atual.Replace("23", "24")));
+        Assert.False(OrquestradorAnalise.PlanoCompativel(antigo.Replace("gpt-6.2-sol", "outro"), atual));
+    }
+
+    [Fact]
+    public void AnaliseChatGpt_ConfereTresVistasDoTerraComFontesPerfilEPng()
+    {
+        using var c = new Cena("vistas-terra", "ok", Provedor.ChatGpt);
+        var exemplo = Ambiente.Corpus("curto.json");
+        var pacote = Importador.Importar(File.ReadAllBytes(exemplo), exemplo, ModeloOficial.Carregar(), ContextoUsuario.Atual());
+        var bytes = ModeloOficial.LerArquivo("exemplo_mapa.png");
+        var png = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes));
+        var imagem = $"assets/{png}.png";
+        pacote = pacote with { Assets = new Dictionary<string, byte[]> { [imagem] = bytes } };
+        File.WriteAllBytes(Path.Combine(c.Pasta, "vista.png"), bytes);
+        File.WriteAllText(Path.Combine(c.Pasta, "geometria.svg"), "<svg/>");
+        File.WriteAllText(Path.Combine(c.Pasta, "prancha.txt"), "Cota do projeto");
+        object Fonte(string arquivo) => new { arquivo, sha256 = EstadoDisco.Ler(Path.Combine(c.Pasta, arquivo)).Sha256.ToLowerInvariant() };
+        var painel = JsonSerializer.SerializeToNode(new { origem = "terra_vetorial", situacao = "conferida",
+            arquivo_png = "vista.png", sha256_png = png, geometria = Fonte("geometria.svg"), fontes = new[] { Fonte("prancha.txt") },
+            conferencia_visual = new { comparacao_fontes = "Orientação e cota conferidas", legibilidade = "Cota legível", largura_mm = 83 } })!;
+        var grafica = JsonSerializer.SerializeToNode(new { modelo = "gpt-6.1-terra", esforco = "medium",
+            perfil_efetivo = new { modelo = "gpt-6.1-terra", esforco = "medium", sessao = Guid.NewGuid(), fonte = "turn_context" } })!;
+        var conferencia = new JsonObject { ["grafica"] = grafica };
+        var doc = pacote.Projeto.Documento;
+        doc["diagrama"] = new JsonObject();
+        foreach (var nome in new[] { "mapa", "planta", "volumetria" })
+        {
+            var vista = new JsonObject { ["imagem"] = imagem };
+            if (nome == "mapa") doc["localizacao"] = vista;
+            else doc["diagrama"]![nome] = vista;
+            grafica[nome] = painel.DeepClone();
+        }
+        void Conferir() => OrquestradorAnalise.ConferirFigurasTerra(pacote, conferencia, c.Pasta);
+        Conferir();
+        grafica["perfil_efetivo"]!["esforco"] = "low";
+        Assert.Throws<InvalidDataException>(Conferir);
+        grafica["perfil_efetivo"]!["esforco"] = "medium";
+        grafica["planta"]!["fontes"] = new JsonArray();
+        Assert.Throws<InvalidDataException>(Conferir);
+        grafica["planta"] = painel.DeepClone();
+        File.AppendAllText(Path.Combine(c.Pasta, "vista.png"), "alterado");
+        Assert.Throws<InvalidDataException>(Conferir);
+    }
+
+    [Fact]
     public void AnaliseChatGpt_ReconheceAMesmaAreaSerializadaSemIgnorarDivergencias()
     {
         var conferencia = JsonNode.Parse("""{"feicao":6130,"geometria":{"feicao_area_m2":2660.6266925285272}}""")!;

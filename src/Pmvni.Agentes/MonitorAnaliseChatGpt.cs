@@ -72,7 +72,8 @@ public sealed partial class OrquestradorAnalise
                 if (resultado?["evidencias"] is JsonArray { Count: > 0 } && resultado["secoes"] is JsonArray numeros)
                     foreach (var valor in numeros.OfType<JsonValue>())
                         if (valor.TryGetValue<int>(out var numero)) realizadas.Add(numero);
-                rodadas.Add(new(new(grupo.Id, grupo.Modelo, grupo.Esforco),
+                rodadas.Add(new(new(grupo.Id, confirmado ? registro?["perfil_efetivo"]?["modelo"]?.ToString() ?? grupo.Modelo : grupo.Modelo,
+                    confirmado ? registro?["esforco"]?.ToString() ?? grupo.Esforco : grupo.Esforco),
                     [new GrupoDoMonitorChatGpt(grupo.Id, grupo.Nome ?? $"Grupo {grupo.Id}", grupo.Secoes)], confirmado)
                 {
                     Plano = grupo.Secoes.Select(s => new PassoDoPlanoChatGpt(s, confirmado || realizadas.Contains(s) ? "concluida" : "pendente")).ToArray()

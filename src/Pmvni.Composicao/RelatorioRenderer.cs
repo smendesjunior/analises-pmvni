@@ -68,6 +68,8 @@ public static class RelatorioRenderer
         if (PythonTexto.Verdadeiro(loc))
         {
             var l = Localizacao.Agrupar(Dados.Dict(loc));
+            if (!l.ContainsKey("origem_grafica") && PythonTexto.Verdadeiro(Dados.Obter(loc, "grafica_brilliant")))
+                l["origem_grafica"] = "legado";
             l["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(loc, "imagem"), estrito);
             ctx["localizacao"] = l;
         }

@@ -1497,7 +1497,7 @@ public sealed partial class MainWindow
             if (RoteiroLegado && await Task.Run(() => ObjecaoPendenteDo(OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro), Provedor.ChatGpt)) is { } objecaoChatGpt)
             {
                 aviso.Message = FluxoNovoRelatorio.TextoRetomadaComObjecao(objecaoChatGpt);
-                if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
+                if (!PaginaNovoRelatorioVisivel) MostrarAvisoDeRetomada(aviso, processo, pend.Registro);
                 break;
             }
             // 2026-11-17 (pedido do usuário): pergunta na hora se retoma, e com qual IA. "Agora não" deixa o aviso com "Continuar a análise".
@@ -1508,7 +1508,7 @@ public sealed partial class MainWindow
             {
                 if (await ContinuarComOutraIaAsync(alternativa, processo, pend.Registro) is not null) continuarChatGpt = null;
             }
-            else if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
+            else if (!PaginaNovoRelatorioVisivel) MostrarAvisoDeRetomada(aviso, processo, pend.Registro);
             break;   // uma de cada vez: a próxima aparece na próxima abertura
         }
     }
@@ -1544,8 +1544,28 @@ public sealed partial class MainWindow
         NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Visible;
         aviso.IsOpen = true;
-        if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message);
+        if (!PaginaNovoRelatorioVisivel)
+        {
+            if (continuavelChatGpt) MostrarAvisoDeRetomada(aviso, e.Processo, e.Registro.Pasta);
+            else MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message);
+        }
         _ = AtualizarRemontagemTesteAsync(e);
+    }
+
+    void MostrarAvisoDeRetomada(InfoBar origem, Processo processo, string registro)
+    {
+        MostrarMensagem(origem.Severity, origem.Title, origem.Message);
+        var aviso = AvisoDoModulo;
+        var botao = new Button { Content = "Retomar análise" };
+        IconeDeAcao.SetGlifo(botao, Glifos.Executar);
+        Dicas.Aplicar(botao, "Retomar análise", $"Continuar a análise de {FluxoNovoRelatorio.Identificacao(processo)}.");
+        botao.Click += async (_, _) =>
+        {
+            botao.IsEnabled = false;
+            try { await TentarAsync(() => AbrirHistoricoAsync(processo, registro)); }
+            finally { botao.IsEnabled = true; }
+        };
+        aviso.ActionButton = botao;
     }
 
     bool remontandoTeste;

@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.0.4
+
+- O aviso de análise interrompida em Relatórios traz o botão **Retomar análise** e abre o registro do processo indicado.
+- O plugin 1.0.6 usa Terra para os grupos e as vistas. O Terra confere o desenho na largura de impressão e o Sol audita o relatório. As retomadas preservam os grupos já conferidos.
+
 ## 5.0.3
 
 - A auditoria integral usa Sol com esforço baixo conforme o perfil publicado no plugin 1.0.5. A revisão continua cobrindo as 28 seções e todos os achados.

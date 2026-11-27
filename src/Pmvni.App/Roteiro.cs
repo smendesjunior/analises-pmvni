@@ -5912,11 +5912,12 @@ internal static class Roteiro
                     File.WriteAllText(estado, objecao);
                     // A tela oferece a primeira retomada disponível. As partidas fictícias do teste anterior também podem estar na lista.
                     j.AjustesAtuais.ExecucoesChatGpt.Insert(0, new ExecucaoClaudePendente(casoPendente, regPendente.Pasta));
-                    await j.NovoRelatorioAsync();
+                    await j.MudarModuloAsync(Modulo.Processos);
                     var confirmacoesAntes = perguntas.Confirmacoes.Count;
                     await j.RetomarExecucoesChatGptAsync();
                     var aviso = j.NovoRelatorio.AvisoResultado;
-                    var avisou = aviso.IsOpen && aviso.Severity == InfoBarSeverity.Warning && aviso.Message.Contains("Objeto fictício para conferir")
+                    var avisou = j.InfoMensagemAtual.IsOpen && j.InfoMensagemAtual.ActionButton is Button { Content: "Retomar análise", IsEnabled: true }
+                        && aviso.IsOpen && aviso.Severity == InfoBarSeverity.Warning && aviso.Message.Contains("Objeto fictício para conferir")
                         && aviso.Message.Contains("Auditoria técnica") && aviso.Message.Contains("Retomar análise")
                         && j.ExecucoesEmCurso.Count == 0 && perguntas.Confirmacoes.Count == confirmacoesAntes && File.ReadAllText(estado) == objecao;
                     p["aviso_de_retomada"] = new JsonObject

@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
 using Pmvni.Agentes;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -52,10 +53,17 @@ public sealed partial class MainWindow
         if (indice is int i && i >= 0 && i < itens.Count) await AbrirHistoricoAsync(itens[i]);
     }
 
-    async Task AbrirHistoricoAsync(AnaliseHistorica selecionada)
+    Task AbrirHistoricoAsync(AnaliseHistorica selecionada) => AbrirHistoricoAsync(selecionada.Processo, selecionada.Registro);
+
+    async Task AbrirHistoricoAsync(Processo processo, string registro)
     {
-        var item = await Task.Run(() => AnaliseHistorica.Ler(selecionada.Processo, selecionada.Registro));
-        if (item is null) { await CarregarHistoricoAsync(); return; }
+        var item = await Task.Run(() => AnaliseHistorica.Ler(processo, registro));
+        if (item is null)
+        {
+            await CarregarHistoricoAsync();
+            MostrarMensagem(InfoBarSeverity.Warning, "Registro indisponível", "Confira se a pasta da análise está acessível.");
+            return;
+        }
         var conferencia = await Task.Run(() => ConferenciaNumerica.Ler(item.Processo.Pasta, item.Provedor, item.Registro));
         if (item.Situacao is "concluida" or "para_revisao")
         {
