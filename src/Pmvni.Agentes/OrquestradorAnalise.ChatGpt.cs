@@ -550,6 +550,23 @@ public sealed partial class OrquestradorAnalise
             throw new InvalidDataException($"Arquivo da prova gráfica divergente: {relativo}.");
     }
 
+    internal static JsonNode? LerFichaCartografica(string pasta, JsonArray? fontes, string hashMapa)
+    {
+        // A confirmação do lote pode gerar uma nova referência sem apagar o mapa candidato.
+        foreach (var fonte in fontes?.OfType<JsonObject>() ?? [])
+        {
+            var relativo = fonte["arquivo"]?.ToString();
+            if (!string.Equals(Path.GetFileName(relativo), "FICHA.JSON", StringComparison.OrdinalIgnoreCase)) continue;
+            ConferirArquivoDaVista(pasta, fonte["arquivo"], fonte["sha256"]?.ToString());
+            var ficha = JsonNode.Parse(LerJsonChatGpt(Path.Combine(pasta, relativo!)));
+            if (ficha?["sha256_png"]?.ToString() != hashMapa) continue;
+            var png = Path.Combine(Path.GetDirectoryName(relativo) ?? "", "MAPA.PNG");
+            ConferirArquivoDaVista(pasta, JsonValue.Create(png), hashMapa);
+            return ficha;
+        }
+        return JsonNode.Parse(LerJsonChatGpt(Path.Combine(pasta, "mapa-nativo", "FICHA.JSON")));
+    }
+
     internal static bool ConsultasQgisEquivalentes(JsonNode pacote, JsonNode conferencia)
     {
         if (JsonNode.DeepEquals(pacote, conferencia)) return true;
@@ -595,7 +612,7 @@ public sealed partial class OrquestradorAnalise
         var inscricaoConsultada = evidencia?["feicao_cartografica"]?["inscricao"]?.ToString();
         if (consulta["sha256_png"]?.ToString() is { } hashMapa)
         {
-            var ficha = JsonNode.Parse(LerJsonChatGpt(Path.Combine(pasta, "mapa-nativo", "FICHA.JSON")));
+            var ficha = LerFichaCartografica(pasta, registroAuditado?["grafica"]?["mapa"]?["fontes"] as JsonArray, hashMapa);
             var imagem = loc["imagem"]?.ToString() ?? "";
             var hashFinal = registroAuditado?["grafica"]?["mapa"]?["sha256_png"]?.ToString() ?? hashMapa;
             if (ficha?["feicao"]?.ToString() != valor.ToString() || ficha["resultado"]?.ToString() != resultado ||

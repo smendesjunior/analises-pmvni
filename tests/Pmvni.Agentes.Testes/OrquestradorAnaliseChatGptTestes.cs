@@ -10,6 +10,25 @@ namespace Pmvni.Agentes.Testes;
 public partial class OrquestradorTestes
 {
     [Fact]
+    public void AnaliseChatGpt_UsaReferenciaConfirmadaPelaAuditoriaSemSubstituirOCandidato()
+    {
+        using var c = new Cena("revisao-cartografica", "ok", Provedor.ChatGpt);
+        var candidato = Directory.CreateDirectory(Path.Combine(c.Pasta, "mapa-nativo")).FullName;
+        File.WriteAllText(Path.Combine(candidato, "FICHA.JSON"), """{"resultado":"CANDIDATO"}""");
+        var confirmado = Directory.CreateDirectory(Path.Combine(c.Pasta, "confirmado")).FullName;
+        var mapa = Path.Combine(confirmado, "MAPA.PNG");
+        File.WriteAllBytes(mapa, ModeloOficial.LerArquivo("exemplo_mapa.png"));
+        var hashMapa = EstadoDisco.Ler(mapa).Sha256.ToLowerInvariant();
+        var ficha = Path.Combine(confirmado, "FICHA.JSON");
+        File.WriteAllText(ficha, JsonSerializer.Serialize(new { resultado = "CONFIRMADO", sha256_png = hashMapa }));
+        var fontes = new JsonArray(new JsonObject { ["arquivo"] = "confirmado/FICHA.JSON", ["sha256"] = EstadoDisco.Ler(ficha).Sha256.ToLowerInvariant() });
+        Assert.Equal("CONFIRMADO", OrquestradorAnalise.LerFichaCartografica(c.Pasta, fontes, hashMapa)?["resultado"]?.ToString());
+        Assert.Equal("CANDIDATO", OrquestradorAnalise.LerFichaCartografica(c.Pasta, null, hashMapa)?["resultado"]?.ToString());
+        File.AppendAllText(mapa, "alterado");
+        Assert.Throws<InvalidDataException>(() => OrquestradorAnalise.LerFichaCartografica(c.Pasta, fontes, hashMapa));
+    }
+
+    [Fact]
     public void AnaliseChatGpt_MigraPerfilSemAlterarCobertura()
     {
         const string antigo = """[{"id":4,"secoes":[5,23],"modelo":"gpt-6.2-sol","esforco":"low"}]""";
