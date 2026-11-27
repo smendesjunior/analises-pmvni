@@ -197,11 +197,11 @@ public partial class OrquestradorTestes
         dados["localizacao"] = new JsonObject
         {
             ["situacao"] = "A_CONFIRMAR", ["texto"] = "A consulta fictícia registrou indisponibilidade.",
-            ["imagem"] = "img/mapa.png", ["sem_mapa"] = lacuna.DeepClone(),
+            ["fonte"] = "Consulta fictícia.", ["imagem"] = "img/mapa.png", ["sem_mapa"] = lacuna.DeepClone(),
             ["dados"] = new JsonArray(new[] { "Inscrição", "Lote", "Ruas" }.Select(rotulo =>
                 new JsonObject { ["rotulo"] = rotulo, ["valor"] = "Indisponível" }).ToArray())
         };
-        dados["diagrama"] = new JsonObject { ["sem_calculo"] = lacuna };
+        dados["diagrama"] = new JsonObject { ["nota"] = "Vistas sem base documental.", ["sem_calculo"] = lacuna };
         Pacote.Gravar(recebido, Importador.Importar(JsonFiel.Escrever(dados), exemplo, modelo, ContextoUsuario.Atual()), null);
         var bloqueio = Path.Combine(c.Pasta, "pausar.txt");
         var invalida = Path.Combine(c.Pasta, "invalidar.txt");
