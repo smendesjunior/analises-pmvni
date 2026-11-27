@@ -81,7 +81,7 @@ static class Program
         {
             var id = File.ReadAllText("id-execucao.txt");
             var gruposAtuais = Enumerable.Range(1, 15).Select(numero => new { id = numero, id_execucao = id });
-            File.WriteAllText("conferencia.json", System.Text.Json.JsonSerializer.Serialize(new { grupos = gruposAtuais, auditoria = new { id_execucao = id } }));
+            File.WriteAllText("conferencia.json", System.Text.Json.JsonSerializer.Serialize(new { grupos = gruposAtuais, auditoria = new { id_execucao = id }, consulta_qgis = new { resultado = "SEM_ACESSO" } }));
             File.Copy(dados["pacote"]!.GetValue<string>(), "entrega-plugin.rpmvni");
         }
         saida.WriteLine("""{"type":"item.completed","item":{"type":"command_execution","command":"ler planta fictícia","aggregated_output":"resultado integral fictício"}}""");
