@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 
 namespace Pmvni.Agentes;
 
+internal sealed record LeituraDaSessao(DateTimeOffset Hora, double Usada, long? Reinicia);
+
 internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
 {
     public DateTimeOffset? Fim { get; set; }
@@ -14,6 +16,15 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
     public long? Cache { get; set; }
     public long? Saida { get; set; }
     public int TurnosMedidos { get; set; }
+    public LeituraDaSessao? Primeira5hSessao { get; set; }
+    public LeituraDaSessao? Ultima5hSessao { get; set; }
+    public LeituraDaSessao? Pico5hSessao { get; set; }
+    public JsonArray? SessoesTecnicas { get; set; }
+    long? TotalSessoes(string campo)
+    {
+        var valores = SessoesTecnicas?.Select(s => (long?)s?["tokens"]?[campo]).OfType<long>().ToArray();
+        return valores is { Length: > 0 } ? valores.Sum() : null;
+    }
     public AmostraDaConta? Inicial { get; set; }
     public AmostraDaConta? Ultima { get; set; }
     public bool CotaFinal { get; set; }
@@ -31,11 +42,11 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
             ? depois.Usada - antes.Usada : null;
     }
 
-    internal UsoEtapa UsoDaSessao() => new("Sessão Codex", "Codex", null, Entrada, Saida, Cache,
+    internal UsoEtapa UsoDaSessao() => new("Sessão Codex", "Codex", null, TotalSessoes("input_tokens") ?? Entrada, TotalSessoes("output_tokens") ?? Saida, TotalSessoes("cached_input_tokens") ?? Cache,
         Fim - Inicio, Variacao(300), Variacao(10080))
     {
         EntradaIncluiCache = true, Plano = Ultima?.Plano,
-        Usada5h = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 300)?.Usada,
+        Usada5h = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 300)?.Usada ?? Ultima5hSessao?.Usada,
         UsadaSemana = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 10080)?.Usada
     };
 
@@ -46,6 +57,10 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
         linhas.Add(Entrada is { } entrada && Saida is { } saida
             ? $"Tokens dos turnos informados pela sessão Codex · {entrada + saida:N0} no total · entrada {entrada:N0} (cache {Cache?.ToString("N0") ?? "não informado"}) · saída {saida:N0} · {TurnosMedidos} turno(s) medido(s)"
             : "Tokens sem medição registrada pelo Codex.");
+        if (TotalSessoes("input_tokens") is { } entradas)
+            linhas.Add($"Sessões técnicas com telemetria · entrada {entradas:N0} · cache {TotalSessoes("cached_input_tokens"):N0} · saída {TotalSessoes("output_tokens"):N0}.");
+        if (Primeira5hSessao is { } primeira && Ultima5hSessao is { } ultima)
+            linhas.Add($"Janela de 5 horas observada nas sessões · {primeira.Usada:0.##}% às {primeira.Hora.LocalDateTime:T} → {ultima.Usada:0.##}% às {ultima.Hora.LocalDateTime:T}. Maior leitura {Pico5hSessao?.Usada:0.##}%. A conta pode atender outras tarefas.");
         if (Ultima is { } atual)
         {
             linhas.Add($"Cota da conta {atual.Plano} · leitura {atual.Hora.LocalDateTime:G}");
@@ -54,6 +69,7 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
                 var nome = minutos switch { 300 => "5 horas", 10080 => "Semana", _ => $"{minutos} minutos" };
                 var j = atual.Janelas.FirstOrDefault(x => x.Minutos == minutos);
                 var antes = Inicial?.Janelas.FirstOrDefault(x => x.Minutos == minutos);
+                if (j is null && minutos == 300 && Ultima5hSessao is not null) continue;
                 if (j is null) { linhas.Add($"{nome} · janela não informada pela conta"); continue; }
                 linhas.Add(Variacao(minutos) is { } delta ? $"{nome} · {antes!.Usada:0.##}% → {j.Usada:0.##}% · variação da conta {delta:0.##} p.p."
                     : $"{nome} · {j.Usada:0.##}% usados · sem amostras comparáveis para a variação");
@@ -63,7 +79,7 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
         else
         {
             var situacao = Fim.HasValue ? "sem leitura registrada" : "aguardando leitura da conta";
-            linhas.Add($"5 horas · {situacao}");
+            if (Ultima5hSessao is null) linhas.Add($"5 horas · {situacao}");
             linhas.Add($"Semana · {situacao}");
         }
         if (FalhaCota is { Length: > 0 }) linhas.Add(FalhaCota);
@@ -133,7 +149,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         {
             var hora = DateTimeOffset.UtcNow;
             eventos.WriteLine(JsonSerializer.Serialize(new EventoDoPlugin(hora,tipo,titulo,detalhe), Json));
-            avisar($"[{hora.LocalDateTime:HH:mm:ss}] {titulo}");
+            if (tipo is "etapa" or "arquivo" or "entrega" or "turn.completed") avisar($"[{hora.LocalDateTime:HH:mm:ss}] {titulo}");
         }
     }
 
@@ -142,14 +158,22 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
     static string Limpar(string texto) => Segredos.Replace(texto, "$1$2***");
 
+    internal bool ModeloPrincipalIndisponivel { get; private set; }
+    internal void IniciarTentativa() => ModeloPrincipalIndisponivel = false;
+    internal static bool RecusaModelo(string texto) =>
+        texto.Contains("model", StringComparison.OrdinalIgnoreCase) &&
+        new[] { "model_not_found", "unsupported_model", "not supported", "not available", "unavailable", "does not exist", "not found", "do not have access", "not allowed", "indisponível" }
+            .Any(parte => texto.Contains(parte, StringComparison.OrdinalIgnoreCase));
+
     public void Linha(string original, bool erro)
     {
         var linha = Limpar(original);
-        if (erro) { Registrar("stderr", "Diagnóstico do Codex", linha); return; }
+        if (erro) { if (RecusaModelo(linha)) ModeloPrincipalIndisponivel = true; Registrar("stderr", "Diagnóstico do Codex", linha); return; }
         JsonObject? obj;
         try { obj = JsonNode.Parse(linha) as JsonObject; }
         catch (JsonException) { obj = null; }
         var tipo = obj?["type"]?.ToString() ?? "stdout";
+        if (tipo is "turn.failed" or "error" && RecusaModelo(linha)) ModeloPrincipalIndisponivel = true;
         if (tipo == "turn.completed" && obj?["usage"] is JsonObject uso &&
             Inteiro(uso,"input_tokens") is { } entrada && Inteiro(uso,"output_tokens") is { } saida)
         {
@@ -234,14 +258,44 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         }
     }
 
-    public async Task AcompanharAsync(string exe,string pasta,Action<IDictionary<string,string?>> ambiente,CancellationToken ct, string rota = "openai")
+    public async Task MedirSessoesAsync(string node, string script, string pasta, Action<IDictionary<string,string?>> ambiente, CancellationToken ct)
     {
+        if (!File.Exists(script)) return;
+        try
+        {
+            var estado = Path.ChangeExtension(arquivoConsumo, ".sessoes.json");
+            var resultado = await ExecucaoProcesso.RodarAsync(node, [script, "diario", estado, consumo.Inicio.ToString("O")],
+                pasta, ambiente, TimeSpan.FromSeconds(25), ct).ConfigureAwait(false);
+            if (resultado.Codigo != 0) { Registrar("diagnostico", "Telemetria parcial das sessões", resultado.Saida); return; }
+            var resumo = JsonNode.Parse(resultado.Saida);
+            var opcoes = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            lock (trava)
+            {
+                consumo.Primeira5hSessao = resumo?["primeira"]?.Deserialize<LeituraDaSessao>(opcoes);
+                consumo.Ultima5hSessao = resumo?["ultima"]?.Deserialize<LeituraDaSessao>(opcoes);
+                consumo.Pico5hSessao = resumo?["pico"]?.Deserialize<LeituraDaSessao>(opcoes);
+                consumo.SessoesTecnicas = resumo?["sessoes"] as JsonArray;
+                Salvar();
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or JsonException or OperationCanceledException or System.ComponentModel.Win32Exception)
+        { if (!ct.IsCancellationRequested) Registrar("diagnostico", "Telemetria parcial das sessões", e.Message); }
+    }
+
+    public async Task AcompanharAsync(string exe,string pasta,Action<IDictionary<string,string?>> ambiente,CancellationToken ct, string rota = "openai", Func<CancellationToken,Task>? medirSessoes = null)
+    {
+        var proximaSessao = DateTimeOffset.UtcNow.AddSeconds(8);
         var proxima = DateTimeOffset.UtcNow.AddMinutes(1);
         try
         {
             while (!ct.IsCancellationRequested)
             {
                 Arquivos(pasta);
+                if (medirSessoes is not null && DateTimeOffset.UtcNow >= proximaSessao)
+                {
+                    await medirSessoes(ct).ConfigureAwait(false);
+                    proximaSessao = DateTimeOffset.UtcNow.AddSeconds(15);
+                }
                 if (DateTimeOffset.UtcNow >= proxima)
                 {
                     await MedirAsync(exe,pasta,ambiente,"intermediária",ct,rota).ConfigureAwait(false);

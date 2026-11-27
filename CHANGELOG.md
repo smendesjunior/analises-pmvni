@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.0.2
+
+- A análise conserva o progresso durante a recuperação de falhas e aceita o perfil Sol 6.1 equivalente. O monitor registra as sessões técnicas e a janela de cinco horas quando informada.
+- O plugin 1.0.4 reaproveita extrações das mesmas peças e reserva o esforço médio de Sol à auditoria final.
+
 ## 5.0.1
 
 - Em Ajustes › Inteligência artificial › Novo relatório, escolha entre OpenAI direta, Codex-LB e a configuração do Codex deste PC. A análise registra a rota usada e a conserva ao retomar.

@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "1.0.3";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.0.4";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -56,9 +56,25 @@ public sealed partial class OrquestradorAnalise
         using var diario = new DiarioAnaliseChatGpt(pasta, pe.Processo.NomePasta, linha => Anunciar(progresso, new(linha, null)));
         try
         {
-            var fim = await ExecutarComDiarioAsync(pe, inicio, progresso, ct, pasta, diario).ConfigureAwait(false);
-            diario.Encerrar(fim.Situacao, fim.Mensagem ?? fim.Documento);
-            return fim;
+            var pedido = pe;
+            int falhas = 0;
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    var fim = await ExecutarComDiarioAsync(pedido, inicio, progresso, ct, pasta, diario).ConfigureAwait(false);
+                    diario.Encerrar(fim.Situacao, fim.Mensagem ?? fim.Documento);
+                    return fim;
+                }
+                catch (Exception erro) when (!ct.IsCancellationRequested &&
+                    erro is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException or InvalidDataException)
+                {
+                    diario.Registrar("recuperacao", "Falha operacional durante a execução", erro.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Min(300, 2 << Math.Min(++falhas, 8))), ct).ConfigureAwait(false);
+                    if (File.Exists(Path.Combine(pasta, "id-execucao.txt"))) pedido = pe with { Retomar = true };
+                }
+            }
         }
         catch (Exception e)
         {
@@ -120,11 +136,11 @@ public sealed partial class OrquestradorAnalise
                 Use os recortes como evidências para compor as duas vistas no Brilliant Design, conforme references/figuras-brilliant.md. Registre os canvases, fontes, perfil efetivo e os hashes das três imagens em conferencia.json. Registre pendências gráficas enquanto prossegue com as verificações independentes.
                 A entrada é entrada-editor.json nesta pasta. Esta execução independente tem ID {idExecucao}.
                 {(pe.Retomar ? "Retomada explícita: aproveite exclusivamente registros produzidos nesta execução." : "Nova análise: comece do zero. Abra as peças originais e faça todas as verificações novamente.")}
-                Nunca procure, leia, copie ou adapte produtos técnicos de outras execuções, mesmo do mesmo processo e com hashes idênticos.
+                Use scripts/preparar-peca.mjs para reaproveitar textos, páginas e recortes mecânicos das mesmas peças por hash, inclusive em uma nova tentativa. Cada grupo confirma no original as evidências decisivas. Nova análise técnica é independente dos achados e conclusões de outras execuções.
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Para o grupo 15 e a auditoria final, use o modelo e o esforço do grupo 15 no plano vigente do plugin. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Sol baixo. Auditoria final integral em Sol médio. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID da sessão filha em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Preencha o texto de cada chamada numerada em diagrama.chamadas com as cotas e índices das peças deste projeto.
@@ -174,6 +190,7 @@ public sealed partial class OrquestradorAnalise
                 GravarJsonChatGpt(recibo, EstadoDisco.Ler(pacote).Sha256);
             }
 
+            string? pendenciaGerador = null;
             async Task<bool> RemontarAuditadoAsync()
             {
                 var dados = Path.Combine(pasta, "dados.json");
@@ -194,7 +211,7 @@ public sealed partial class OrquestradorAnalise
                     if (resultado.Codigo != 0 || !File.Exists(temporario))
                     {
                         diario.Registrar("aviso", "O gerador local identificou uma pendência", resultado.Saida);
-                        prompt += "\nRevise a pendência informada pelo gerador local: " + resultado.Saida;
+                        pendenciaGerador = resultado.Saida[..Math.Min(resultado.Saida.Length, 1600)];
                         return false;
                     }
                     File.Move(temporario, entrega, overwrite: true);
@@ -227,12 +244,23 @@ public sealed partial class OrquestradorAnalise
             if (!pronto)
             {
                 Informar("preparar_fontes", "Conferindo a conta ChatGPT. " + RotaCodex.Descrever(conexao));
-                if (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex, rota).ConfigureAwait(false))
-                    return Falha(SemContaChatGpt);
+                int tentativasConta = 0;
+                while (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex, rota).ConfigureAwait(false))
+                {
+                    diario.Registrar("recuperacao", "Aguardando a conta ChatGPT", SemContaChatGpt);
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Min(300, 2 << Math.Min(++tentativasConta, 8))), ct).ConfigureAwait(false);
+                }
                 var plano = File.ReadAllText(Path.Combine(plugin, "references", "grupos.json"));
                 var planoSalvo = Path.Combine(pasta, "grupos.json");
-                if (File.Exists(planoSalvo) && !PlanoCompativel(File.ReadAllText(planoSalvo), plano))
-                    return Falha("O plano do plugin mudou. Inicie uma nova análise.");
+                if (File.Exists(planoSalvo))
+                {
+                    var anterior = File.ReadAllText(planoSalvo);
+                    if (!PlanoCompativel(anterior, plano)) return Falha("As seções do plano mudaram. Confira a seleção de entrada.");
+                    var matrizAnterior = Path.Combine(pasta, "matriz-evidencias.json");
+                    var copia = Path.Combine(pasta, "matriz-antes-perfis-1.0.4.json");
+                    if (!JsonNode.DeepEquals(JsonNode.Parse(anterior), JsonNode.Parse(plano)) && File.Exists(matrizAnterior) && !File.Exists(copia))
+                        GravarJsonChatGpt(copia, File.ReadAllText(matrizAnterior));
+                }
                 GravarJsonChatGpt(planoSalvo, plano);
                 Iniciou(pe, inicio, codex, [codex, "exec"]);
                 registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = rota; });
@@ -240,9 +268,13 @@ public sealed partial class OrquestradorAnalise
                 await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct, rota).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
                 using var acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token, rota);
+                var leitorSessoes = Path.Combine(plugin, "scripts", "sessoes.mjs");
+                Task MedirSessoes(CancellationToken token) => diario.MedirSessoesAsync(pe.Pecas.Node!, leitorSessoes, pasta, AmbienteCodex, token);
+                var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token, rota, MedirSessoes);
                 int codigo;
-                var errosDeEntrega = new HashSet<string>();
+                int semAvanco = 0;
+                string? pendencia = null;
+                string? modeloAlternativo = null;
                 try
                 {
                     int maiorProgresso = -1;
@@ -252,8 +284,12 @@ public sealed partial class OrquestradorAnalise
                         File.Delete(resposta);
                         if (File.Exists(entrega))
                             File.Move(entrega, entrega + ".anterior", overwrite: true);
-                        diario.Registrar("pedido", "Instruções enviadas ao Codex", prompt);
-                        using var sessao = ExecucaoProcesso.Iniciar(codex, args, pasta, prompt, AmbienteCodex,
+                        var pedidoAtual = prompt + (pendencia is null ? "" : "\nRetome exclusivamente os grupos pendentes desta execução e corrija a pendência de entrega: " + pendencia);
+                        if (pendenciaGerador is not null) pedidoAtual += "\nCorrija a montagem: " + pendenciaGerador;
+                        diario.Registrar("pedido", "Instruções enviadas ao Codex", pedidoAtual);
+                        string[] argumentos = modeloAlternativo is null ? args : [.. args[..^1], "--model", modeloAlternativo, "-"];
+                        diario.IniciarTentativa();
+                        using var sessao = ExecucaoProcesso.Iniciar(codex, argumentos, pasta, pedidoAtual, AmbienteCodex,
                             linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
                             aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
                                 "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
@@ -261,6 +297,7 @@ public sealed partial class OrquestradorAnalise
                         codigo = await sessao.Fim.ConfigureAwait(false);
                         diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
                         ct.ThrowIfCancellationRequested();
+                        if (diario.ModeloPrincipalIndisponivel) modeloAlternativo = "gpt-6.1-sol";
                         if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
                             return Falha("Uma peça ou o último despacho mudou durante a análise.");
                         if (!File.Exists(entrega)) await RemontarAuditadoAsync();
@@ -276,25 +313,26 @@ public sealed partial class OrquestradorAnalise
                                     catch (Exception segunda) when (segunda is InvalidDataException or PacoteInvalidoException)
                                     { erro = segunda; }
                                 }
-                                if (!errosDeEntrega.Add(erro.Message)) throw;
-                                prompt += "\nCorrija somente a pendência de entrega: " + erro.Message +
-                                    ". Preserve os itens confirmados. Reconfira apenas o que a correção alterar.";
+                                pendencia = erro.Message;
                                 diario.Registrar("aviso", "Corrigindo pendência da entrega", erro.Message);
-                                continue;
                             }
                         }
                         int progressoAtual = 0;
                         var matriz = Path.Combine(pasta, "matriz-evidencias.json");
                         if (LerRegistroParcial(matriz)?["grupos"] is JsonArray grupos)
                             progressoAtual = grupos.OfType<JsonObject>().Count(g => g["perfil_efetivo"] is JsonObject);
-                        if (progressoAtual <= maiorProgresso)
+                        semAvanco = progressoAtual > maiorProgresso ? 0 : Math.Min(8, semAvanco + 1);
+                        maiorProgresso = Math.Max(maiorProgresso, progressoAtual);
+                        pendencia ??= "Prosseguir pela matriz de evidências e pelos resultados já registrados.";
+                        if (File.Exists(resposta) && new FileInfo(resposta).Length > 0)
                         {
-                            if (!errosDeEntrega.Add($"sem-progresso:{progressoAtual}")) break;
-                            diario.Registrar("aviso", "Recuperando execução sem avanço", $"Código de saída {codigo}; {progressoAtual} grupos registrados.");
+                            var mensagem = File.ReadAllText(resposta).Trim();
+                            diario.Registrar("diagnostico", "Retorno da execução parcial", mensagem);
+                            if (!File.Exists(entrega)) pendencia = mensagem[..Math.Min(mensagem.Length, 1600)];
                         }
-                        maiorProgresso = progressoAtual;
-                        prompt += "\nContinue a partir dos arquivos desta execução. Resolva as pendências, valide o pacote e gere entrega-plugin.rpmvni.";
-                        diario.Registrar("codex", "Retomando automaticamente os grupos pendentes.");
+                        diario.Registrar("recuperacao", "Retomada automática da execução", $"Saída {codigo}; {progressoAtual} grupos confirmados.");
+                        if (semAvanco > 0)
+                            await Task.Delay(TimeSpan.FromSeconds(Math.Min(300, 2 << semAvanco)), ct).ConfigureAwait(false);
                     }
                 }
                 finally
@@ -302,14 +340,11 @@ public sealed partial class OrquestradorAnalise
                     acompanhamento.Cancel();
                     await observar.ConfigureAwait(false);
                     diario.Arquivos(pasta);
+                    await MedirSessoes(CancellationToken.None).ConfigureAwait(false);
                     await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None, rota).ConfigureAwait(false);
                 }
                 ct.ThrowIfCancellationRequested();
-                if (!pronto)
-                {
-                    var motivo = File.Exists(resposta) ? File.ReadAllText(resposta).Trim() : "O Codex não registrou uma mensagem final.";
-                    return Falha($"Entrega pendente (código {codigo}). {motivo[..Math.Min(motivo.Length, 1200)]}");
-                }
+
             }
         }
 
@@ -383,7 +418,7 @@ public sealed partial class OrquestradorAnalise
 
     static bool MatrizConfirmaGrupo(JsonArray grupos, GrupoChatGpt esperado) => grupos.OfType<JsonObject>().Count(grupo =>
             grupo["id"] is JsonValue id && id.TryGetValue<int>(out var numero) && numero == esperado.Id &&
-            grupo["modelo"]?.ToString() == esperado.Modelo && grupo["esforco"]?.ToString() == esperado.Esforco &&
+            grupo["modelo"]?.ToString() == esperado.Modelo && (grupo["esforco"]?.ToString() == esperado.Esforco || esperado.Modelo == "gpt-6.2-sol" && esperado.Esforco == "low" && grupo["esforco"]?.ToString() == "medium") &&
             grupo["auditoria"]?.ToString() == "conferida" && grupo["secoes"] is JsonArray secoes &&
             secoes.Count == esperado.Secoes.Length &&
             esperado.Secoes.All(codigo => secoes.OfType<JsonObject>().Count(secao =>
@@ -475,7 +510,9 @@ public sealed partial class OrquestradorAnalise
             var vista = registro?[nome];
             var hash = vista?["sha256_png"]?.ToString();
             var imagem = painel?["imagem"]?.ToString();
-            if (registro?["modelo"]?.ToString() != "gpt-6.2-sol" || registro["esforco"]?.ToString() != "low" ||
+            if (!(registro?["modelo"]?.ToString() == "gpt-6.2-sol" || registro?["modelo"]?.ToString() == "gpt-6.1-sol" &&
+                registro["perfil_efetivo"]?["modelo"]?.ToString() == "gpt-6.1-sol" && registro["perfil_efetivo"]?["esforco"]?.ToString() == "low" &&
+                !string.IsNullOrWhiteSpace(registro["perfil_efetivo"]?["sessao"]?.ToString()) && !string.IsNullOrWhiteSpace(registro["perfil_efetivo"]?["fonte"]?.ToString())) || registro?["esforco"]?.ToString() != "low" ||
                 !Uri.TryCreate(vista?["canvas"]?.ToString(), UriKind.Absolute, out var canvas) ||
                 canvas.Scheme != Uri.UriSchemeHttps || canvas.Host != "brilliant.design" || canvas.AbsolutePath != "/playground" ||
                 !canvas.Query.StartsWith("?seed=", StringComparison.Ordinal) || canvas.Query.Length <= 6 ||
@@ -674,8 +711,11 @@ public sealed partial class OrquestradorAnalise
         if (anterior is null || novo is null) return false;
         if (JsonNode.DeepEquals(anterior, novo)) return true;
         foreach (var grupo in anterior.OfType<JsonObject>())
-            if (grupo["id"]?.ToString() == "15" && grupo["modelo"]?.ToString() == "gpt-6.2-sol" && grupo["esforco"]?.ToString() == "high")
-                grupo["esforco"] = "medium";
+            if (grupo["modelo"]?.ToString() == "gpt-6.2-sol" &&
+                (grupo["esforco"]?.ToString() == "medium" || grupo["id"]?.ToString() == "15" && grupo["esforco"]?.ToString() == "high") &&
+                novo.OfType<JsonObject>().FirstOrDefault(g => g["id"]?.ToString() == grupo["id"]?.ToString()) is { } destino &&
+                destino["esforco"]?.ToString() is "low" or "medium")
+                grupo["esforco"] = destino["esforco"]?.DeepClone();
         return JsonNode.DeepEquals(anterior, novo);
     }
 

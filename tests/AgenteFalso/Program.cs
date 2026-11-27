@@ -80,6 +80,12 @@ static class Program
         if (!prompt.Contains("SKILL.md") || !prompt.Contains("entrega-plugin.rpmvni")) return Uso();
         File.AppendAllLines(dados["rodadas"]!.GetValue<string>(), ["exec"]);
         if (File.Exists(dados["pausa"]!.GetValue<string>())) Dormir(30000);
+        if (dados["exigir_equivalente"]?.GetValue<bool>() == true &&
+            !File.Exists(dados["montagem_invalida"]!.GetValue<string>()) && !args.Contains("gpt-6.1-sol"))
+        {
+            saida.WriteLine("""{"type":"turn.failed","error":{"message":"The model gpt-6.2-sol is not available"}}""");
+            return 1;
+        }
         if (File.Exists(dados["montagem_invalida"]!.GetValue<string>()))
             File.WriteAllText("entrega-plugin.rpmvni", "pacote incompleto");
         else
