@@ -21,11 +21,12 @@
 .mapa-composto .lk.zona { background:#CEB0EF; border:1px dashed #674395; }
 .mapa-composto .lk.dnit { background:none; border:1.5px dashed #A35B15; }
 .mapa-composto .lmap { background:white; }
-.locblk { break-inside:auto; }
+.locblk { break-inside:avoid; }
 .locblk > .sec { break-after:avoid; }
 .lmapa { break-inside:avoid; margin-top:2px; text-align:center; }
 .lmapa .lmap { display:inline-block; max-width:100%; border-radius:8px; vertical-align:top; }
 .lmapa .lmap img { display:block; width:auto; max-width:100%; max-height:128mm; }
+.lmapa-com-legenda .lmap img { max-height:155mm; }
 .lmapa .lleg { display:flex; flex-wrap:wrap; justify-content:center; gap:2px 9px; margin:4px 0 0; font-size:6.1pt; line-height:1.2; }
 .lmapa .lleg span { gap:4px; }
 .lmapa .lk { width:12px; height:8px; border-radius:2px; }
@@ -68,7 +69,7 @@ confirmado e "y" (amarelo) quando há algo a confirmar. Em "pontos a confirmar",
 {# ───────────────────── LOCALIZAÇÃO NA BASE MUNICIPAL ───────────────────── #}
 {% if localizacao %}
 <div class="locblk{% if localizacao.origem_grafica %} mapa-composto{% endif %}"><div class="sec"><div><h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>{% if localizacao.subtitulo %}<p>{{ localizacao.subtitulo }}</p>{% endif %}</div>{% if localizacao.origem_grafica %}{% else %}{{ localizacao.situacao|pill }}{% endif %}</div>
-<div class="lmapa"><div class="lmap">{% if localizacao.obs_mapa %}<div class="mapa-com-obs">{% endif %}<img alt="Mapa de localização do lote na base municipal" src="{{ localizacao.imagem_uri|safe }}">{% if localizacao.obs_mapa %}<div class="obs-mapa" style="left:{{ localizacao.obs_mapa.x_pct }}%;top:{{ localizacao.obs_mapa.y_pct }}%;width:{{ localizacao.obs_mapa.largura_pct }}%"><b>Obs.</b>{% for nota in localizacao.obs_mapa.linhas %}<span>{{ nota.texto }}</span>{% endfor %}</div></div>{% endif %}</div>
+<div class="lmapa{% if localizacao.legenda_na_imagem %} lmapa-com-legenda{% endif %}"><div class="lmap">{% if localizacao.obs_mapa %}<div class="mapa-com-obs">{% endif %}<img alt="Mapa de localização do lote na base municipal" src="{{ localizacao.imagem_uri|safe }}">{% if localizacao.obs_mapa %}<div class="obs-mapa" style="left:{{ localizacao.obs_mapa.x_pct }}%;top:{{ localizacao.obs_mapa.y_pct }}%;width:{{ localizacao.obs_mapa.largura_pct }}%"><b>Obs.</b>{% for nota in localizacao.obs_mapa.linhas %}<span>{{ nota.texto }}</span>{% endfor %}</div></div>{% endif %}</div>
 {% if localizacao.legenda_na_imagem %}{% else %}{% if localizacao.legenda %}<div class="lleg">{% for i in localizacao.legenda %}<span><i class="lk {{ i.tipo }}"></i>{{ i.texto }}</span>{% endfor %}</div>{% endif %}{% endif %}</div>
 <div class="lside">{% if localizacao.texto %}<div><div class="lbl">SITUAÇÃO DO LOTE NA BASE</div><p>{{ localizacao.texto }}</p></div>{% endif %}
 {% if localizacao.observacoes %}<div><div class="lbl">OBSERVAÇÕES DO PDM PARA A ÁREA</div>{% for o in localizacao.observacoes %}<p>{{ o }}</p>{% endfor %}</div>{% endif %}<div class="src">FONTE: {{ localizacao.fonte }}</div></div>

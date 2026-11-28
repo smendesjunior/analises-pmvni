@@ -55,7 +55,7 @@ public class RelatorioRendererTestes : IDisposable
         });
         var r = RelatorioRenderer.Renderizar(arquivo, new OpcoesRender(false, true), _modelo);
         Assert.True(r.Ok, string.Join("; ", r.Erros));
-        var mapa = r.Html.IndexOf("<div class=\"lmapa\">", StringComparison.Ordinal);
+        var mapa = r.Html.IndexOf("<div class=\"lmapa", StringComparison.Ordinal);
         var detalhes = r.Html.IndexOf("<div class=\"lside\">", mapa, StringComparison.Ordinal);
         var legenda = "<div class=\"lleg\">";
         Assert.Equal(exibirLegenda ? 1 : 0, r.Html.Split(legenda).Length - 1);

@@ -74,6 +74,7 @@ public static class Localizacao
                     Dados.Obter(linha, "fonte") is not string fonte || string.IsNullOrWhiteSpace(fonte)))
                 throw new MoldeErro("Confira a posição, o texto e a fonte das observações no quadro do mapa.");
         }
+        if (Equals(Dados.Obter(localizacao, "origem_grafica"), "relatorio_pdf")) r["legenda_na_imagem"] = true;
         r["legenda"] = legenda;
         r["grupos"] = grupos.Cast<object?>().ToList();
         r["colunas"] = colunas.Where(c => c.Count > 0).Select(c => (object?)c.Cast<object?>().ToList()).ToList();

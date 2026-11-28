@@ -36,7 +36,7 @@ public static class ModeloOficial
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["gerar_relatorio.py"] = "60b831a5a3d4abe2edf7df2f8a8034d5972bf38a054999b3d9530802bbb57683",
-            ["modelo_relatorio.html"] = "9cbad0d55bfbe566e2d8975eb89d141284337cc397dbd0c1c74d16883039cc88",
+            ["modelo_relatorio.html"] = "e8e0703e3bd274154fff9e2fdd0ddf698e4af71c4a8be734822dc356c7633099",
             ["relatorio.css"] = "fe1bfeacf68ce7ccc19200491107e4d89020a50e980057c40ae0cc6d22cfaa19",
             ["brasao.png"] = "93f35890bd35ddd405ee407f05e5cea059301c7e62634415f19d5c4d9b4092cd",
             ["dados_modelo.json"] = "00597a4a2777efd4efb471b90110535aa123b008dcef11620879b1153fa8ea42",
