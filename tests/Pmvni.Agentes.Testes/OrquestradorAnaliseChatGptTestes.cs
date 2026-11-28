@@ -10,6 +10,35 @@ namespace Pmvni.Agentes.Testes;
 public partial class OrquestradorTestes
 {
     [Fact]
+    public void AnaliseChatGpt_PerfisSeparadosPorGrupoAuditoriaEExecucao()
+    {
+        using var c = new Cena("perfis-do-plugin", "ok", Provedor.ChatGpt);
+        var skill = Path.Combine(c.Pasta, "skill");
+        var refs = Directory.CreateDirectory(Path.Combine(skill, "references")).FullName;
+        const string plano = """[{"id":1,"modelo":"terra","esforco":"low"},{"id":2,"modelo":"terra","esforco":"medium"}]""";
+        const string auditoria = """{"modelo":"terra","esforco":"high"}""";
+        File.WriteAllText(Path.Combine(refs, "grupos.json"), plano);
+        File.WriteAllText(Path.Combine(refs, "perfil-auditoria.json"), auditoria);
+        var padrao = new PerfilDoPlugin("terra", "low");
+        var sol = new PerfilDoPlugin("sol", "medium");
+        PerfisDoPlugin.Escolher(c.Pasta, "1", sol, padrao);
+        PerfisDoPlugin.Escolher(c.Pasta, PerfisDoPlugin.Auditoria, sol, new("terra", "high"));
+        var pasta = Path.Combine(c.Pasta, "execucao1");
+        var copia = PerfisDoPlugin.PrepararExecucao(skill, pasta, c.Pasta, false);
+        JsonNode Ler(string raiz, string arquivo) => JsonNode.Parse(File.ReadAllText(Path.Combine(raiz, "references", arquivo)))!;
+        Assert.Equal(sol, PerfilDoPlugin.Ler(Ler(copia, "grupos.json")[0]!));
+        Assert.Equal(new PerfilDoPlugin("terra","medium"), PerfilDoPlugin.Ler(Ler(copia, "grupos.json")[1]!));
+        Assert.Equal(sol, PerfilDoPlugin.Ler(Ler(copia, "perfil-auditoria.json")));
+        PerfisDoPlugin.Escolher(c.Pasta, "1", padrao, padrao);
+        var retomada = PerfisDoPlugin.PrepararExecucao(skill, pasta, c.Pasta, true);
+        Assert.Equal(sol, PerfilDoPlugin.Ler(Ler(retomada, "grupos.json")[0]!));
+        var nova = PerfisDoPlugin.PrepararExecucao(skill, Path.Combine(c.Pasta, "execucao2"), c.Pasta, false);
+        Assert.Equal(padrao, PerfilDoPlugin.Ler(Ler(nova, "grupos.json")[0]!));
+        Assert.Equal(plano, File.ReadAllText(Path.Combine(refs, "grupos.json")));
+        Assert.Equal(auditoria, File.ReadAllText(Path.Combine(refs, "perfil-auditoria.json")));
+    }
+
+    [Fact]
     public void AnaliseChatGpt_RelatorioTerritorialRenomeadoUsaManifestoEPaginas()
     {
         var fonte = new JsonObject { ["arquivo"] = "anexo-sem-titulo.pdf", ["sha256"] = new string('a', 64), ["paginas"] = new JsonArray(2) };

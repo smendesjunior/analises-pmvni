@@ -256,6 +256,8 @@ public static class CatalogoIa
     public static ListaModelos Reserva(FonteIa f) => f switch
     {
         FonteIa.Codex => new([
+            new("gpt-6.2-sol", "GPT-6.2 Sol", NiveisPadrao, "low"),
+            new("gpt-6.2-astra", "GPT-6.2 Astra", NiveisPadrao, "low"),
             new("gpt-6.1-sol", "GPT-6.1-Sol", NiveisPadrao, "medium"),
             new("gpt-6.1-terra", "GPT-6.1 Terra", NiveisPadrao, "low"),
             new("gpt-6-astra", "GPT-6-Astra", NiveisPadrao, "low"),

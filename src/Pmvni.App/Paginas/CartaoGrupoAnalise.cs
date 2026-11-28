@@ -1,6 +1,6 @@
 namespace Pmvni.App;
 
-public sealed record CartaoGrupoAnalise(string Numero, string Nome, string Descricao, string Perfil, string Icone)
+public sealed record CartaoGrupoAnalise(string Numero, string Nome, string Descricao, SeletoresPerfilPlugin Seletores, string Icone)
 {
     internal static (string Icone, string Descricao) Explicar(string nome, int[] secoes) => nome switch
     {

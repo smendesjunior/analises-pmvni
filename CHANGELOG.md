@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.5
+
+- A análise e a auditoria consultam a legislação exclusivamente nos índices JSON locais do kit. Lacunas ficam registradas para conferência.
+- Em Ajustes › Modelos da análise, cada grupo e a auditoria final têm seletores de modelo e inteligência. As escolhas ficam neste computador e cada execução preserva os perfis usados na retomada.
+
 ## 5.1.4
 
 - O verde fica só nos botões principais: Novo relatório, Novo despacho, Anexar PDFs…, Novo processo (Acompanhamento), Emitir processo aprovado, Analisar com o ChatGPT, Gerar e conferir, Gravar na pasta do processo, Pesquisar e Salvar PDF… (Imóveis), Salvar dados e Reiniciar agora (Ajustes) e a ação que conclui cada janela.

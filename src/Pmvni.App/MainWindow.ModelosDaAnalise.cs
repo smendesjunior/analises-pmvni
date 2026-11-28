@@ -328,6 +328,27 @@ public sealed partial class MainWindow
         try
         {
             using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(Path.Combine(skill, "references", "grupos.json")));
+            var escolhas = PerfisDoPlugin.Ler(PastaDados.Raiz);
+            var catalogo = CatalogoDeModelos.Lista(FonteIa.Codex).Modelos;
+            SeletoresPerfilPlugin Seletores(string chave, string nome, System.Text.Json.JsonElement perfil)
+            {
+                var padrao = new PerfilDoPlugin(perfil.GetProperty("modelo").GetString()!, perfil.GetProperty("esforco").GetString()!);
+                var seletores = new SeletoresPerfilPlugin();
+                seletores.Configurar(nome, escolhas.GetValueOrDefault(chave) ?? padrao, padrao, catalogo, escolhido =>
+                {
+                    try
+                    {
+                        PerfisDoPlugin.Escolher(PastaDados.Raiz, chave, escolhido, padrao);
+                        return true;
+                    }
+                    catch (Exception erro) when (erro is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidDataException)
+                    {
+                        pagina.ResumoGrupos.Text = "Não foi possível salvar o perfil de " + nome + ". " + erro.Message;
+                        return false;
+                    }
+                });
+                return seletores;
+            }
             var cartoes = new List<CartaoGrupoAnalise>();
             var secoes = new HashSet<int>();
             foreach (var grupo in json.RootElement.EnumerateArray().OrderBy(g => g.GetProperty("id").GetInt32()))
@@ -336,13 +357,18 @@ public sealed partial class MainWindow
                 var nome = grupo.GetProperty("nome").GetString() ?? throw new InvalidDataException();
                 var numeros = grupo.GetProperty("secoes").EnumerateArray().Select(s => s.GetInt32()).ToArray();
                 secoes.UnionWith(numeros);
-                var modelo = grupo.GetProperty("modelo").GetString();
-                var nivel = ModelosDaAnalise.NomeDoNivel(grupo.GetProperty("esforco").GetString() ?? "");
                 var (icone, descricao) = CartaoGrupoAnalise.Explicar(nome, numeros);
-                cartoes.Add(new($"Grupo {id:00}", nome, descricao, $"{modelo} · esforço {nivel.ToLowerInvariant()}", icone));
+                cartoes.Add(new($"Grupo {id:00}", nome, descricao, Seletores(id.ToString(CultureInfo.InvariantCulture), nome, grupo), icone));
             }
             if (cartoes.Count == 0) throw new InvalidDataException();
             pagina.ResumoGrupos.Text = $"{cartoes.Count} grupos · {secoes.Count} verificações";
+            var arquivoAuditoria = Path.Combine(skill, "references", "perfil-auditoria.json");
+            if (File.Exists(arquivoAuditoria))
+            {
+                using var auditoria = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(arquivoAuditoria));
+                cartoes.Add(new("Auditoria", "Auditoria final", "Confere os 15 grupos, as evidências e o relatório completo.",
+                    Seletores(PerfisDoPlugin.Auditoria, "Auditoria final", auditoria.RootElement), Glifos.Conferir));
+            }
             var modeloCartao = (DataTemplate)pagina.Resources["ModeloGrupoAnalise"];
             foreach (var cartao in cartoes)
                 pagina.GruposDoPlugin.Children.Add(new ContentPresenter { Content = cartao, ContentTemplate = modeloCartao,
