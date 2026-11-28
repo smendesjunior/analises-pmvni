@@ -10,6 +10,24 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
+    internal const string NomeAnaliseClaude = "analise-claude";
+    internal static string NomeDoPlugin(Provedor p) => p switch
+    {
+        Provedor.ChatGpt => NomeAnaliseChatGpt,
+        Provedor.Claude => NomeAnaliseClaude,
+        _ => throw new ArgumentOutOfRangeException(nameof(p))
+    };
+
+    internal static string? MotivoDoPlugin(Provedor p, Pecas pecas)
+    {
+        if (p == Provedor.ChatGpt) return MotivoAnaliseChatGpt(pecas);
+        if (p != Provedor.Claude) return "Plugin indisponível.";
+        if (pecas.Claude is null) return "Instale o Claude Code e entre com a conta Claude.";
+        if (pecas.AnaliseClaude is null) return "Instale o plugin analise-claude 1.0.2 ou posterior pelo kit PMVNI.";
+        if (pecas.Node is null) return "Instale o Node.js para gerar o relatório.";
+        return null;
+    }
+
     internal const string VersaoMinimaAnaliseChatGpt = "1.1.0";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
@@ -30,30 +48,37 @@ public sealed partial class OrquestradorAnalise
         return null;
     }
 
-    internal static bool RegistroAnaliseChatGpt(string pastaRegistro)
+    internal static bool RegistroAnaliseChatGpt(string pastaRegistro) => ProvedorDoRegistro(pastaRegistro) is not null;
+
+    internal static Provedor? ProvedorDoRegistro(string pastaRegistro)
     {
         try
         {
-            return JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(pastaRegistro))?["plugin"]?.ToString() == NomeAnaliseChatGpt;
+            return JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(pastaRegistro))?["plugin"]?.ToString() switch
+            {
+                NomeAnaliseChatGpt => Provedor.ChatGpt,
+                NomeAnaliseClaude => Provedor.Claude,
+                _ => null
+            };
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
-            return false;
+            return null;
         }
     }
 
-    internal static string PastaAnaliseChatGpt(string raizDados, string pastaProcesso, string pastaRegistro)
+    internal static string PastaAnaliseChatGpt(string raizDados, string pastaProcesso, string pastaRegistro, Provedor? provedor = null)
     {
         var chave = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
             Path.TrimEndingDirectorySeparator(Path.GetFullPath(pastaProcesso)).ToUpperInvariant()));
-        return Path.Combine(raizDados, NomeAnaliseChatGpt, Convert.ToHexString(chave)[..24], Path.GetFileName(pastaRegistro));
+        return Path.Combine(raizDados, NomeDoPlugin(provedor ?? ProvedorDoRegistro(pastaRegistro) ?? Provedor.ChatGpt), Convert.ToHexString(chave)[..24], Path.GetFileName(pastaRegistro));
     }
 
     async Task<FimAnalise> ExecutarAnaliseChatGptAsync(PedidoExecucao pe, DateTimeOffset inicio,
         IProgress<ProgressoAnalise> progresso, CancellationToken ct)
     {
-        var pasta = PastaAnaliseChatGpt(pe.RaizDados, pe.Processo.Pasta, pe.Registro.Pasta);
-        using var diario = new DiarioAnaliseChatGpt(pasta, pe.Processo.NomePasta, linha => Anunciar(progresso, new(linha, null)));
+        var pasta = PastaAnaliseChatGpt(pe.RaizDados, pe.Processo.Pasta, pe.Registro.Pasta, pe.Provedor);
+        using var diario = new DiarioAnaliseChatGpt(pasta, pe.Processo.NomePasta, linha => Anunciar(progresso, new(linha, null)), pe.Provedor);
         try
         {
             var pedido = pe;
@@ -91,10 +116,12 @@ public sealed partial class OrquestradorAnalise
     {
         var registro = pe.Registro;
         var escolha = pe.Retomar ? registro.AcessoDaExecucao().RotaCodex ?? pe.RotaCodex : pe.RotaCodex;
-        var conexao = RotaCodex.Resolver(ModoAcesso.Conta, escolha, pe.Pecas.CodexHome);
+        var claude = pe.Provedor == Provedor.Claude;
+        var servico = claude ? "Claude Code" : "Codex";
+        var conexao = claude ? new RotaResolvida("claude", servico, null) : RotaCodex.Resolver(ModoAcesso.Conta, escolha, pe.Pecas.CodexHome);
         if (conexao.Rota is not { } rota) throw new InvalidOperationException(conexao.Recusa);
-        var plugin = pe.Pecas.AnaliseChatGpt!;
-        var codex = pe.Pecas.Codex!;
+        var plugin = pe.Pecas.SkillDoPlugin(pe.Provedor)!;
+        var executavel = (claude ? pe.Pecas.Claude : pe.Pecas.Codex)!;
         var pacote = Path.Combine(pasta, NomePacoteChatGpt);
         var manifesto = Path.Combine(pasta, NomeEntradaChatGpt);
         void Informar(string etapa, string texto, PerfilRodadaChatGpt? rodada = null)
@@ -107,13 +134,23 @@ public sealed partial class OrquestradorAnalise
         {
             if (AmbienteExtra is not null)
                 foreach (var (chave, valor) in AmbienteExtra) env[chave] = valor;
-            LimparAmbienteChatGpt(env, pe.Pecas.CodexHome);
+            if (claude)
+            {
+                AmbienteFilho.Aplicar(env, Provedor.Claude, ModoAcesso.Conta, null);
+                foreach (var chave in new[] { "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY", "CLAUDE_CODE_SUBAGENT_MODEL" })
+                    env.Remove(chave);
+            }
+            else LimparAmbienteChatGpt(env, pe.Pecas.CodexHome);
         }
 
         var arquivoId = Path.Combine(pasta, "id-execucao.txt");
+        if (pe.Retomar && ProvedorDoRegistro(pe.Registro.Pasta) is { } original && original != pe.Provedor)
+            return Falha("A retomada precisa usar o plugin original.");
         if (!pe.Retomar && (File.Exists(manifesto) || File.Exists(arquivoId)))
             return Falha("Uma nova análise precisa de uma pasta de execução inédita.");
-        plugin = PerfisDoPlugin.PrepararExecucao(plugin, pasta, pe.RaizDados, pe.Retomar && File.Exists(arquivoId));
+        try { plugin = PerfisDoPlugin.PrepararExecucao(plugin, pasta, pe.RaizDados, pe.Retomar && File.Exists(arquivoId), pe.Provedor); }
+        catch (Exception e) when (e is InvalidDataException or JsonException)
+        { return Falha("Não foi possível preparar os perfis desta análise. " + e.Message); }
         if (!File.Exists(arquivoId))
             GravarJsonChatGpt(arquivoId, Guid.NewGuid().ToString("D"));
         var idExecucao = File.ReadAllText(arquivoId);
@@ -159,23 +196,27 @@ public sealed partial class OrquestradorAnalise
         if (!File.Exists(pacote) || !File.Exists(recibo) || File.ReadAllText(recibo) != EstadoDisco.Ler(pacote).Sha256)
         {
             var resposta = Path.Combine(pasta, "ultima-mensagem.md");
+            var grafico = claude ? "O agente analise-claude:grafico" : "O Terra 6.1 médio";
+            var delegacao = claude
+                ? "Use a ferramenta Agent. Para cada grupo pendente chame exatamente o subagent_type indicado em subagente do references/grupos.json da cópia. Use analise-claude:auditor com references/perfil-auditoria.json para a auditoria final. Registre o agentId real em sessao_agente e confirme o modelo e o esforço pelos registros da sessão. Preserve na retomada os resultados já confirmados desta execução."
+                : "Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Os perfis de references/grupos.json e references/perfil-auditoria.json da cópia desta execução prevalecem sobre os exemplos textuais do kit, inclusive para o grupo 15 e a auditoria. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID ou o caminho /root/... devolvido pelo spawn em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.";
             var prompt = $"""
                 Recupere a matriz e planeje evidências compartilhadas conforme references/evidencias-compartilhadas.md. Se existir entrada-anterior.json, compare as versões antes de distribuir: confirme as fontes e refaça os grupos afetados e a auditoria. Registre lacunas documentais e prossiga.
-                Execute o plugin analise-chatgpt seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
+                Execute o plugin {NomeDoPlugin(pe.Provedor)} seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
                 Consulte leis, normas e vigência exclusivamente nos JSONs locais de legislação do kit, também na auditoria e em cada delegação. Para legislação, proíba buscas, abertura de links, MCP, HTTP e leitura normativa de PDFs. Se o JSON não confirmar o dispositivo ou estiver indisponível, registre a lacuna e prossiga.
                 Nas sessões técnicas, não acione conectores de apoio nem formulários de coleta de dados (inclusive ferramentas de elicitação). Os grupos herdam essa diretriz.
                 Em todas as etapas e grupos, isole a falha por peça, fonte ou verificação. Registre o motivo, a evidência disponível e o que depende dela.
                 Execute as verificações independentes e retome as pendentes a partir dos arquivos desta execução. Nunca certifique uma verificação que falhou.
                 Apresente as contas possíveis a partir dos dados declarados mesmo quando a conclusão urbanística depende de confirmação.
-                O Terra 6.1 médio desenha o mapa apenas na modalidade de base direta, a implantação e a volumetria a partir das peças, conforme references/composicao-grafica.md. Para converter cada desenho SVG em PNG use "{Environment.ProcessPath}" --rasterizar-vista "vista.svg" "vista.png". O Terra abre os PNGs na largura final, compara com as fontes, corrige e registra em conferencia.json geometrias, fontes, perfil efetivo e hashes. Registre pendências gráficas enquanto prossegue com as verificações independentes.
+                {grafico} desenha o mapa apenas na modalidade de base direta, a implantação e a volumetria a partir das peças, conforme references/composicao-grafica.md. Para converter cada desenho SVG em PNG use "{Environment.ProcessPath}" --rasterizar-vista "vista.svg" "vista.png". O agente gráfico abre os PNGs na largura final, compara com as fontes, corrige e registra em conferencia.json geometrias, fontes, perfil efetivo e hashes. Registre pendências gráficas enquanto prossegue com as verificações independentes.
                 A entrada é entrada-editor.json nesta pasta. Esta execução independente tem ID {idExecucao}.
                 {(pe.Retomar ? "Retomada explícita: aproveite exclusivamente registros produzidos nesta execução." : "Nova análise: comece do zero. Abra as peças originais e faça todas as verificações novamente.")}
                 Use scripts/preparar-peca.mjs para reaproveitar textos, páginas e recortes mecânicos das mesmas peças por hash, inclusive em uma nova tentativa. Cada grupo consulta as evidências já registradas e solicita contraprova dirigida quando necessária. Nova análise técnica é independente dos achados e conclusões de outras execuções.
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Os perfis de references/grupos.json e references/perfil-auditoria.json da cópia desta execução prevalecem sobre os exemplos textuais do kit, inclusive para o grupo 15 e a auditoria. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID ou o caminho /root/... devolvido pelo spawn em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
-                A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
+                {delegacao}
+                A própria sessão {servico} conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Preencha o texto de cada chamada numerada em diagrama.chamadas com as cotas e índices das peças deste projeto.
                 Cubra os seis temas: área do terreno em m²; TO com área de projeção e percentual; TP com área permeável e percentual;
@@ -187,7 +228,7 @@ public sealed partial class OrquestradorAnalise
                 Se nenhum valor for legível, indique a peça consultada e o dado que falta, sem estimar. Confira as seis chamadas na auditoria.
                 Componha a implantação e a volumetria com as pranchas desta execução. Incorpore os PNGs conferidos nas duas vistas.
                 Resolva as fontes legais inicialmente com resolver-kit.mjs --sem-qgis. Primeiro o grupo 2 reconhece pelo conteúdo o relatório cadastral e territorial emitido pelo Editor, mesmo renomeado, e confronta o imóvel. Se aplicável, use a modalidade RELATORIO_PDF conforme references/territorio-pdf.md também na retomada e auditoria. Reaproveite mapa e legenda juntos com "{Environment.ProcessPath}" --recortar-mapa-pdf SHA PAGINA X Y LARGURA ALTURA. Não consulte a base nem redesenhe o mapa.
-                Somente na consulta direta, para uma feição selecionada, gere a referência cartográfica local antes do desenho pelo Terra:
+                Somente na consulta direta, para uma feição selecionada, gere a referência cartográfica local antes do desenho pelo agente gráfico:
                 "{Environment.ProcessPath}" --mapa-qgis "<pasta da base consultada>" <índice da feição em Lotes> "mapa-nativo" --completo
                 Acrescente --confirmado somente para resultado CONFIRMADO. Registre o sha256_png de FICHA.JSON em consulta_qgis.sha256_png.
                 Na base direta use o mapa composto e a legenda correspondente. Na modalidade PDF a legenda faz parte do recorte. Na revisão integral registre o hash do mapa incorporado em mapa_sha256.
@@ -198,7 +239,11 @@ public sealed partial class OrquestradorAnalise
                 """;
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
 
-            string[] args = ["exec", "--json", "--color", "never", .. (rota == "openai" ? new[] { "--ignore-user-config" } : Array.Empty<string>()), "--enable", "multi_agent_v2",
+            string[] args = claude
+                ? ["--print", "--verbose", "--output-format", "stream-json", "--plugin-dir", Directory.GetParent(plugin)!.Parent!.FullName,
+                    "--strict-mcp-config", "--permission-mode", "acceptEdits",
+                    "--tools", "Agent,Read,Glob,Grep,Write,Edit,Bash", "--allowedTools", "Agent,Read,Glob,Grep,Write,Edit,Bash"]
+                : ["exec", "--json", "--color", "never", .. (rota == "openai" ? new[] { "--ignore-user-config" } : Array.Empty<string>()), "--enable", "multi_agent_v2",
                 "--disable", "apps", "--disable", "tool_call_mcp_elicitation", .. DesativarApoio(rota, pe.Pecas.CodexHome),
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 .. RotaCodex.ArgumentosConta(rota),
@@ -212,7 +257,8 @@ public sealed partial class OrquestradorAnalise
                     conferenciaAtual["auditoria"]?["id_execucao"]?.ToString() != idExecucao)
                     throw new InvalidDataException("A conferência não identifica todos os grupos e a auditoria como produzidos nesta execução.");
                 var (aberto, _) = ValidarPacoteChatGpt(pe.Processo, entrega);
-                ConferirFigurasTerra(aberto.Conteudo, conferenciaAtual, pasta);
+                var perfilGrafico = claude ? PerfilDoPlugin.Ler(JsonNode.Parse(File.ReadAllBytes(Path.Combine(plugin, "references", "perfil-grafica.json")))!) : null;
+                ConferirFigurasTerra(aberto.Conteudo, conferenciaAtual, pasta, perfilGrafico);
                 var revisao = conferenciaAtual["revisao_integral"];
                 if (revisao?["situacao"]?.ToString() == "concluida" && revisao["dados_sha256"]?.ToString() is { Length: > 0 } hashAuditado &&
                     !string.Equals(hashAuditado, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(aberto.Conteudo.Recebido)), StringComparison.OrdinalIgnoreCase))
@@ -279,9 +325,11 @@ public sealed partial class OrquestradorAnalise
             }
             if (!pronto)
             {
-                Informar("preparar_fontes", "Conferindo a conta ChatGPT. " + RotaCodex.Descrever(conexao));
+                Informar("preparar_fontes", claude ? "Conferindo a conta Claude Code." : "Conferindo a conta ChatGPT. " + RotaCodex.Descrever(conexao));
+                if (claude && !await ContaClaudeConfirmadaAsync(executavel, pasta, AmbienteCodex, ct).ConfigureAwait(false))
+                    return Falha("Entre com sua conta pelo Claude Code e retome a análise.");
                 int tentativasConta = 0;
-                while (!await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex, rota).ConfigureAwait(false))
+                while (!claude && !await ContaChatGptConfirmadaAsync(pe.Pecas, pasta, ct, AmbienteCodex, rota).ConfigureAwait(false))
                 {
                     diario.Registrar("recuperacao", "Aguardando a conta ChatGPT", SemContaChatGpt);
                     await Task.Delay(TimeSpan.FromSeconds(Math.Min(300, 2 << Math.Min(++tentativasConta, 8))), ct).ConfigureAwait(false);
@@ -298,15 +346,15 @@ public sealed partial class OrquestradorAnalise
                         GravarJsonChatGpt(copia, File.ReadAllText(matrizAnterior));
                 }
                 GravarJsonChatGpt(planoSalvo, plano);
-                Iniciou(pe, inicio, codex, [codex, "exec"]);
-                registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; o["rota_codex_tecnica"] = rota; });
-                Informar("analisar_grupos", "O plugin está executando a análise e a auditoria no Codex.");
-                await diario.MedirAsync(codex, pasta, AmbienteCodex, "inicial", ct, rota).ConfigureAwait(false);
+                Iniciou(pe, inicio, executavel, [executavel, .. args]);
+                registro.Atualizar(o => { o["pasta_de_trabalho"] = pasta; if (!claude) o["rota_codex_tecnica"] = rota; });
+                Informar("analisar_grupos", $"O plugin está executando a análise e a auditoria no {servico}.");
+                if (!claude) await diario.MedirAsync(executavel, pasta, AmbienteCodex, "inicial", ct, rota).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
                 using var acompanhamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var leitorSessoes = Path.Combine(plugin, "scripts", "sessoes.mjs");
                 Task MedirSessoes(CancellationToken token) => diario.MedirSessoesAsync(pe.Pecas.Node!, leitorSessoes, pasta, AmbienteCodex, token);
-                var observar = diario.AcompanharAsync(codex, pasta, AmbienteCodex, acompanhamento.Token, rota, MedirSessoes);
+                var observar = diario.AcompanharAsync(executavel, pasta, AmbienteCodex, acompanhamento.Token, rota, MedirSessoes, medirCotaCodex: !claude);
                 int codigo;
                 int semAvanco = 0;
                 string? pendencia = null;
@@ -322,18 +370,18 @@ public sealed partial class OrquestradorAnalise
                             File.Move(entrega, entrega + ".anterior", overwrite: true);
                         var pedidoAtual = prompt + (pendencia is null ? "" : "\nRetome exclusivamente os grupos pendentes desta execução e corrija a pendência de entrega: " + pendencia);
                         if (pendenciaGerador is not null) pedidoAtual += "\nCorrija a montagem: " + pendenciaGerador;
-                        diario.Registrar("pedido", "Instruções enviadas ao Codex", pedidoAtual);
+                        diario.Registrar("pedido", $"Instruções enviadas ao {servico}", pedidoAtual);
                         string[] argumentos = modeloAlternativo is null ? args : [.. args[..^1], "--model", modeloAlternativo, "-"];
                         diario.IniciarTentativa();
-                        using var sessao = ExecucaoProcesso.Iniciar(codex, argumentos, pasta, pedidoAtual, AmbienteCodex,
+                        using var sessao = ExecucaoProcesso.Iniciar(executavel, argumentos, pasta, pedidoAtual, AmbienteCodex,
                             linha => diario.Linha(linha, false), linha => diario.Linha(linha, true), TarefaCodex, limiteLinha: int.MaxValue,
-                            aoInterromperLeitura: () => diario.Registrar("aviso", "Registro parcial de saída do Codex",
+                            aoInterromperLeitura: () => diario.Registrar("aviso", $"Registro parcial de saída do {servico}",
                                 "A leitura de um canal não terminou ou houve uma falha ao registrar sua saída."));
                         using var cancelamento = ct.Register(sessao.Cancelar);
                         codigo = await sessao.Fim.ConfigureAwait(false);
-                        diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
+                        diario.Registrar(servico, $"{servico} encerrou com código {codigo}.");
                         ct.ThrowIfCancellationRequested();
-                        if (diario.ModeloPrincipalIndisponivel) modeloAlternativo = "gpt-6.1-sol";
+                        if (!claude && diario.ModeloPrincipalIndisponivel) modeloAlternativo = "gpt-6.1-sol";
                         if (EntradaChatGpt(pe, EntradasDoProcesso(pe, ct), fontes, ct) != entrada)
                             throw new IOException("Entrada alterada durante a análise. Atualizando o manifesto.");
                         if (!File.Exists(entrega)) await RemontarAuditadoAsync();
@@ -353,6 +401,8 @@ public sealed partial class OrquestradorAnalise
                                 diario.Registrar("aviso", "Corrigindo pendência da entrega", erro.Message);
                             }
                         }
+                        if (claude && codigo != 0 && !diario.CotaConfirmada)
+                            return Falha("O Claude Code interrompeu a sessão. Consulte o diagnóstico no diário antes de retomar.", codigo);
                         if (diario.CotaConfirmada)
                             return new("cota_esgotada", null, null, "O serviço confirmou o esgotamento da cota. O progresso está salvo para retomada.", codigo);
                         int progressoAtual = 0;
@@ -379,7 +429,7 @@ public sealed partial class OrquestradorAnalise
                     await observar.ConfigureAwait(false);
                     diario.Arquivos(pasta);
                     await MedirSessoes(CancellationToken.None).ConfigureAwait(false);
-                    await diario.MedirAsync(codex, pasta, AmbienteCodex, "final", CancellationToken.None, rota).ConfigureAwait(false);
+                    if (!claude) await diario.MedirAsync(executavel, pasta, AmbienteCodex, "final", CancellationToken.None, rota).ConfigureAwait(false);
                 }
                 ct.ThrowIfCancellationRequested();
 
@@ -413,6 +463,18 @@ public sealed partial class OrquestradorAnalise
             yield return "-c";
             yield return $"mcp_servers.{nome}.enabled=false";
         }
+    }
+
+    static async Task<bool> ContaClaudeConfirmadaAsync(string executavel, string pasta, Action<IDictionary<string, string?>> ambiente, CancellationToken ct)
+    {
+        var r = await ExecucaoProcesso.RodarAsync(executavel, ["auth", "status", "--json"], pasta, ambiente, TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+        if (r.Codigo != 0) return false;
+        try
+        {
+            var conta = JsonNode.Parse(r.Saida);
+            return conta?["loggedIn"]?.GetValue<bool>() == true && conta["authMethod"]?.ToString() is "claude.ai" or "oauth" or "oauth_token";
+        }
+        catch (JsonException) { return false; }
     }
 
     internal const string SemContaChatGpt = "Entre no Codex com sua conta ChatGPT e tente novamente. Esta análise usa a cota da conta ChatGPT.";
@@ -556,8 +618,11 @@ public sealed partial class OrquestradorAnalise
         return (aberto, capa);
     }
 
-    internal static void ConferirFigurasTerra(ConteudoPacote pacote, JsonNode conferencia, string pasta)
+    internal static void ConferirFigurasTerra(ConteudoPacote pacote, JsonNode conferencia, string pasta, PerfilDoPlugin? graficoClaude = null)
     {
+        var esperado = graficoClaude ?? new PerfilDoPlugin("gpt-6.1-terra", "medium");
+        bool SessaoValida(string? id) => graficoClaude is null ? Guid.TryParse(id, out _) :
+            id is not null && System.Text.RegularExpressions.Regex.IsMatch(id, "^[a-zA-Z0-9]{6,64}$");
         var documento = pacote.Projeto.Documento;
         var registro = conferencia["grafica"];
         var diagrama = documento["diagrama"];
@@ -573,16 +638,16 @@ public sealed partial class OrquestradorAnalise
             var imagem = painel?["imagem"]?.ToString();
             var perfil = registro?["perfil_efetivo"];
             var visual = vista?["conferencia_visual"];
-            if (registro?["modelo"]?.ToString() != "gpt-6.1-terra" || registro["esforco"]?.ToString() != "medium" ||
-                perfil?["modelo"]?.ToString() != "gpt-6.1-terra" || perfil["esforco"]?.ToString() != "medium" ||
-                !Guid.TryParse(perfil["sessao"]?.ToString(), out _) || string.IsNullOrWhiteSpace(perfil["fonte"]?.ToString()) ||
+            if (registro?["modelo"]?.ToString() != esperado.Modelo || registro["esforco"]?.ToString() != esperado.Esforco ||
+                perfil?["modelo"]?.ToString() != esperado.Modelo || perfil["esforco"]?.ToString() != esperado.Esforco ||
+                !SessaoValida(perfil["sessao"]?.ToString()) || string.IsNullOrWhiteSpace(perfil["fonte"]?.ToString()) ||
                 vista?["origem"]?.ToString() != "terra_vetorial" || vista["situacao"]?.ToString() != "conferida" ||
                 string.IsNullOrWhiteSpace(visual?["comparacao_fontes"]?.ToString()) || string.IsNullOrWhiteSpace(visual?["legibilidade"]?.ToString()) ||
                 visual?["largura_mm"] is not JsonValue medida || !medida.TryGetValue<double>(out var largura) || !double.IsFinite(largura) || largura <= 0 ||
                 hash?.Length != 64 || imagem != $"assets/{hash}.png" || !pacote.Assets.TryGetValue(imagem, out var bytes) ||
                 Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)) != hash ||
                 vista["fontes"] is not JsonArray { Count: > 0 } fontes)
-                throw new InvalidDataException($"Composição gráfica pendente: confira o PNG de {nome}, as fontes e a revisão visual pelo Terra.");
+                throw new InvalidDataException($"Composição gráfica pendente: confira o PNG de {nome}, as fontes e a revisão visual por {esperado.Modelo}.");
             ConferirArquivoDaVista(pasta, vista["arquivo_png"], hash);
             foreach (var fonte in fontes.Prepend(vista["geometria"]))
             {

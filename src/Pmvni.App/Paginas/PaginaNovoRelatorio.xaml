@@ -177,8 +177,8 @@
                   <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="18" AutomationProperties.AccessibilityView="Raw"/>
                   <TextBlock Text="Analisar" FontSize="18" FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level2"/>
                 </StackPanel>
-                <TextBlock Text="Escolha a ferramenta de análise." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-                <Border Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
+                <TextBlock Text="O plugin é escolhido em Ajustes › Modelos da análise." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                <Border x:Name="CartaoPluginChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
                   <StackPanel Spacing="8" Background="{ThemeResource SubtleFillColorTransparentBrush}">
                     <Grid ColumnDefinitions="40,*" ColumnSpacing="12">
                       <Border Width="40" Height="40" CornerRadius="6" Background="White"
@@ -202,7 +202,7 @@
                     </Button>
                   </StackPanel>
                 </Border>
-                <Border x:Name="CartaoClaudeIndisponivel" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
+                <Border x:Name="CartaoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
                   <StackPanel Spacing="8" Background="{ThemeResource SubtleFillColorTransparentBrush}">
                     <Grid ColumnDefinitions="40,*" ColumnSpacing="12">
                       <Border Width="40" Height="40" CornerRadius="6" Background="White"
@@ -212,12 +212,12 @@
                       </Border>
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Claude" Style="{StaticResource PmvniAjusteTitulo}"/>
-                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Plugin de análise indisponível" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Verificando plugin…" Style="{StaticResource PmvniSecondaryTextStyle}"/>
                       </StackPanel>
                     </Grid>
                     <TextBlock Visibility="Collapsed" x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
                     <TextBlock TextAlignment="Left" x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-                    <Button x:Name="BotaoClaude" IsEnabled="False" AutomationProperties.Name="Analisar com o Claude" x:FieldModifier="internal" Style="{StaticResource DefaultButtonStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+                    <Button x:Name="BotaoClaude" AutomationProperties.Name="Analisar com o Claude" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE721;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Text="Analisar com o Claude"/>

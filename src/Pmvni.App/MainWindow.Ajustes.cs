@@ -180,6 +180,12 @@ public sealed partial class MainWindow
             p.TextoProfissionalSalvo.Text = "Dados salvos. Valem a partir do próximo despacho e relatório.";
         };
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
+        AoEscolher(p.CaixaPluginDaAnalise, valor =>
+        {
+            ajustes.PluginDaAnalise = (string)valor;
+            MostrarGruposDoPlugin(p);
+            AtualizarBotoesNR();
+        });
         AoEscolher(p.CaixaRotaCodex, valor => ajustes.RotaCodex = (string)valor);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();
@@ -275,6 +281,7 @@ public sealed partial class MainWindow
             p.AlternarAbrirPdf.IsOn = ajustes.DespachoAbrirPdf;
             p.AlternarDetectarAcompanhamento.IsOn = ajustes.AcompanhamentoDetectar;
             p.AlternarConfirmarCancelar.IsOn = ajustes.ConfirmarCancelar;
+            Escolher(p.CaixaPluginDaAnalise, ajustes.PluginDaAnalise);
             Escolher(p.CaixaRotaCodex, ajustes.RotaCodex);
             p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;
             p.AlternarAtualizarSozinho.IsOn = ajustes.AtualizarAutomaticamente;

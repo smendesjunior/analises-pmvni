@@ -6,6 +6,7 @@ namespace Pmvni.App;
 
 public sealed partial class PaginaNovoRelatorio
 {
+    internal Provedor ProvedorDoMonitor { get; set; }
     MonitorAnaliseChatGpt? monitorChatGpt;
     internal MonitorAnaliseChatGpt? MonitorChatGpt
     {
@@ -37,7 +38,7 @@ public sealed partial class PaginaNovoRelatorio
 
     void MostrarResumoChatGpt(MonitorAnaliseChatGpt dados)
     {
-        Adicionar(TituloDePagina(Glifos.Painel, "Resumo da análise", "analise-chatgpt · Conta ChatGPT"), 0);
+        Adicionar(TituloDePagina(Glifos.Painel, "Resumo da análise", $"{OrquestradorAnalise.NomeDoPlugin(ProvedorDoMonitor)} · Conta {Provedores.Nome(ProvedorDoMonitor)}"), 0);
         var plano = dados.Rodadas.Count > 0;
         var progresso = dados.Percentual is { } percentual
             ? $"{percentual:0.#}% · {dados.VerificacoesInformadas} de {dados.Rodadas.Sum(r => r.Verificacoes)} verificações com resultado registrado"

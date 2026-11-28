@@ -636,6 +636,10 @@
           <!-- ===== Modelos da análise ===== -->
           <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
             <StackPanel x:Name="CartaoPerfisDoPlugin" x:FieldModifier="internal" Spacing="12">
+              <ComboBox x:Name="CaixaPluginDaAnalise" x:FieldModifier="internal" Header="Plugin da análise" MinWidth="210">
+                <ComboBoxItem Content="ChatGPT" Tag="chatgpt"/>
+                <ComboBoxItem Content="Claude" Tag="claude"/>
+              </ComboBox>
               <TextBlock x:Name="ResumoGrupos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
               <Grid x:Name="GruposDoPlugin" x:FieldModifier="internal" ColumnSpacing="10" RowSpacing="10"/>
             </StackPanel>

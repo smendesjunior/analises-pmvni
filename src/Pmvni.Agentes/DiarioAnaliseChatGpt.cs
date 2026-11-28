@@ -10,6 +10,7 @@ internal sealed record LeituraDaSessao(DateTimeOffset Hora, double Usada, long? 
 
 internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
 {
+    public bool UsaClaude { get; init; }
     public DateTimeOffset? Fim { get; set; }
     public string Estado { get; set; } = "Iniciada · aguardando registro de encerramento";
     public long? Entrada { get; set; }
@@ -42,10 +43,10 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
             ? depois.Usada - antes.Usada : null;
     }
 
-    internal UsoEtapa UsoDaSessao() => new("Sessão Codex", "Codex", null, TotalSessoes("input_tokens") ?? Entrada, TotalSessoes("output_tokens") ?? Saida, TotalSessoes("cached_input_tokens") ?? Cache,
+    internal UsoEtapa UsoDaSessao() => new(UsaClaude ? "Sessão Claude" : "Sessão Codex", UsaClaude ? "Claude" : "Codex", null, TotalSessoes("input_tokens") ?? Entrada, TotalSessoes("output_tokens") ?? Saida, TotalSessoes(UsaClaude ? "cache_read_input_tokens" : "cached_input_tokens") ?? Cache,
         Fim - Inicio, Variacao(300), Variacao(10080))
     {
-        EntradaIncluiCache = true, Plano = Ultima?.Plano,
+        EntradaIncluiCache = !UsaClaude, CacheGravado = UsaClaude ? TotalSessoes("cache_creation_input_tokens") : null, Plano = Ultima?.Plano,
         Usada5h = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 300)?.Usada ?? Ultima5hSessao?.Usada,
         UsadaSemana = Ultima?.Janelas.FirstOrDefault(j => j.Minutos == 10080)?.Usada
     };
@@ -54,11 +55,11 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
     {
         var linhas = new List<string> { $"{Processo} · {Estado}", $"Início {Inicio.LocalDateTime:g}" +
             (Fim is { } fim ? $" · Fim {fim.LocalDateTime:g} · Duração {(fim - Inicio):hh\\:mm\\:ss}" : "") };
-        linhas.Add(Entrada is { } entrada && Saida is { } saida
+        if (!UsaClaude) linhas.Add(Entrada is { } entrada && Saida is { } saida
             ? $"Tokens dos turnos informados pela sessão Codex · {entrada + saida:N0} no total · entrada {entrada:N0} (cache {Cache?.ToString("N0") ?? "não informado"}) · saída {saida:N0} · {TurnosMedidos} turno(s) medido(s)"
             : "Tokens sem medição registrada pelo Codex.");
         if (TotalSessoes("input_tokens") is { } entradas)
-            linhas.Add($"Sessões técnicas com telemetria · entrada {entradas:N0} · cache {TotalSessoes("cached_input_tokens"):N0} · saída {TotalSessoes("output_tokens"):N0}.");
+            linhas.Add($"Sessões técnicas com telemetria · entrada {entradas:N0} · cache {TotalSessoes(UsaClaude ? "cache_read_input_tokens" : "cached_input_tokens"):N0} · saída {TotalSessoes("output_tokens"):N0}.");
         if (Primeira5hSessao is { } primeira && Ultima5hSessao is { } ultima)
             linhas.Add($"Janela de 5 horas observada nas sessões · {primeira.Usada:0.##}% às {primeira.Hora.LocalDateTime:T} → {ultima.Usada:0.##}% às {ultima.Hora.LocalDateTime:T}. Maior leitura {Pico5hSessao?.Usada:0.##}%. A conta pode atender outras tarefas.");
         if (Ultima is { } atual)
@@ -76,7 +77,7 @@ internal sealed record ConsumoDoPlugin(string Processo, DateTimeOffset Inicio)
             }
             if (Fim is not null && !CotaFinal) linhas.Add("A última leitura disponível é parcial.");
         }
-        else
+        else if (!UsaClaude)
         {
             var situacao = Fim.HasValue ? "sem leitura registrada" : "aguardando leitura da conta";
             if (Ultima5hSessao is null) linhas.Add($"5 horas · {situacao}");
@@ -102,10 +103,10 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
     readonly Action<string> avisar;
     readonly Dictionary<string,(DateTime Data,long Bytes)> versoes = new(StringComparer.OrdinalIgnoreCase);
 
-    internal DiarioAnaliseChatGpt(string trabalho, string processo, Action<string> avisar)
+    internal DiarioAnaliseChatGpt(string trabalho, string processo, Action<string> avisar, Provedor provedor = Provedor.ChatGpt)
     {
         this.avisar = avisar;
-        consumo = new(processo, DateTimeOffset.UtcNow);
+        consumo = new(processo, DateTimeOffset.UtcNow) { UsaClaude = provedor == Provedor.Claude };
         var pasta = Directory.CreateDirectory(Path.Combine(trabalho, Pasta)).FullName;
         var nome = consumo.Inicio.ToString("yyyyMMddTHHmmssfffffff") + "-" + Guid.NewGuid().ToString("N");
         arquivoConsumo = Path.Combine(pasta, nome + Sufixo);
@@ -164,6 +165,8 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
 
     internal static bool RecusaCota(JsonObject? evento)
     {
+        if (evento?["type"]?.ToString() == "assistant" && evento["error"]?.ToString() == "rate_limit") return true;
+        if (evento?["type"]?.ToString() == "rate_limit_event" && evento["rate_limit_info"]?["status"]?.ToString() == "rejected") return true;
         if (evento?["type"]?.ToString() is not ("turn.failed" or "error")) return false;
         var erro = evento["error"] as JsonObject ?? evento;
         var codigo = erro["code"]?.ToString() ?? erro["type"]?.ToString();
@@ -181,7 +184,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
     public void Linha(string original, bool erro)
     {
         var linha = Limpar(original);
-        if (erro) { if (RecusaModelo(linha)) ModeloPrincipalIndisponivel = true; Registrar("stderr", "Diagnóstico do Codex", linha); return; }
+        if (erro) { if (RecusaModelo(linha)) ModeloPrincipalIndisponivel = true; Registrar("stderr", "Diagnóstico do agente", linha); return; }
         JsonObject? obj;
         try { obj = JsonNode.Parse(linha) as JsonObject; }
         catch (JsonException) { obj = null; }
@@ -296,7 +299,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         { if (!ct.IsCancellationRequested) Registrar("diagnostico", "Telemetria parcial das sessões", e.Message); }
     }
 
-    public async Task AcompanharAsync(string exe,string pasta,Action<IDictionary<string,string?>> ambiente,CancellationToken ct, string rota = "openai", Func<CancellationToken,Task>? medirSessoes = null)
+    public async Task AcompanharAsync(string exe,string pasta,Action<IDictionary<string,string?>> ambiente,CancellationToken ct, string rota = "openai", Func<CancellationToken,Task>? medirSessoes = null, bool medirCotaCodex = true)
     {
         var proximaSessao = DateTimeOffset.UtcNow.AddSeconds(8);
         var proxima = DateTimeOffset.UtcNow.AddMinutes(1);
@@ -310,7 +313,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
                     await medirSessoes(ct).ConfigureAwait(false);
                     proximaSessao = DateTimeOffset.UtcNow.AddSeconds(15);
                 }
-                if (DateTimeOffset.UtcNow >= proxima)
+                if (medirCotaCodex && DateTimeOffset.UtcNow >= proxima)
                 {
                     await MedirAsync(exe,pasta,ambiente,"intermediária",ct,rota).ConfigureAwait(false);
                     proxima = DateTimeOffset.UtcNow.AddMinutes(1);

@@ -176,13 +176,13 @@ public sealed partial class OrquestradorAnalise
     public async Task<FimAnalise> ExecutarAsync(PedidoExecucao pe, IProgress<ProgressoAnalise> progresso, CancellationToken ct, TravaExecucao? travaPega = null)
     {
 #if PMVNI_DISTRIBUICAO
-        if (!pe.UsarAnaliseChatGpt || pe.Provedor != Provedor.ChatGpt)
+        if (!pe.UsarAnaliseChatGpt || pe.Provedor is not (Provedor.ChatGpt or Provedor.Claude))
 #else
-        if ((!pe.UsarAnaliseChatGpt && TravaDeProgramas.Permitidos is null) || (pe.UsarAnaliseChatGpt && pe.Provedor != Provedor.ChatGpt))
+        if ((!pe.UsarAnaliseChatGpt && TravaDeProgramas.Permitidos is null) || (pe.UsarAnaliseChatGpt && pe.Provedor is not (Provedor.ChatGpt or Provedor.Claude)))
 #endif
         {
             travaPega?.Dispose();
-            return Falha("As novas análises usam o plugin analise-chatgpt com a conta ChatGPT.");
+            return Falha("Escolha o plugin ChatGPT ou Claude para iniciar uma análise.");
         }
         if (!Provedores.Ativos.Contains(pe.Provedor))
         {
@@ -191,7 +191,7 @@ public sealed partial class OrquestradorAnalise
         }
         pe = pe with { Modo = pe.UsarAnaliseChatGpt ? ModoAcesso.Conta : ModoEfetivo(pe.Provedor, pe.Modo, pe.Pecas) };
 #if PMVNI_DISTRIBUICAO
-        var impedimento = MotivoAnaliseChatGpt(pe.Pecas) is { } motivo ? Falha(motivo) : null;
+        var impedimento = MotivoDoPlugin(pe.Provedor, pe.Pecas) is { } motivo ? Falha(motivo) : null;
 #else
         var impedimento = Conferir(pe, out var rotaCodex);
 #endif
@@ -264,7 +264,7 @@ public sealed partial class OrquestradorAnalise
         rota = null;
         var pecas = pe.Pecas;
         if (pe.UsarAnaliseChatGpt)
-            return MotivoAnaliseChatGpt(pecas) is { } motivo ? Falha(motivo) : null;
+            return MotivoDoPlugin(pe.Provedor, pecas) is { } motivo ? Falha(motivo) : null;
         if (pe.Provedor == Provedor.ChatGpt)
         {
             if (pecas.Codex is null)
@@ -392,8 +392,8 @@ public sealed partial class OrquestradorAnalise
             o["usuario"] = Usuario();
             o["versao_do_editor"] = VersaoEditor();
             // 2026-11-16: o plugin do kit e a versão instalada que fizeram a análise (auditável depois).
-            o["plugin"] = pe.UsarAnaliseChatGpt ? NomeAnaliseChatGpt : PluginUsado(pe.Provedor);
-            o["versao_do_plugin"] = (pe.UsarAnaliseChatGpt ? pe.Pecas.VersaoAnaliseChatGpt : VersaoDoPlugin(pe.Provedor, pe.Pecas)) ?? "não encontrada";
+            o["plugin"] = pe.UsarAnaliseChatGpt ? NomeDoPlugin(pe.Provedor) : PluginUsado(pe.Provedor);
+            o["versao_do_plugin"] = (pe.UsarAnaliseChatGpt ? pe.Pecas.VersaoDoPluginAtual(pe.Provedor) : VersaoDoPlugin(pe.Provedor, pe.Pecas)) ?? "não encontrada";
             // Fluxo linear do kit: a marca que libera as durações desta análise para a previsão (FluxoLinear).
             if (!pe.UsarAnaliseChatGpt && FluxoLinear.DoKit(pe.Pecas.EtapasJson)) o[FluxoLinear.Chave] = FluxoLinear.Assinatura;
             if (pe.Provedor == Provedor.Claude) o["autenticacao"] = AutenticacaoAnalisePro(pe.Modo);    // nunca a chave

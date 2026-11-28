@@ -107,7 +107,6 @@ public sealed partial class MainWindow
 #else
         Argumentos.Atual.Roteiro is not null && TravaDeProgramas.Permitidos is not null;
 #endif
-    const string SemPluginClaude = "O plugin específico de análise para o Claude ainda está indisponível.";
     const string RetomadaLegada = "Esta execução pertence a um fluxo aposentado. O registro continua no histórico. Para analisar as peças atuais, abra Novo relatório.";
 
     async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null, bool corrigirEntrega = false)
@@ -115,9 +114,9 @@ public sealed partial class MainWindow
         if (!Provedores.Ativos.Contains(p)) return null;
         if (!RoteiroLegado)
         {
-            if (p != Provedor.ChatGpt || (registroAnterior is not null && !OrquestradorAnalise.RegistroAnaliseChatGpt(registroAnterior)))
+            if (registroAnterior is not null && OrquestradorAnalise.ProvedorDoRegistro(registroAnterior) != p)
             {
-                MostrarMensagem(InfoBarSeverity.Informational, "Análise indisponível", registroAnterior is not null ? RetomadaLegada : SemPluginClaude);
+                MostrarMensagem(InfoBarSeverity.Informational, "Análise indisponível", RetomadaLegada);
                 return null;
             }
             return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto,
@@ -856,10 +855,10 @@ public sealed partial class MainWindow
 
     /// <summary>Por que "Analisar com o …" está desabilitado (desenho §12.11); null = pode analisar.</summary>
     internal string? MotivoBotao(Provedor p) =>
-        !RoteiroLegado && p == Provedor.Claude ? SemPluginClaude :
+        !RoteiroLegado && p != ProvedorDaAnalise ? "Selecione este plugin em Ajustes › Modelos da análise." :
         FluxoNovoRelatorio.MotivoDesabilitado(p, processoNR, processoNR is not null && sessaoNR.EmAndamento(processoNR.Pasta), pecasAgentes, ajustes.Agentes[p].Modo,
             ajustes.Agentes[p].Modo == ModoAcesso.Chave && CofreChaves.Existe(PastaDados.Raiz, p), p == Provedor.Gemini ? PerfilDoGemini : null,
-            usarAnaliseChatGpt: p == Provedor.ChatGpt && !RoteiroLegado);
+            usarAnaliseChatGpt: !RoteiroLegado);
 
     bool ProcessoEmExecucao => processoNR is not null && sessaoNR.EmAndamento(processoNR.Pasta);
 
@@ -880,13 +879,12 @@ public sealed partial class MainWindow
             texto.Text = motivo ?? "";
             texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
             // 2026-11-16: a versão instalada do plugin que vai fazer a análise, sempre à vista (também gravada no execucao.json).
-            var direto = p == Provedor.ChatGpt && !RoteiroLegado;
-            var versao = direto ? pecasAgentes.VersaoAnaliseChatGpt : Pmvni.Agentes.OrquestradorAnalise.VersaoDoPlugin(p, pecasAgentes);
+            var direto = !RoteiroLegado;
+            var versao = direto ? pecasAgentes.VersaoDoPluginAtual(p) : Pmvni.Agentes.OrquestradorAnalise.VersaoDoPlugin(p, pecasAgentes);
             var rotulo = (p switch { Provedor.ChatGpt => "Pelo Codex · ", Provedor.Claude => "Pelo Claude Code · ", _ => "Pelo Antigravity · " })
-                + (direto ? OrquestradorAnalise.NomeAnaliseChatGpt : TextosAgentes.NomeDaRota(p)) + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
+                + (direto ? OrquestradorAnalise.NomeDoPlugin(p) : TextosAgentes.NomeDaRota(p)) + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
             var vaga = p switch { Provedor.ChatGpt => NR.TextoPluginChatGpt, Provedor.Claude => NR.TextoPluginClaude, _ => NR.TextoPluginGemini };
-            if (p == Provedor.Claude && !RoteiroLegado) vaga.Text = "Plugin de análise indisponível";
-            else if (vaga.Text != rotulo) vaga.Text = rotulo;
+            if (vaga.Text != rotulo) vaga.Text = rotulo;
             if (p == Provedor.Gemini)
             {
                 // O modo e o perfil que a análise vai usar, à vista antes do clique (o que vale é o de Ajustes; numa retomada, o da própria análise).
@@ -894,6 +892,8 @@ public sealed partial class MainWindow
                 if (NR.TextoPerfilGemini.Text != perfil) NR.TextoPerfilGemini.Text = perfil;
             }
         }
+        NR.CartaoPluginChatGpt.Visibility = RoteiroLegado || ProvedorDaAnalise == Provedor.ChatGpt ? Visibility.Visible : Visibility.Collapsed;
+        NR.CartaoClaude.Visibility = RoteiroLegado || ProvedorDaAnalise == Provedor.Claude ? Visibility.Visible : Visibility.Collapsed;
         NR.AnelPartida.IsActive = partindoNR;
         NR.AnelPartida.Visibility = partindoNR ? Visibility.Visible : Visibility.Collapsed;
         AtualizarComandosNovoRelatorio();
@@ -967,15 +967,15 @@ public sealed partial class MainWindow
             AtualizarBotoesNR();
         }
         if (e is null) return null;
-        if (Provedores.PeloKit(e.Provedor)) EsquecerPendenteChatGpt(e.Registro.Pasta);
+        if (e.PastaAnaliseChatGpt is null && Provedores.PeloKit(e.Provedor)) EsquecerPendenteChatGpt(e.Registro.Pasta);
         else EsquecerPendenteClaude(e.Registro.Pasta);
-        if (Provedores.PeloKit(e.Provedor) && !ajustes.ExecucoesClaude.Any(x => string.Equals(x.Registro, e.Registro.Pasta, StringComparison.OrdinalIgnoreCase)))
+        if (e.PastaAnaliseChatGpt is null && Provedores.PeloKit(e.Provedor) && !ajustes.ExecucoesClaude.Any(x => string.Equals(x.Registro, e.Registro.Pasta, StringComparison.OrdinalIgnoreCase)))
         {
             // Claude e Gemini (controladores do kit, que seguem sozinhos) ficam na mesma lista; o provedor de cada um está no execucao.json do registro.
             ajustes.ExecucoesClaude.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
             SalvarAjustes();
         }
-        if (e.Provedor == Provedor.ChatGpt && !ajustes.ExecucoesChatGpt.Any(x => MesmoRegistro(x.Registro, e.Registro.Pasta)))
+        if ((e.PastaAnaliseChatGpt is not null || e.Provedor == Provedor.ChatGpt) && !ajustes.ExecucoesChatGpt.Any(x => MesmoRegistro(x.Registro, e.Registro.Pasta)))
         {
             // Guardada já na partida: se o editor cair, a reabertura oferece continuar de onde parou.
             ajustes.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
@@ -1005,7 +1005,7 @@ public sealed partial class MainWindow
     {
         var processo = continuarChatGpt?.Processo ?? ultimoResultadoNR?.Processo;
         var registro = continuarChatGpt?.Registro ?? ultimoResultadoNR?.Registro.Pasta;
-        var original = continuarChatGpt is null ? ultimoResultadoNR?.Provedor : Provedor.ChatGpt;
+        var original = continuarChatGpt?.Provedor ?? ultimoResultadoNR?.Provedor;
         if (processo is null || registro is null || original is null || NR.BotaoDescartar.Visibility != Visibility.Visible)
         {
             await EscolherHistoricoPendenteAsync();
@@ -1053,7 +1053,7 @@ public sealed partial class MainWindow
             // ChatGPT (Tarefa 12): o controlador do analise é chamado de novo no mesmo registro, sem --inputs, e continua o controle de onde parou.
             NR.AvisoResultado.IsOpen = false;
             await LerPecasAsync();
-            var iniciada = await AnalisarComPerfilAsync(Provedor.ChatGpt, cg.Processo, [], FluxoNovoRelatorio.PedidoContinuar, null, cg.Registro);
+            var iniciada = await AnalisarComPerfilAsync(cg.Provedor, cg.Processo, [], FluxoNovoRelatorio.PedidoContinuar, null, cg.Registro);
             if (iniciada is not null) continuarChatGpt = null;
             return iniciada;
         }
@@ -1090,6 +1090,7 @@ public sealed partial class MainWindow
         NR.MostrarDetalhesDasEtapas(DetalhesDasEtapas.Vazio);
         NR.ConsumoDoPlugin = null;
         NR.ArquivoDoDiario = null;
+        NR.ProvedorDoMonitor = e.Provedor;
         NR.MonitorChatGpt = e.PastaAnaliseChatGpt is null ? null : MonitorAnaliseChatGpt.Aguardando;
         if (e.PastaAnaliseChatGpt is { } pastaPlugin) _ = CarregarReferenciaAsync(e, pastaPlugin);
         _ = AtualizarAchadosAsync(e);
@@ -1111,7 +1112,7 @@ public sealed partial class MainWindow
             {
                 var duracoes = new List<TimeSpan>();
                 foreach (var processo in raiz.EnumerateDirectories())
-                foreach (var anterior in processo.EnumerateDirectories("*-chatgpt"))
+                foreach (var anterior in processo.EnumerateDirectories("*-" + Provedores.Sufixo(execucao.Provedor)))
                 {
                     if (string.Equals(anterior.FullName, pasta, StringComparison.OrdinalIgnoreCase)) continue;
                     var inicio = new FileInfo(Path.Combine(anterior.FullName, "grupos.json"));
@@ -1151,7 +1152,7 @@ public sealed partial class MainWindow
             if (e.PastaAnaliseChatGpt is { } pasta)
             {
                 var casaCodex = OpcoesAgentes().CodexHome;
-                var (monitor, resumo) = await Task.Run(() => (OrquestradorAnalise.LerMonitorChatGpt(pasta) with { PerfilAtivo = perfilAoVivo.Ler(pasta, casaCodex) },
+                var (monitor, resumo) = await Task.Run(() => (OrquestradorAnalise.LerMonitorChatGpt(pasta) with { PerfilAtivo = e.Provedor == Provedor.ChatGpt ? perfilAoVivo.Ler(pasta, casaCodex) : null },
                     DiarioAnaliseChatGpt.Listar(Path.Combine(pasta, DiarioAnaliseChatGpt.Pasta)).FirstOrDefault()));
                 if (!fechada && ReferenceEquals(e, execucaoMostrada))
                 {
@@ -1467,7 +1468,7 @@ public sealed partial class MainWindow
         if (Provedores.PeloKit(e.Provedor) && !comRelatorio && !e.PausaSolicitada && !fim.AcompanhamentoPendente && fim.Decisao is null) EsquecerPendenteClaude(e.Registro.Pasta);
         // ChatGPT: fica nos ajustes só o que dá para continuar (o controle do kit ficou na pasta do processo: falha, cancelamento, decisão sem resposta).
         var continuavel = false;
-        if (e.Provedor == Provedor.ChatGpt)
+        if (e.PastaAnaliseChatGpt is not null || e.Provedor == Provedor.ChatGpt)
         {
             continuavel = fim.Situacao is "cota_esgotada" or "falhou" or "cancelada" or "sem_resultado" or "interrompida"
                 && await Task.Run(() => ContinuavelChatGpt(e.Processo.Pasta, e.Registro.Pasta));
@@ -1523,7 +1524,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A análise do ChatGPT a continuar com "Continuar a análise" (fim com falha, cancelamento ou decisão sem resposta, ou achada na reabertura).</summary>
-    sealed record ContinuacaoChatGpt(Processo Processo, string Registro);
+    sealed record ContinuacaoChatGpt(Processo Processo, string Registro, Provedor Provedor = Provedor.ChatGpt);
 
     ContinuacaoChatGpt? continuarChatGpt;
 
@@ -1563,7 +1564,7 @@ public sealed partial class MainWindow
         await CarregarHistoricoAsync();
         if (fechada) return;
         var anterior = historicoAnalises.DistinctBy(h => h.Processo.Pasta, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault(h => string.Equals(h.Usuario, Environment.UserName, StringComparison.OrdinalIgnoreCase) && h.Provedor == Provedor.ChatGpt && h.Situacao == "sem_resultado"
+            .FirstOrDefault(h => string.Equals(h.Usuario, Environment.UserName, StringComparison.OrdinalIgnoreCase) && (h.Provedor == Provedor.ChatGpt || OrquestradorAnalise.RegistroAnaliseChatGpt(h.Registro)) && h.Situacao == "sem_resultado"
             && ContinuavelChatGpt(h.Processo.Pasta, h.Registro) && File.Exists(Path.Combine(h.Registro, "continuidade.json")));
         if (anterior is not null && !ajustes.ExecucoesChatGpt.Any(p => MesmoRegistro(p.Registro, anterior.Registro)))
         {
@@ -1585,15 +1586,16 @@ public sealed partial class MainWindow
             if (valido is null) continue;
             if (valido == false) { EsquecerPendenteChatGpt(pend.Registro); continue; }
             var processo = await ProcessoDaPastaAsync(pend.Processo);
-            if (await MostrarRecusaGuardadaAsync(Provedor.ChatGpt, processo, pend.Registro)) break;
+            var ia = OrquestradorAnalise.ProvedorDoRegistro(pend.Registro) ?? Provedor.ChatGpt;
+            if (await MostrarRecusaGuardadaAsync(ia, processo, pend.Registro)) break;
             if (historico?.Situacao == "concluida")
             {
-                var entrega = new ImportacaoPendente(Provedor.ChatGpt, processo, pend.Registro, null, null);
+                var entrega = new ImportacaoPendente(ia, processo, pend.Registro, null, null);
                 if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro))) importacoesPendentes.Add(entrega);
-                MostrarImportacaoPendente(entrega, FluxoNovoRelatorio.TextoKitTerminou(Provedor.ChatGpt, processo), InfoBarSeverity.Success);
+                MostrarImportacaoPendente(entrega, FluxoNovoRelatorio.TextoKitTerminou(ia, processo), InfoBarSeverity.Success);
                 break;
             }
-            continuarChatGpt = new ContinuacaoChatGpt(processo, pend.Registro);
+            continuarChatGpt = new ContinuacaoChatGpt(processo, pend.Registro, ia);
             if (OrquestradorAnalise.RegistroAnaliseChatGpt(pend.Registro) &&
                 historico?.Situacao is not ("cota_esgotada" or "cancelada" or "pausada"))
             {
@@ -1601,7 +1603,7 @@ public sealed partial class MainWindow
             }
             var aviso = NR.AvisoResultado;
             aviso.Severity = InfoBarSeverity.Warning;
-            aviso.Title = "Uma análise com o ChatGPT ficou pela metade";
+            aviso.Title = $"Uma análise com o {Provedores.Nome(ia)} ficou pela metade";
             aviso.Message = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} parou antes da entrega. Clique em \"Retomar análise\" para seguir de onde parou.";
             if (fechada) return;
             NR.BotaoDescartar.Visibility = Visibility.Visible;
@@ -1610,16 +1612,16 @@ public sealed partial class MainWindow
             aviso.IsOpen = true;
             // Fluxo linear do kit: objeção pendente bloqueia a entrega. O Editor não pergunta nem retoma sozinho (a retomada mandaria a análise adiante
             // com a objeção); fica o aviso, com "Retomar análise" e "Descartar análise" à mão.
-            if (RoteiroLegado && await Task.Run(() => ObjecaoPendenteDo(OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro), Provedor.ChatGpt)) is { } objecaoChatGpt)
+            if (RoteiroLegado && await Task.Run(() => ObjecaoPendenteDo(OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro), ia)) is { } objecaoChatGpt)
             {
                 aviso.Message = FluxoNovoRelatorio.TextoRetomadaComObjecao(objecaoChatGpt);
                 if (!PaginaNovoRelatorioVisivel) MostrarAvisoDeRetomada(aviso, processo, pend.Registro);
                 break;
             }
             // 2026-11-17 (pedido do usuário): pergunta na hora se retoma, e com qual IA. "Agora não" deixa o aviso com "Continuar a análise".
-            var (escolha, descartada) = await PerguntarRetomadaAsync(processo, pend.Registro, Provedor.ChatGpt);
+            var (escolha, descartada) = await PerguntarRetomadaAsync(processo, pend.Registro, ia);
             if (descartada) continue;
-            if (escolha == Provedor.ChatGpt) await ContinuarAnaliseAsync();
+            if (escolha == ia) await ContinuarAnaliseAsync();
             else if (escolha is { } alternativa)
             {
                 if (await ContinuarComOutraIaAsync(alternativa, processo, pend.Registro) is not null) continuarChatGpt = null;
@@ -1633,7 +1635,7 @@ public sealed partial class MainWindow
     void MostrarResultadoNR(ExecucaoEmCurso e, FimAnalise fim, bool continuavelChatGpt = false)
     {
         ultimoResultadoNR = e;
-        continuarChatGpt = continuavelChatGpt ? new ContinuacaoChatGpt(e.Processo, e.Registro.Pasta) : null;
+        continuarChatGpt = continuavelChatGpt ? new ContinuacaoChatGpt(e.Processo, e.Registro.Pasta, e.Provedor) : null;
         var aviso = NR.AvisoResultado;
         var nome = Provedores.Nome(e.Provedor);
         aviso.Severity = fim.Situacao == "cancelada" ? InfoBarSeverity.Informational : InfoBarSeverity.Error;
@@ -1850,7 +1852,7 @@ public sealed partial class MainWindow
             if (ajustes.ConfirmarFechar && !await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.FecharTitulo, FluxoNovoRelatorio.TextoFechar(e.Provedor, e.Processo), FluxoNovoRelatorio.FecharSim, FluxoNovoRelatorio.FecharNao))
                 return false;
         }
-        foreach (var e in ativas.Where(e => e.Provedor == Provedor.ChatGpt))
+        foreach (var e in ativas.Where(e => e.PastaAnaliseChatGpt is not null || e.Provedor == Provedor.ChatGpt))
         {
             await sessaoNR.CancelarAsync(e);
             await Task.WhenAny(e.Fim, Task.Delay(TimeSpan.FromSeconds(5)));
@@ -1859,7 +1861,7 @@ public sealed partial class MainWindow
                 ajustes.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
             SalvarAjustes();
         }
-        var claudes = ativas.Where(e => Provedores.PeloKit(e.Provedor)).ToList();
+        var claudes = ativas.Where(e => e.PastaAnaliseChatGpt is null && Provedores.PeloKit(e.Provedor)).ToList();
         if (claudes.Count > 0)
         {
             foreach (var e in claudes.Where(e => !ajustes.ExecucoesClaude.Any(x => string.Equals(x.Registro, e.Registro.Pasta, StringComparison.OrdinalIgnoreCase))))
@@ -1989,12 +1991,12 @@ public sealed partial class MainWindow
     /// <summary>"Retomar a análise?" na reabertura: continuar com o Claude, com o ChatGPT ou agora não (null). A IA que fazia a análise vem primeiro.</summary>
     async Task<(Provedor? Ia, bool Descartada)> PerguntarRetomadaAsync(Processo processo, string registro, Provedor original, string? motivo = null)
     {
-        if (!RoteiroLegado && (original != Provedor.ChatGpt || !OrquestradorAnalise.RegistroAnaliseChatGpt(registro)))
+        if (!RoteiroLegado && (OrquestradorAnalise.ProvedorDoRegistro(registro) != original))
         {
             MostrarMensagem(InfoBarSeverity.Informational, "Análise histórica", RetomadaLegada);
             return (null, false);
         }
-        var provedores = RoteiroLegado ? Provedores.Ativos.OrderByDescending(p => p == original).ToArray() : [Provedor.ChatGpt];
+        var provedores = RoteiroLegado ? Provedores.Ativos.OrderByDescending(p => p == original).ToArray() : [original];
         var itens = provedores.Select(p => $"Retomar com o {Provedores.Nome(p)}").Append("Agora não").ToArray();
         var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} parou"
             + (string.IsNullOrWhiteSpace(motivo) ? "." : $": {motivo}")

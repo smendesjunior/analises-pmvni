@@ -98,7 +98,7 @@ public static class FluxoNovoRelatorio
         ArgumentNullException.ThrowIfNull(pecas);
         if (processo is null) return EscolhaOProcesso;
         if (emAndamento) return EmAndamento;
-        if (usarAnaliseChatGpt) return OrquestradorAnalise.MotivoAnaliseChatGpt(pecas);
+        if (usarAnaliseChatGpt) return OrquestradorAnalise.MotivoDoPlugin(p, pecas);
         if (p == Provedor.ChatGpt)
         {
             if (pecas.Codex is null) return SemCodex;

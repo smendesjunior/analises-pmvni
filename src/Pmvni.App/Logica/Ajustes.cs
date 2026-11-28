@@ -196,6 +196,7 @@ public sealed class Ajustes
     /// <summary>Alvo da pesquisa ao abrir uma lei: <c>lei</c> (Nesta lei) ou <c>todas</c>.</summary>
     public string LegislacaoEscopo { get; set; } = "lei";
     string pedidoPadrao = "";
+    public string PluginDaAnalise { get; set; } = "chatgpt";
     public string RotaCodex { get; set; } = "openai";
 
     /// <summary>O texto que já vem na caixa do Novo relatório (até <see cref="MaxPedidoPadrao"/> caracteres).</summary>
@@ -269,6 +270,7 @@ public sealed class Ajustes
         MostrarCertificadoCarimbo = p.MostrarCertificadoCarimbo;
         DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
+        PluginDaAnalise = "chatgpt";
         RotaCodex = "openai";
         PedidoPadrao = "";
         ConfirmarCancelar = p.ConfirmarCancelar;
@@ -497,6 +499,7 @@ public sealed class Ajustes
             ["profissional_registro"] = ProfissionalRegistro,
             ["profissional_matricula"] = ProfissionalMatricula,
             ["legislacao_escopo"] = LegislacaoEscopo,
+            ["plugin_da_analise"] = PluginDaAnalise,
             ["rota_codex"] = RotaCodex,
             ["pedido_padrao"] = PedidoPadrao,
             ["confirmar_cancelar"] = ConfirmarCancelar,
@@ -585,6 +588,7 @@ public sealed class Ajustes
         a.ProfissionalRegistro = Texto(j, "profissional_registro");
         a.ProfissionalMatricula = Texto(j, "profissional_matricula");
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
+        a.PluginDaAnalise = Escolha("plugin_da_analise", ["chatgpt", "claude"], a.PluginDaAnalise);
         a.RotaCodex = Escolha("rota_codex", ["openai", "codex-lb", "herdar"], a.RotaCodex);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);

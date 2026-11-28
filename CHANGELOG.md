@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.6
+
+- Em Ajustes › Modelos da análise, escolha ChatGPT ou Claude para a análise inteira. Cada plugin guarda seus modelos e níveis de inteligência para os 15 grupos e a auditoria.
+- O Editor usa o Claude Code com a conta Claude e o plugin analise-claude 1.0.2. A retomada mantém o plugin e os perfis da execução.
+
 ## 5.1.5
 
 - A análise e a auditoria consultam a legislação exclusivamente nos índices JSON locais do kit. Lacunas ficam registradas para conferência.

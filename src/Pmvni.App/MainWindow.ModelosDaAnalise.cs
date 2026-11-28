@@ -317,10 +317,13 @@ public sealed partial class MainWindow
         finally { montandoModelosAnalise = false; }
     }
 
+    Provedor ProvedorDaAnalise => ajustes.PluginDaAnalise == "claude" ? Provedor.Claude : Provedor.ChatGpt;
+
     void MostrarGruposDoPlugin(PaginaAjustes pagina)
     {
         pagina.GruposDoPlugin.Children.Clear();
-        if (pecasAgentes.AnaliseChatGpt is not { } skill)
+        var provedor = ProvedorDaAnalise;
+        if (pecasAgentes.SkillDoPlugin(provedor) is not { } skill)
         {
             pagina.ResumoGrupos.Text = "Instale o kit PMVNI para consultar os grupos da análise.";
             return;
@@ -328,8 +331,10 @@ public sealed partial class MainWindow
         try
         {
             using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(Path.Combine(skill, "references", "grupos.json")));
-            var escolhas = PerfisDoPlugin.Ler(PastaDados.Raiz);
-            var catalogo = CatalogoDeModelos.Lista(FonteIa.Codex).Modelos;
+            var escolhas = PerfisDoPlugin.Ler(PastaDados.Raiz, provedor);
+            var catalogo = CatalogoDeModelos.Lista(provedor == Provedor.Claude ? FonteIa.ClaudeCode : FonteIa.Codex).Modelos;
+            if (provedor == Provedor.Claude)
+                catalogo = catalogo.Where(m => m.Id.StartsWith("claude-", StringComparison.Ordinal) && m.Niveis.Count > 0).ToList();
             SeletoresPerfilPlugin Seletores(string chave, string nome, System.Text.Json.JsonElement perfil)
             {
                 var padrao = new PerfilDoPlugin(perfil.GetProperty("modelo").GetString()!, perfil.GetProperty("esforco").GetString()!);
@@ -338,7 +343,7 @@ public sealed partial class MainWindow
                 {
                     try
                     {
-                        PerfisDoPlugin.Escolher(PastaDados.Raiz, chave, escolhido, padrao);
+                        PerfisDoPlugin.Escolher(PastaDados.Raiz, chave, escolhido, padrao, provedor);
                         return true;
                     }
                     catch (Exception erro) when (erro is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidDataException)

@@ -499,12 +499,12 @@ public sealed partial class MainWindow
         if (!RoteiroLegado)
         {
             c.LinhaPluginPro.Visibility = Visibility.Collapsed;
-            c.LinhaPluginAnalise.Visibility = p == Provedor.ChatGpt ? Visibility.Visible : Visibility.Collapsed;
-            if (p == Provedor.ChatGpt)
+            c.LinhaPluginAnalise.Visibility = !gemini ? Visibility.Visible : Visibility.Collapsed;
+            if (!gemini)
             {
-                c.TituloPluginAnalise.Text = "analise-chatgpt";
-                c.TextoPluginAnalise.Text = pecas.VersaoAnaliseChatGpt is { } versao ? "Versão " + versao + " · análise e auditoria" : "Plugin indisponível";
-                c.SeloPluginAnalise.Definir(pecas.AnaliseChatGpt is not null, pecas.AnaliseChatGpt is null ? "Indisponível" : "Encontrado");
+                c.TituloPluginAnalise.Text = OrquestradorAnalise.NomeDoPlugin(p);
+                c.TextoPluginAnalise.Text = pecas.VersaoDoPluginAtual(p) is { } versao ? "Versão " + versao + " · análise e auditoria" : "Plugin indisponível";
+                c.SeloPluginAnalise.Definir(pecas.SkillDoPlugin(p) is not null, pecas.SkillDoPlugin(p) is null ? "Indisponível" : "Encontrado");
                 c.TextoPluginAnaliseNovo.Visibility = Visibility.Collapsed;
             }
             c.PainelBotoesPrograma.Visibility = p == Provedor.ChatGpt ? Visibility.Visible : Visibility.Collapsed;

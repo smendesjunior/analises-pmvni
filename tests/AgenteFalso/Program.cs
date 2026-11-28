@@ -28,6 +28,7 @@ static class Program
         try
         {
             if (args.Length == 0) return Uso();
+            if (cenario["analise_claude"] is JsonValue pacoteClaude) return AnaliseClaude(args, pacoteClaude.GetValue<string>());
             if (cenario["analise_chatgpt"] is JsonObject chatgpt) return AnaliseChatGpt(args, chatgpt);
             if (args[0] == "dormir") { Dormir(60000); return 0; }
             if (args.Contains("--contas") && args.Any(a => Path.GetFileName(a) == "orcamento_lb.py"))
@@ -50,6 +51,25 @@ static class Program
             return Uso();
         }
         finally { saida.Flush(); }
+    }
+
+    static int AnaliseClaude(string[] args, string pacote)
+    {
+        if (args is ["auth", "status", "--json"])
+        {
+            saida.WriteLine("""{"loggedIn":true,"authMethod":"claude.ai"}""");
+            return 0;
+        }
+        int i = Array.IndexOf(args, "--plugin-dir");
+        if (!args.Contains("--print") || i < 0 || !File.Exists(Path.Combine(args[i + 1], ".claude-plugin", "plugin.json"))) return Uso();
+        var prompt = Console.In.ReadToEnd();
+        if (prompt.Contains("spawn_agent") || !prompt.Contains("analise-claude:auditor") || !prompt.Contains("subagent_type")) return Uso();
+        var id = File.ReadAllText("id-execucao.txt");
+        var grupos = Enumerable.Range(1, 15).Select(n => new { id = n, id_execucao = id });
+        GravarJson("conferencia.json", JsonSerializer.SerializeToNode(new { grupos, auditoria = new { id_execucao = id }, consulta_qgis = new { resultado = "SEM_ACESSO" } })!.AsObject());
+        File.Copy(pacote, "entrega-plugin.rpmvni");
+        saida.WriteLine("""{"type":"result","subtype":"success","result":"Relatório fictício pronto"}""");
+        return 0;
     }
 
     static int AnaliseChatGpt(string[] args, JsonObject dados)

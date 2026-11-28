@@ -46,6 +46,10 @@ public sealed record Pecas(
 
     internal string? AnaliseChatGpt { get; init; }
     internal string? VersaoAnaliseChatGpt { get; init; }
+    internal string? AnaliseClaude { get; init; }
+    internal string? VersaoAnaliseClaude { get; init; }
+    internal string? SkillDoPlugin(Provedor p) => p == Provedor.Claude ? AnaliseClaude : AnaliseChatGpt;
+    internal string? VersaoDoPluginAtual(Provedor p) => p == Provedor.Claude ? VersaoAnaliseClaude : VersaoAnaliseChatGpt;
     internal string? Node { get; init; }
 
     /// <summary>O <c>google_runtime.py</c> do análise Google instalado no Codex (a maior versão, se conhece a rota explícita).</summary>
@@ -104,11 +108,22 @@ public static class Localizacao
             .Select(p => (Skill: Path.Combine(p!, "skills", nomeChatGpt), Versao: VersaoInstalada(p)))
             .FirstOrDefault(p => p.Versao is not null && new[] { "SKILL.md", "references/grupos.json", "scripts/resolver-kit.mjs", "scripts/gerar-rpmvni.mjs" }
                 .All(arquivo => File.Exists(Path.Combine(p.Skill, arquivo))));
+        const string nomeClaude = OrquestradorAnalise.NomeAnaliseClaude;
+        var fontesClaude = raizes.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => Path.Combine(p!, "01 - PLUGINS", "plugins", nomeClaude));
+        if (o.PastaClaude is not null)
+        {
+            var (_, instalado) = MaiorVersao(Path.Combine(o.PastaClaude, "plugins", "cache", "pmvni-local", nomeClaude));
+            if (instalado is not null) fontesClaude = fontesClaude.Append(instalado);
+        }
+        var (skillClaude, versaoClaude) = fontesClaude
+            .Select(p => (Skill: Path.Combine(p, "skills", nomeClaude), Versao: VersaoDoPluginJson(Path.Combine(p, ".claude-plugin", "plugin.json"))))
+            .FirstOrDefault(p => Version.TryParse(p.Versao, out var v) && v >= new Version(1, 0, 2)
+                && File.Exists(Path.Combine(p.Skill, "SKILL.md")));
         var node = NoPath(o, "node.exe");
         if (!o.PermitirKitLegado)
             return new Pecas(codex, claude, python, launcher, null, null, VersaoDoKit(o), false, null, false)
             {
-                CodexHome = o.CodexHome, AnaliseChatGpt = skillChatGpt, VersaoAnaliseChatGpt = versaoChatGpt, Node = node,
+                CodexHome = o.CodexHome, AnaliseChatGpt = skillChatGpt, VersaoAnaliseChatGpt = versaoChatGpt, AnaliseClaude = skillClaude, VersaoAnaliseClaude = versaoClaude, Node = node,
             };
         var (versaoPlugin, pastaAnalise) = MaiorVersao(Path.Combine(cacheKit, PluginsInstalados.Analise));
         versaoPlugin = VersaoInstalada(pastaAnalise) ?? versaoPlugin;
@@ -126,7 +141,7 @@ public static class Localizacao
         return new Pecas(codex, claude, python, launcher, proRuntime, versaoPlugin, versaoKit, PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
         {
             CodexHome = o.CodexHome, Analise62 = analise62, EtapasJson = ArquivoEtapas(pastaAnalise),
-            AnaliseChatGpt = skillChatGpt, VersaoAnaliseChatGpt = versaoChatGpt, Node = node,
+            AnaliseChatGpt = skillChatGpt, VersaoAnaliseChatGpt = versaoChatGpt, AnaliseClaude = skillClaude, VersaoAnaliseClaude = versaoClaude, Node = node,
             ModelosPorRota = ArquivoDasReferencias(pastaAnalise, TabelaDeModelos.NomeNoKit), ProducaoTeste = ScriptComum(pastaAnalise, Pmvni.Agentes.ProducaoTeste.Script),
         };
     }

@@ -306,6 +306,75 @@ public partial class OrquestradorTestes
         Assert.Empty(Directory.EnumerateFiles(anterior));
     }
 
+    static string RelatorioFicticio(Cena c)
+    {
+        var recebido = Path.Combine(c.Pasta, "fixture.rpmvni");
+        var modelo = ModeloOficial.Carregar();
+        var exemplo = Ambiente.Corpus("curto.json");
+        var dados = JsonFiel.Ler(File.ReadAllBytes(exemplo));
+        dados["capa"]!["processo"] = "0001/2099";
+        var lacuna = new JsonObject { ["motivo"] = "Base indisponível na execução fictícia.", ["evidencia"] = "Consulta fictícia." };
+        dados["localizacao"] = new JsonObject
+        {
+            ["situacao"] = "A_CONFIRMAR", ["texto"] = "A consulta fictícia registrou indisponibilidade.",
+            ["fonte"] = "Consulta fictícia.", ["imagem"] = "img/mapa.png", ["sem_mapa"] = lacuna.DeepClone(),
+            ["dados"] = new JsonArray(new[] { "Inscrição", "Lote", "Ruas" }.Select(rotulo =>
+                new JsonObject { ["rotulo"] = rotulo, ["valor"] = "Indisponível" }).ToArray())
+        };
+        dados["diagrama"] = new JsonObject { ["nota"] = "Vistas sem base documental.", ["sem_calculo"] = lacuna };
+        Pacote.Gravar(recebido, Importador.Importar(JsonFiel.Escrever(dados), exemplo, modelo, ContextoUsuario.Atual()), null);
+        return recebido;
+    }
+
+    [Fact]
+    public async Task AnaliseChatGpt_SeletorClaudeIniciaAgentesPropriosERetomaComMesmosPerfis()
+    {
+        using var c = new Cena("plugin-claude", "ok", Provedor.Claude);
+        var pacote = Path.Combine(c.Pasta, "kit", "analise-claude");
+        var skill = Path.Combine(pacote, "skills", "analise-claude");
+        var refs = Directory.CreateDirectory(Path.Combine(skill, "references")).FullName;
+        var agentes = Directory.CreateDirectory(Path.Combine(pacote, "agents")).FullName;
+        var manifesto = Directory.CreateDirectory(Path.Combine(pacote, ".claude-plugin")).FullName;
+        File.WriteAllText(Path.Combine(manifesto, "plugin.json"), """{"name":"analise-claude","version":"1.0.2"}""");
+        var padrao = new PerfilDoPlugin("claude-opus-5-5", "medium");
+        foreach (var nome in new[] { "grupo", "auditor" })
+            File.WriteAllLines(Path.Combine(agentes, nome + ".md"), ["---", "name: " + nome, "model: " + padrao.Modelo, "effort: medium", "---", "Leia as peças fictícias."]);
+        var grupos = Enumerable.Range(1, 15).Select(id => new { id, modelo = padrao.Modelo, esforco = padrao.Esforco });
+        File.WriteAllText(Path.Combine(refs, "grupos.json"), JsonSerializer.Serialize(grupos));
+        foreach (var nome in new[] { "perfil-auditoria.json", "perfil-grafica.json" })
+            File.WriteAllText(Path.Combine(refs, nome), JsonSerializer.Serialize(new { modelo = padrao.Modelo, esforco = padrao.Esforco }));
+        var escolhido = new PerfilDoPlugin("claude-sonnet-5-5", "low");
+        var auditor = new PerfilDoPlugin("claude-fable-5-2", "high");
+        PerfisDoPlugin.Escolher(c.RaizDados, "1", escolhido, padrao, Provedor.Claude);
+        PerfisDoPlugin.Escolher(c.RaizDados, PerfisDoPlugin.Auditoria, auditor, padrao, Provedor.Claude);
+        Assert.Empty(PerfisDoPlugin.Ler(c.RaizDados));
+        var cenario = Path.Combine(c.Pasta, "claude-falso.json");
+        File.WriteAllText(cenario, JsonSerializer.Serialize(new { analise_claude = RelatorioFicticio(c) }));
+        var pedido = c.Pedido(Provedor.Claude) with
+        {
+            UsarAnaliseChatGpt = true, Pecas = c.Pecas with { Codex = null, AnaliseClaude = skill, VersaoAnaliseClaude = "1.0.2", Node = c.Pecas.Claude }
+        };
+        var orq = new OrquestradorAnalise { AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cenario } };
+        using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        var fim = await orq.ExecutarAsync(pedido, c.Progresso, ct.Token);
+        Assert.True(fim.Situacao == "aguardando_abertura", fim.Mensagem);
+        Assert.True(File.Exists(fim.Documento));
+        Assert.Equal(Provedor.Claude, OrquestradorAnalise.ProvedorDoRegistro(c.Registro.Pasta));
+        var pasta = OrquestradorAnalise.PastaAnaliseChatGpt(c.RaizDados, c.Processo.Pasta, c.Registro.Pasta);
+        var copia = Path.Combine(pasta, "plugin-da-execucao");
+        Assert.Equal(15, Directory.GetFiles(Path.Combine(copia, "agents"), "grupo-*.md").Length);
+        Assert.Contains("model: " + escolhido.Modelo, File.ReadAllLines(Path.Combine(copia, "agents", "grupo-01.md")));
+        Assert.Contains("effort: low", File.ReadAllLines(Path.Combine(copia, "agents", "grupo-01.md")));
+        Assert.Contains("model: " + padrao.Modelo, File.ReadAllLines(Path.Combine(copia, "agents", "grupo-02.md")));
+        Assert.Contains("model: " + auditor.Modelo, File.ReadAllLines(Path.Combine(copia, "agents", "auditor.md")));
+        Assert.Contains("effort: high", File.ReadAllLines(Path.Combine(copia, "agents", "auditor.md")));
+        var plano = JsonNode.Parse(File.ReadAllText(Path.Combine(pasta, "grupos.json")))!;
+        Assert.Equal("analise-claude:grupo-01", plano[0]!["subagente"]!.GetValue<string>());
+        PerfisDoPlugin.Escolher(c.RaizDados, "1", padrao, padrao, Provedor.Claude);
+        Assert.Equal(fim.Documento, (await orq.ExecutarAsync(pedido with { Retomar = true }, c.Progresso, ct.Token)).Documento);
+        Assert.Contains("model: " + escolhido.Modelo, File.ReadAllLines(Path.Combine(copia, "agents", "grupo-01.md")));
+    }
+
     [Theory]
     [InlineData("openai")]
     [InlineData("codex-lb")]
@@ -343,21 +412,7 @@ public partial class OrquestradorTestes
         Assert.Equal(50d, monitor.Rodadas[0].Percentual);
         File.WriteAllText(Path.Combine(fontesMonitor, "id-execucao.txt"), Guid.NewGuid().ToString());
         Assert.Equal(0, OrquestradorAnalise.LerMonitorChatGpt(fontesMonitor).VerificacoesInformadas);
-        var recebido = Path.Combine(c.Pasta, "fixture.rpmvni");
-        var modelo = ModeloOficial.Carregar();
-        var exemplo = Ambiente.Corpus("curto.json");
-        var dados = JsonFiel.Ler(File.ReadAllBytes(exemplo));
-        dados["capa"]!["processo"] = "0001/2099";
-        var lacuna = new JsonObject { ["motivo"] = "Base indisponível na execução fictícia.", ["evidencia"] = "Consulta fictícia." };
-        dados["localizacao"] = new JsonObject
-        {
-            ["situacao"] = "A_CONFIRMAR", ["texto"] = "A consulta fictícia registrou indisponibilidade.",
-            ["fonte"] = "Consulta fictícia.", ["imagem"] = "img/mapa.png", ["sem_mapa"] = lacuna.DeepClone(),
-            ["dados"] = new JsonArray(new[] { "Inscrição", "Lote", "Ruas" }.Select(rotulo =>
-                new JsonObject { ["rotulo"] = rotulo, ["valor"] = "Indisponível" }).ToArray())
-        };
-        dados["diagrama"] = new JsonObject { ["nota"] = "Vistas sem base documental.", ["sem_calculo"] = lacuna };
-        Pacote.Gravar(recebido, Importador.Importar(JsonFiel.Escrever(dados), exemplo, modelo, ContextoUsuario.Atual()), null);
+        var recebido = RelatorioFicticio(c);
         var bloqueio = Path.Combine(c.Pasta, "pausar.txt");
         var invalida = Path.Combine(c.Pasta, "invalidar.txt");
         var recusaCota = Path.Combine(c.Pasta, "cota.txt");

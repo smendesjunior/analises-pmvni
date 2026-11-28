@@ -739,7 +739,7 @@ public sealed partial class PaginaNovoRelatorio
     void PaginaEtapas()
     {
         var subtitulo = MonitorChatGpt is null ? "Acompanhe as etapas e os registros de execução."
-            : "Acompanhe as rodadas do analise-chatgpt e a conferência do relatório.";
+            : $"Acompanhe os grupos do {OrquestradorAnalise.NomeDoPlugin(ProvedorDoMonitor)} e a conferência do relatório.";
         Adicionar(TituloDePagina(Glifos.Lista, "Etapas da análise", subtitulo,
             emCurso ? TagAoVivo("Em andamento") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
         var atual = IndiceEtapaAberta;

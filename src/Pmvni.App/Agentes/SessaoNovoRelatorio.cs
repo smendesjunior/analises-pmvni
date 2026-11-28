@@ -210,6 +210,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                         : RegistroExecucao.Abrir(registroAnterior, pr.Pasta);
                     try
                     {
+                        if (registroAnterior is not null && OrquestradorAnalise.ProvedorDoRegistro(registroAnterior) != p)
+                            throw new AnaliseRecusadaException("A retomada precisa usar o plugin original.");
                         var selecao = registroPlugin.LerAnexosCategorizados();
                         var avisos = new List<string>();
                         if (registroAnterior is null)
@@ -219,7 +221,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                             var planoLocal = Arquivamento.Planejar(trabalho, anexos);
                             selecao = Arquivamento.Arquivar(trabalho, planoLocal, CancellationToken.None);
                             avisos.AddRange(planoLocal.Where(a => a.Recusa is not null).Select(a => a.Recusa!));
-                            registroPlugin.Atualizar(o => { o["plugin"] = OrquestradorAnalise.NomeAnaliseChatGpt; o["area_local_solicitada"] = false; });
+                            registroPlugin.Atualizar(o => { o["plugin"] = OrquestradorAnalise.NomeDoPlugin(p); o["area_local_solicitada"] = false; });
                             registroPlugin.GravarAnexos(selecao);
                         }
                         if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar)
@@ -248,7 +250,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                     reg.Atualizar(o =>
                     {
                         o["area_local_solicitada"] = !usarAnaliseChatGpt;
-                        if (usarAnaliseChatGpt) o["plugin"] = OrquestradorAnalise.NomeAnaliseChatGpt;
+                        if (usarAnaliseChatGpt) o["plugin"] = OrquestradorAnalise.NomeDoPlugin(p);
                         if (auditoriaAlternativa) o["rota_auditoria_alternativa"] = p == Provedor.Claude ? "codex" : "claude";
                     });
                 reg.GravarPedido(texto ?? "");      // o pedido digitado; nenhuma IA recebe pedido do editor (Tarefa 12)
@@ -273,7 +275,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false)
         {
             Recusas = recusas,
-            PastaAnaliseChatGpt = usarAnaliseChatGpt ? OrquestradorAnalise.PastaAnaliseChatGpt(raizDados, pr.Pasta, registro.Pasta) : null,
+            PastaAnaliseChatGpt = usarAnaliseChatGpt ? OrquestradorAnalise.PastaAnaliseChatGpt(raizDados, pr.Pasta, registro.Pasta, p) : null,
         };
         var progresso = Progresso(e);
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro)
@@ -355,7 +357,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// "interrompida" e o acompanhamento termina assim. false = nada a encerrar.</summary>
     public async Task<bool> CancelarAsync(ExecucaoEmCurso e)
     {
-        if (e.Provedor == Provedor.ChatGpt)
+        if (e.PastaAnaliseChatGpt is not null || e.Provedor == Provedor.ChatGpt)
         {
             e.Cancelamento.Cancel();
             return true;
