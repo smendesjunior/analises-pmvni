@@ -26,7 +26,7 @@ public static class CategoriasAjustes
         new(Relatorios, "Relatórios e revisão", "Zoom, marcas de revisão, painéis, salvamento automático, recuperação e arquivos recentes.", Glifos.Relatorio),
         new(Modulos, "Módulos", "Como Processos, Despachos, Acompanhamento e Legislação trabalham: listas, PDF dos despachos e leis anexadas.", Glifos.Lista),
         new(Ia, "Inteligência artificial", "As contas das IAs, o que o Novo relatório pergunta antes de seguir e a IA da revisão.", Glifos.Ia),
-        new(Modelos, "Modelos da análise", "Veja o que cada grupo verifica e qual perfil do Codex o plugin utiliza.", Glifos.Painel),
+        new(Modelos, "Modelos da análise", "Escolha o plugin da análise e ajuste o modelo e a inteligência de cada grupo e da auditoria.", Glifos.Painel),
         new(Kit, "Kit PMVNI", "Modelos de despacho, plugin de análise e atualizações desta estação.", Glifos.Ferramenta),
         new(Sobre, "Sistema", "Atualizações, suporte, restaurar os ajustes, diagnóstico e informações sobre o editor.", Glifos.Sobre, Rodape: true),
     ];
