@@ -61,6 +61,19 @@ public static class Localizacao
 
         var r = new Dictionary<string, object?>();
         foreach (var par in localizacao) r[par.Key] = par.Value;
+        // Só o texto ausente em um recorte antigo recebe complemento. Coordenadas numéricas em % da imagem.
+        if (r.GetValueOrDefault("obs_mapa") is { } complemento)
+        {
+            if (complemento is not IReadOnlyDictionary<string, object?> obs ||
+                Dados.Obter(obs, "x_pct") is not long x || x is < 0 or >= 100 ||
+                Dados.Obter(obs, "y_pct") is not long y || y is < 0 or >= 100 ||
+                Dados.Obter(obs, "largura_pct") is not long largura || largura <= 0 || largura > 100 - x ||
+                Dados.Obter(obs, "linhas") is not List<object?> { Count: > 0 } notas ||
+                notas.Any(n => n is not IReadOnlyDictionary<string, object?> linha ||
+                    Dados.Obter(linha, "texto") is not string texto || string.IsNullOrWhiteSpace(texto) ||
+                    Dados.Obter(linha, "fonte") is not string fonte || string.IsNullOrWhiteSpace(fonte)))
+                throw new MoldeErro("Confira a posição, o texto e a fonte das observações no quadro do mapa.");
+        }
         r["legenda"] = legenda;
         r["grupos"] = grupos.Cast<object?>().ToList();
         r["colunas"] = colunas.Where(c => c.Count > 0).Select(c => (object?)c.Cast<object?>().ToList()).ToList();

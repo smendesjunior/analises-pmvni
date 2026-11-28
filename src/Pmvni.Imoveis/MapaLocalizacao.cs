@@ -48,6 +48,7 @@ public sealed class MapaGerado
     public required IReadOnlyList<string> Ruas { get; init; }
     /// <summary>As linhas do balão do lote.</summary>
     public required IReadOnlyList<string> Ficha { get; init; }
+    public IReadOnlyList<string> ObservacoesMapa { get; init; } = [];
     public string Inscricao { get; init; } = "";
     public string Lote { get; init; } = "";
     public string Quadra { get; init; } = "";
@@ -576,9 +577,30 @@ public static class MapaLocalizacao
         quadroLote.Add((areaBase is > 0 ? "Área na base" : "Área calculada", $"{Num(areaBase ?? areaGeo)} m²"));
         if (o.AreaDeclarada is > 0) quadroLote.Add(("Área declarada", $"{Num(o.AreaDeclarada.Value)} m²"));
         quadroLote.Add(("Zoneamento", zona.Length > 0 ? zona : motivoZona));
+        var observacoes = new List<string>();
+        if (appAtinge) observacoes.Add("A APP indicada na base atinge o lote.");
+        if (br is { AtingeDominio: true })
+            observacoes.Add("Domínio estimado da BR-262 atinge o lote. Confirmar com o DNIT.");
+        else if (br is { AtingeNaoEdificavel: true })
+            observacoes.Add("Faixa não edificável estimada da BR-262 atinge o lote.");
+        string? faixaDer = null;
+        if (b[Camada.FaixaDominioDer] is { } der)
+        {
+            var faixas = der.Perto(lote.EnvelopeInternal).Select(f => f.Geometria)
+                .Where(g => g is Polygon or MultiPolygon && g.Relate(lote, "T********")).Cast<Geometry>().ToArray();
+            if (faixas.Length > 0)
+            {
+                var cobertura = NetTopologySuite.Operation.Union.UnaryUnionOp.Union(faixas);
+                faixaDer = cobertura.Covers(lote) ? "Lote dentro da faixa de domínio do DER." : "Faixa de domínio do DER atinge parte do lote.";
+                observacoes.Add(faixaDer);
+            }
+        }
+        if (motivoZona.StartsWith("Mais de uma zona (", StringComparison.Ordinal))
+            observacoes.Add("O lote abrange mais de uma zona.");
+        if (o.Candidato && observacoes.Count > 0) observacoes.Add("Identificação do lote a confirmar.");
         var idLote = loteN.Length > 0 ? "LOTE " + loteN : "LOTE SEM Nº";
         var cabecalho = quadra.Length > 0 ? $"{idLote} · QUADRA {quadra}" : idLote;
-        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, idLote, cabecalho, quadroLote, rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
+        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, idLote, cabecalho, quadroLote, observacoes, rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
 
         double? dif = null;
         if (o.AreaDeclarada is > 0 && (areaBase is > 0 || areaGeo > 0))
@@ -602,6 +624,7 @@ public static class MapaLocalizacao
         Dado(GrupoAreas, "Edificação", b[Camada.Edificacoes] is null ? indisponivel :
             edif.Count > 0 ? $"{Num(areaEdif)} m²" + (edif.Count > 1 ? $" em {edif.Count} blocos" : "") : "Nenhuma cadastrada no lote");
         Dado(GrupoZona, "Zona (2025)", zona.Length > 0 ? zona : motivoZona);
+        if (faixaDer is not null) Dado(GrupoZona, "Faixa do DER", faixaDer, "ATINGE O LOTE", "r", b[Camada.FaixaDominioDer]!.Fonte.Relativo);
         if (cursos.Count > 0)
         {
             var r0 = cursos[0];
@@ -633,10 +656,10 @@ public static class MapaLocalizacao
                 $"Lote {(v.Lote.Length > 0 ? v.Lote : "s/ nº")}: {(v.Proprietario.Length > 0 ? v.Proprietario : "sem nome no cadastro")}")));
         if (ruas.Count > 0) Dado(GrupoCadastro, "Ruas", string.Join(" · ", ruas.Take(4).Select(NomeRua)));
 
-        Camada[] usadas = [Camada.Lotes, Camada.Logradouros, Camada.Zoneamento, Camada.Quadras, Camada.NumerosLote, Camada.Edificacoes, Camada.HidroApp, Camada.Auc, Camada.PerimetroUrbano, Camada.CursosAgerh, Camada.Loteamentos];
+        Camada[] usadas = [Camada.Lotes, Camada.Logradouros, Camada.Zoneamento, Camada.Quadras, Camada.NumerosLote, Camada.Edificacoes, Camada.HidroApp, Camada.Auc, Camada.PerimetroUrbano, Camada.CursosAgerh, Camada.Loteamentos, Camada.FaixaDominioDer];
         return new MapaGerado
         {
-            Svg = svg, Modo = modo, Extensao = ext, Legenda = legenda, Dados = dados, Ruas = ruas, Ficha = ficha,
+            Svg = svg, Modo = modo, Extensao = ext, Legenda = legenda, Dados = dados, Ruas = ruas, Ficha = ficha, ObservacoesMapa = observacoes,
             Inscricao = ins, Lote = loteN, Quadra = quadra, Zona = zona, Loteamento = loteamento, AreaBase = areaBase, AreaGeometria = Math.Round(areaGeo, 2),
             CursosDagua = cursos, AppAtingeLote = appAtinge, Auc = auc, PerimetroUrbano = perimetro, Br262 = br, Edificacoes = edif.Count, AreaEdificada = areaEdif,
             Proprietario = proprietario, NomeRio = nomeRio, Confrontantes = confrontantes, DiferencaAreaPct = dif,

@@ -69,6 +69,19 @@ public sealed class BaseQgis
             progresso?.Report($"Lendo {FontesQgis.Rotulo(camada).ToLowerInvariant()}…");
             try
             {
+                if (camada == Camada.FaixaDominioDer)
+                {
+                    // O cruzamento exige a mesma referência espacial da camada de lotes.
+                    var prjLotes = Path.ChangeExtension(inv.Camadas[Camada.Lotes]?.Caminho, ".prj");
+                    var prjFaixa = Path.ChangeExtension(fonte.Caminho, ".prj");
+                    var referencia = File.Exists(prjFaixa) ? File.ReadAllText(prjFaixa).Trim() : "";
+                    if (referencia.Length == 0 || !File.Exists(prjLotes) ||
+                        !string.Equals(referencia, File.ReadAllText(prjLotes).Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        avisos.Add("Faixa do DER sem referência espacial compatível com os lotes. Cruzamento indisponível.");
+                        continue;
+                    }
+                }
                 var feicoes = Shapefile.Ler(fonte.Caminho, ct);
                 var invalidas = 0;
                 var validas = new List<Feicao>(feicoes.Count);

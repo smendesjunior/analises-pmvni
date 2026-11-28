@@ -84,7 +84,7 @@ public static class MapaSvg
     static string N(double v) => Math.Round(v, 1).ToString("0.#", Inv);
 
     internal static (string Svg, List<string> Ruas, List<ItemLegenda> Legenda) Desenhar(BaseQgis b, Envelope ext, Fe alvo, string modo,
-        string tLote, string cabecalhoLote, IReadOnlyList<(string Rotulo, string Valor)> dadosLote,
+        string tLote, string cabecalhoLote, IReadOnlyList<(string Rotulo, string Valor)> dadosLote, IReadOnlyList<string> observacoes,
         IReadOnlyList<(Fe Lote, string Nome)> rotulosVizinhos, CursoDagua? rio, string nomeRio, FaixaBr262? dnit,
         bool cotasLote = true, bool cotasDnit = true, bool cotasRua = true)
     {
@@ -151,6 +151,7 @@ public static class MapaSvg
         var ruas = MapaLocalizacao.Em(b, Camada.Logradouros, ext).Where(r => r.Tipo == 'L').ToList();
         // faixa de domínio (DNIT) e faixa não edificável da BR-262, quando aparecem no recorte
         var br = ruas.Where(r => MapaLocalizacao.EhBr262(r.Campo("NomeLogra"))).ToList();
+        var limitesDnit = new StringBuilder();
         if (br.Count > 0 && dnit is not null)
         {
             var moldura = Shapefile.Fabrica.ToGeometry(ext);
@@ -158,11 +159,11 @@ public static class MapaSvg
                 try
                 {
                     var eixo = Shapefile.Fabrica.BuildGeometry(br.Select(r => Cortar(r.G, metros + 5)).ToList()).Union();
-                    var faixa = eixo.Buffer(metros, 8).Intersection(moldura);
-                    var d = Caminho(faixa);
-                    if (d.Length == 0) continue;
-                    if (veu) s.Append($"<path d=\"{d}\" fill=\"{Dnit}\" fill-opacity=\".09\" fill-rule=\"evenodd\"/>");
-                    s.Append($"<path d=\"{d}\" fill=\"none\" stroke=\"{DnitBorda}\" stroke-opacity=\".824\" stroke-width=\"3\" stroke-dasharray=\"10 6\" stroke-linejoin=\"round\"/>");
+                    var faixa = eixo.Buffer(metros, 8);
+                    if (veu) s.Append($"<path d=\"{Caminho(faixa.Intersection(moldura))}\" fill=\"{Dnit}\" fill-opacity=\".09\" fill-rule=\"evenodd\"/>");
+                    var limite = Caminho(faixa.Boundary.Intersection(moldura));
+                    if (limite.Length > 0)
+                        limitesDnit.Append($"<path d=\"{limite}\" fill=\"none\" stroke=\"{DnitBorda}\" stroke-opacity=\".824\" stroke-width=\"3\" stroke-dasharray=\"10 6\" stroke-linejoin=\"round\"/>");
                 }
                 catch (TopologyException) { }
         }
@@ -252,6 +253,7 @@ public static class MapaSvg
         var edifLote = MapaLocalizacao.EdificacoesDoLote(b, alvo);
         foreach (var e in edifLote)
             s.Append($"<path d=\"{Caminho(e.G)}\" fill=\"{EdifLote}\" stroke=\"#FFFFFF\" stroke-width=\"{2 * S}\" stroke-linejoin=\"round\"/>");
+        s.Append(limitesDnit);
 
         var ptsLote = alvo.Partes.SelectMany(a => a).Select(T).ToList();
         var cl = new Ret(ptsLote.Min(p => p.X), ptsLote.Min(p => p.Y), ptsLote.Max(p => p.X), ptsLote.Max(p => p.Y));
@@ -522,7 +524,7 @@ public static class MapaSvg
         foreach (var (a, c, _, _, _) in cotasDnitLinhas) Linha(a, c);
         if (largura is { } lr0) Linha(T(lr0.Inicio), T(lr0.Fim));
         var topo = new StringBuilder();
-        var cartucho = QuadroDoLote(topo, cabecalhoLote, dadosLote);
+        var cartucho = QuadroDoLote(topo, cabecalhoLote, dadosLote, observacoes);
         if (tLote.Length > 0)
         {
             posLote = PosicaoEtiquetaLote(ptsLote, centroLote, we, he, lw, lh, [rosa.Contorno(), cartucho.Contorno(), .. linhasFixas]);
@@ -569,10 +571,11 @@ public static class MapaSvg
         quadro.Ocupar(cartucho);
         if (caixaEtiqueta is { } ce3) quadro.Ocupar(ce3);
         foreach (var l in linhasFixas) quadro.Ocupar(l);
-        CotasDoLote(quadro, s);
-        CotaDoRio(quadro, s);
-        CotasBr262(quadro, s);
-        CotaDaRua(quadro, s);
+        var cotasSvg = new StringBuilder();
+        CotasDoLote(quadro, cotasSvg);
+        CotaDoRio(quadro, cotasSvg);
+        CotasBr262(quadro, cotasSvg);
+        CotaDaRua(quadro, cotasSvg);
         var nomesRuas = RotularNomes(quadro, s);
         // números dos lotes (só em volta do lote do projeto), cada um no seu ponto: se não couber, não aparece
         foreach (var n in numerosPerto) // o do lote do projeto vai na etiqueta vermelha
@@ -642,6 +645,7 @@ public static class MapaSvg
         if (tLote.Length > 0) Etiqueta(null, s, posLote, tLote, 19 * S, true, "#FFFFFF", Vermelho, 0);
         s.Append(topo);
         Norte(s, lw - 50 * S, 50 * S);
+        if (cotasSvg.Length > 0) s.Append("<g id=\"cotas\">").Append(cotasSvg).Append("</g>");
         s.Append("</svg>");
 
         // a legenda (numa linha só, abaixo do mapa no relatório) lista só o que foi desenhado
@@ -696,7 +700,7 @@ public static class MapaSvg
     static double Sobre(double x, double y, double larg, double alt, Ret r) =>
         Math.Max(0, Math.Min(x + larg, r.X1) - Math.Max(x, r.X0)) * Math.Max(0, Math.Min(y + alt, r.Y1) - Math.Max(y, r.Y0));
 
-    static Ret QuadroDoLote(StringBuilder svg, string titulo, IReadOnlyList<(string Rotulo, string Valor)> dados)
+    static Ret QuadroDoLote(StringBuilder svg, string titulo, IReadOnlyList<(string Rotulo, string Valor)> dados, IReadOnlyList<string> observacoes)
     {
         const double corpo = 13 * S, margem = 11 * S, entrelinhas = 17 * S;
         double coluna = dados.Max(c => Letras.Largura(c.Rotulo, corpo, false)) + 11 * S;
@@ -708,7 +712,8 @@ public static class MapaSvg
             for (var i = 0; i < partes.Count; i++) linhas.Add((i == 0 ? nome : "", partes[i]));
         }
         double w = margem * 2 + coluna + areaValor;
-        double h = 36 * S + linhas.Count * entrelinhas + 7 * S;
+        var notas = observacoes.SelectMany((nota, i) => QuebrarValor(i == 0 ? "Obs. " + nota : nota, w - 2 * margem, corpo, abreviar: false)).ToList();
+        double h = 36 * S + (linhas.Count + notas.Count) * entrelinhas + 7 * S;
         const double recuo = 12 * S;
         var caixa = new Ret(recuo, recuo, recuo + w, recuo + h);
         var x = caixa.X0 + margem;
@@ -725,11 +730,16 @@ public static class MapaSvg
             svg.Append($"<text x=\"{N(x + coluna)}\" y=\"{N(y)}\" font-size=\"{corpo}\" font-weight=\"700\" fill=\"#28382F\">{Html.E(valor)}</text>");
             y += entrelinhas;
         }
+        foreach (var nota in notas)
+        {
+            svg.Append($"<text x=\"{N(x)}\" y=\"{N(y)}\" font-size=\"{corpo}\" font-weight=\"700\" fill=\"#A52323\">{Html.E(nota)}</text>");
+            y += entrelinhas;
+        }
         svg.Append("</g></g>");
         return caixa;
     }
 
-    static List<string> QuebrarValor(string valor, double limite, double corpo)
+    static List<string> QuebrarValor(string valor, double limite, double corpo, bool abreviar = true)
     {
         var linhas = new List<string>();
         var restante = valor.Trim();
@@ -737,7 +747,7 @@ public static class MapaSvg
         {
             if (Letras.Largura(restante, corpo, true) <= limite) { linhas.Add(restante); break; }
             // A ficha completa e o título acessível preservam valores longos.
-            var ultima = linhas.Count == 2;
+            var ultima = abreviar && linhas.Count == 2;
             var disponivel = ultima ? limite - Letras.Largura("…", corpo, true) : limite;
             var n = 1;
             while (n < restante.Length && Letras.Largura(restante[..(n + 1)], corpo, true) <= disponivel) n++;

@@ -39,7 +39,7 @@
   "pontos_confirmar": "[Tema 1] • [Tema 2] • [Tema 3]"
  },
  "localizacao": {
-  "_como": "Nos plugins, mapa, dados e legenda saem do script mapa_localizacao.py (report_evidence.py montar preenche esta seção a partir da figura QGIS). situacao: CONFIRMADO | A_CONFIRMAR. texto: por que o lote ainda precisa ser confirmado (sai em \"Situação do lote na base\"). dados: grupo (Identificação | Áreas e edificação | Zona e condicionantes | Cadastro e entorno), rótulo curto, valor, e quando couber chip + alerta (r/a/g) e nota. legenda: itens do mapa (lote, edif, app, rio, dnit, zona); sem ela, sai a legenda padrão. observacoes: o que o PDM diz para a zona e as condicionantes (artigo/anexo). Dados pessoais do cadastro: uso interno.",
+  "_como": "Nos plugins, mapa, dados e legenda saem do script mapa_localizacao.py (report_evidence.py montar preenche esta seção a partir da figura QGIS). situacao: CONFIRMADO | A_CONFIRMAR. texto: por que o lote ainda precisa ser confirmado (sai em \"Situação do lote na base\"). dados: grupo (Identificação | Áreas e edificação | Zona e condicionantes | Cadastro e entorno), rótulo curto, valor, e quando couber chip + alerta (r/a/g) e nota. legenda: itens do mapa (lote, edif, app, rio, dnit, zona); sem ela, sai a legenda padrão. observacoes: o que o PDM diz para a zona e as condicionantes (artigo/anexo). Dados pessoais do cadastro: uso interno. No quadro do lote, registre em vermelho somente as incidências pertinentes e suas ressalvas. Em PDF anexado, complemente as linhas ausentes por localizacao.obs_mapa conforme o contrato do plugin.",
   "subtitulo": "Conferência do endereço com a base cartográfica e cadastral do município.",
   "situacao": "A_CONFIRMAR",
   "imagem": "exemplo_mapa.png",

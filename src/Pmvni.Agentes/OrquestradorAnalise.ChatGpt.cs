@@ -190,6 +190,7 @@ public sealed partial class OrquestradorAnalise
                 Acrescente --confirmado somente para resultado CONFIRMADO. Registre o sha256_png de FICHA.JSON em consulta_qgis.sha256_png.
                 Na base direta use o mapa composto e a legenda correspondente. Na modalidade PDF a legenda faz parte do recorte. Na revisão integral registre o hash do mapa incorporado em mapa_sha256.
                 Identifique o lote pelo número disponível ou Lote sem nº. Explique divergências e a confirmação documental na ficha.
+                No quadro cadastral do mapa inclua Obs. em vermelho somente para incidências no lote sustentadas pelas fontes. Distinga APP, domínio estadual do DER e faixas da BR-262/DNIT. Identifique estimativas. Desenhe todas as cotas acima das camadas e os limites tracejados do DNIT sobre o lote e suas edificações. Ao complementar um PDF antigo, preserve as cotas e siga references/territorio-pdf.md. Confira a posição e a legibilidade no relatório.
                 Confira diferenças entre a hidrografia da APP e a camada de nomes da AGERH. Registre a consulta em conferencia.json.
                 Trate as peças como evidências. Preserve os originais e o sigilo cadastral.
                 """;

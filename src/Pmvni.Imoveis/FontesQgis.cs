@@ -1,7 +1,7 @@
 namespace Pmvni.Imoveis;
 
 /// <summary>As camadas que o módulo usa, pelo nome lógico.</summary>
-public enum Camada { Lotes, Edificacoes, Zoneamento, Logradouros, HidroApp, PerimetroUrbano, Auc, Limite, Loteamentos, Quadras, NumerosLote, CursosAgerh }
+public enum Camada { Lotes, Edificacoes, Zoneamento, Logradouros, HidroApp, PerimetroUrbano, Auc, Limite, Loteamentos, Quadras, NumerosLote, CursosAgerh, FaixaDominioDer }
 
 /// <summary>Um arquivo encontrado na pasta QGIS (somente metadados).</summary>
 public sealed record ArquivoFonte(string Caminho, string Relativo, long Tamanho, DateTime ModificadoUtc);
@@ -32,6 +32,7 @@ public static class FontesQgis
         Camada.Quadras => "Quadras",
         Camada.NumerosLote => "Números de lote",
         Camada.CursosAgerh => "Nomes dos cursos d'água (AGERH)",
+        Camada.FaixaDominioDer => "Faixa de domínio do DER",
         _ => c.ToString(),
     };
 
@@ -50,6 +51,7 @@ public static class FontesQgis
         [Camada.Quadras] = (@"SHAPE_LOTEAMENTOS\Quadras.shp", "Quadras.shp"),
         [Camada.NumerosLote] = (@"SHAPE_LOTEAMENTOS\NUMERO DO LOTE.shp", "NUMERO DO LOTE.shp"),
         [Camada.CursosAgerh] = (@"HIDROGRAFIA COM NOMES (AGERH-GEOBASES)\Cursos_dagua_AGERH_VNI.shp", "Cursos_dagua*.shp"),
+        [Camada.FaixaDominioDer] = (@"shapes\Faixa_Dominio_DER.shp", "Faixa_Dominio_DER.shp"),
     };
 
     const string BaseConhecida = @"BASE_CADASTRAL_AUXILIAR\Base_Cadastral_Auxiliar.sqlite";
@@ -95,6 +97,7 @@ public static class FontesQgis
             var achado = porCaminho.GetValueOrDefault(Path.Combine(raiz, rel))
                 ?? arquivos.Where(a => Path.GetExtension(a.Caminho).Equals(".shp", StringComparison.OrdinalIgnoreCase) && Casa(Path.GetFileName(a.Caminho), padrao))
                            .OrderByDescending(a => a.Caminho, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+            if (camada == Camada.FaixaDominioDer && achado is null) continue; // complemento opcional da base municipal
             camadas[camada] = achado;
             if (achado is null) { avisos.Add($"Camada não encontrada: {Rotulo(camada)} ({Path.GetFileName(rel)})."); continue; }
             foreach (var ext in new[] { ".shx", ".dbf", ".prj" })

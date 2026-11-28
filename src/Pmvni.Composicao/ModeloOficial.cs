@@ -36,12 +36,12 @@ public static class ModeloOficial
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["gerar_relatorio.py"] = "60b831a5a3d4abe2edf7df2f8a8034d5972bf38a054999b3d9530802bbb57683",
-            ["modelo_relatorio.html"] = "fa772d6e81f89a4db8d26658fcd6987e011adf56506bd7d0962390a7dfb7753b",
+            ["modelo_relatorio.html"] = "b84967ca4c929fc4251bdad601efaf3fc9aaf64df617a0b2aaf65cd2073c4042",
             ["relatorio.css"] = "fe1bfeacf68ce7ccc19200491107e4d89020a50e980057c40ae0cc6d22cfaa19",
             ["brasao.png"] = "93f35890bd35ddd405ee407f05e5cea059301c7e62634415f19d5c4d9b4092cd",
-            ["dados_modelo.json"] = "c56df9e6aec479887b028ce86e8f2962937a244cefabf5b8a308aca93f1ff816",
+            ["dados_modelo.json"] = "00597a4a2777efd4efb471b90110535aa123b008dcef11620879b1153fa8ea42",
             ["exemplo_figura.png"] = "cbbf837e4eb816a42b642bf7e139090364ea98d6e9f603edcfc8e42a65a2244e",
-            ["exemplo_mapa.png"] = "410de4f9e41fbedd895d479ba7cae3ce736de207495b3c711938a83fdd915cd2",
+            ["exemplo_mapa.png"] = "eb394af4244712323ece453db1296f48617fd3e47a3a815ac27deabbe1e50eea",
         });
 
     /// <summary>

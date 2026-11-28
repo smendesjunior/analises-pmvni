@@ -71,6 +71,16 @@ static class BaseFicticia
     }
 
     /// <summary>Grava um shapefile (.shp e .dbf, com .cpg UTF-8) de pontos (1), linhas (3) ou polígonos (5), uma parte por feição.</summary>
+    public static void IncluirFaixaDer(string pasta)
+    {
+        var shapes = Path.Combine(pasta, "shapes");
+        Gravar(Path.Combine(shapes, "Faixa_Dominio_DER.shp"), 5, ["ORGAO"],
+            (Ret(100, 95, 145, 140), ["DER"]));
+        const string prj = "PROJCS[\"SIRGAS_2000_UTM_Zone_24S\",AUTHORITY[\"EPSG\",\"31984\"]]";
+        File.WriteAllText(Path.Combine(shapes, "Faixa_Dominio_DER.prj"), prj);
+        File.WriteAllText(Path.Combine(shapes, "Lotes.prj"), prj);
+    }
+
     static void Gravar(string shp, int tipo, string[] campos, params ((double X, double Y)[] Pts, string[] Valores)[] feicoes)
     {
         using (var f = new MemoryStream())

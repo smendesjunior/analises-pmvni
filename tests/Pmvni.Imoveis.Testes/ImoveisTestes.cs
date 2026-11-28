@@ -265,7 +265,10 @@ public class MapaLocalizacaoTestes : IDisposable
         foreach (var campo in new[] { "Inscrição", BaseFicticia.Lote4, "Proprietário", "FULANO DE TAL EXEMPLO", "Endereço", "Rua das Acácias, 120", "Área na base", "1.200,00 m²", "Área declarada", "1.500,00 m²", "Zoneamento", "ZCN2" })
             Assert.Contains(campo, campos);
         Assert.DoesNotContain("sombra", svg);
-        Assert.DoesNotContain("ATINGE O LOTE", svg);
+        var notas = quadroLote.Descendants().Where(e => (string?)e.Attribute("fill") == "#A52323").Select(e => e.Value);
+        Assert.Equal("Obs. " + string.Join(" ", m.ObservacoesMapa), string.Join(" ", notas));
+        Assert.Contains("A APP indicada na base atinge o lote.", m.ObservacoesMapa);
+        Assert.Contains(m.ObservacoesMapa, n => n.Contains("não edificável estimada da BR-262"));
         // os nomes dos vizinhos têm a prioridade mais baixa (depois das cotas, das ruas e dos números): sem lugar, ficam ocultos
         Assert.Empty(VerificadorSvg.Sobreposicoes(svg));
         Assert.Contains("stroke=\"#E22D28\" stroke-width=\"8\"", svg);   // lote confirmado: contorno vermelho de 4 px
@@ -275,7 +278,8 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.Contains("fill=\"#FAD470\"".Replace("fill", "stroke"), svg); // rodovia em amarelo
         // A ordem do desenho: zonas, edificações, faixas, ruas, água, lotes, lote em vermelho, balão e norte por último.
         int Pos(string t) => svg.IndexOf(t, StringComparison.Ordinal);
-        Assert.True(Pos("fill=\"#EFF2EE\"") < Pos("stroke=\"#A35B15\"") && Pos("stroke=\"#A35B15\"") < Pos("stroke=\"#D6CFC3\"") && Pos("stroke=\"#D6CFC3\"") < Pos("stroke=\"#2884DE\""));
+        Assert.True(Pos("fill=\"#EFF2EE\"") < Pos("stroke=\"#D6CFC3\"") && Pos("stroke=\"#D6CFC3\"") < Pos("stroke=\"#2884DE\""));
+        Assert.True(Pos("fill=\"#5C5650\"") < Pos("stroke=\"#A35B15\""));
         Assert.True(Pos("stroke=\"#2884DE\"") < Pos("stroke=\"#B2AA9E\"") && Pos("stroke=\"#B2AA9E\"") < Pos("fill-opacity=\".10\"") && Pos("fill-opacity=\".10\"") < Pos(">LOTE 4<"));
 
         var d = m.Dados.ToDictionary(x => x.Rotulo);
@@ -296,10 +300,34 @@ public class MapaLocalizacaoTestes : IDisposable
     }
 
     [Fact]
+    public void observacoes_separam_der_dnit_duas_zonas_e_contato_de_borda()
+    {
+        BaseFicticia.IncluirFaixaDer(pasta);
+        var baseDer = BaseQgis.Carregar(pasta);
+        var dentro = MapaLocalizacao.PorInscricao(baseDer, BaseFicticia.Lote4);
+        Assert.Contains("Lote dentro da faixa de domínio do DER.", dentro.ObservacoesMapa);
+        var parte = MapaLocalizacao.PorInscricao(baseDer, BaseFicticia.Lote5, new OpcoesMapa { Candidato = true });
+        Assert.Contains("Faixa de domínio do DER atinge parte do lote.", parte.ObservacoesMapa);
+        Assert.Contains("O lote abrange mais de uma zona.", parte.ObservacoesMapa);
+        Assert.Contains("Identificação do lote a confirmar.", parte.ObservacoesMapa);
+        var borda = MapaLocalizacao.PorInscricao(baseDer, BaseFicticia.Lote3);
+        Assert.DoesNotContain(borda.ObservacoesMapa, s => s.Contains("DER"));
+        var fora = MapaLocalizacao.PorInscricao(baseDer, BaseFicticia.Lote6);
+        Assert.Empty(fora.ObservacoesMapa);
+        Assert.DoesNotContain("Obs.", fora.Svg);
+        File.Delete(Path.Combine(pasta, "shapes", "Faixa_Dominio_DER.prj"));
+        Assert.DoesNotContain(MapaLocalizacao.PorInscricao(BaseQgis.Carregar(pasta), BaseFicticia.Lote4).ObservacoesMapa, s => s.Contains("DER"));
+    }
+
+    [Fact]
     public void com_as_cotas_o_mapa_mostra_lados_do_lote_dnit_e_rua()
     {
         var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4);
         if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "mapa-exemplo-cotas.svg"), m.Svg);
+        var cotas = System.Xml.Linq.XDocument.Parse(m.Svg).Root!.Elements().Last();
+        Assert.Equal("cotas", (string?)cotas.Attribute("id"));
+        foreach (var valor in new[] { "30,00 m", "Domínio DNIT 40,00 m", "Eixo → alinhamento 10,00 m" })
+            Assert.Contains(cotas.Descendants(), e => e.Name.LocalName == "text" && e.Value == valor);
         foreach (var t in new[] { ">30,00 m<", ">40,00 m<", ">Domínio DNIT 40,00 m<", ">Eixo → terreno 41,79 m<", ">Eixo → alinhamento 10,00 m<", ">LOTE 4<" })
             Assert.Contains(t, m.Svg);
         var textos = System.Xml.Linq.XDocument.Parse(m.Svg).Descendants().Where(e => e.Name.LocalName == "text" && e.Value.EndsWith(" m"));

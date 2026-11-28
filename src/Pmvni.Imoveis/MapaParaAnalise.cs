@@ -83,7 +83,7 @@ public static class MapaParaAnalise
             {
                 feicao = indice, inscricao = mapa.Inscricao, completo, resultado = confirmado ? "CONFIRMADO" : "CANDIDATO",
                 sha256_png = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(png)), extent = new[] { ext.MinX, ext.MinY, ext.MaxX, ext.MaxY }, crs = MapaLocalizacao.Crs,
-                legend = mapa.Legenda, layers = mapa.Camadas, dados = mapa.Dados, cotas = true
+                legend = mapa.Legenda, layers = mapa.Camadas, dados = mapa.Dados, observacoes_mapa = mapa.ObservacoesMapa, cotas = true
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = true });
             // Arquivos novos em pasta vazia. Em caso de falha, desfaça apenas o que esta chamada criou.

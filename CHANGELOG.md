@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.2
+
+- Nos relatórios de Imóveis e de Análise, o quadro do mapa mostra em vermelho as observações sobre incidências no lote. Entre elas estão APP, faixas rodoviárias e sobreposição de zonas. Cada observação identifica as estimativas aplicáveis.
+- As cotas ficam acima das camadas do mapa. O traçado dos limites da BR-262 continua visível ao cruzar o lote e as edificações.
+
 ## 5.1.1
 
 - O mapa do relatório cadastral traz um quadro de cantos arredondados no canto superior esquerdo, com inscrição, proprietário, endereço, área e zoneamento do lote. A legenda permanece abaixo do desenho.
