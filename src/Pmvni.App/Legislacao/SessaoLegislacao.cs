@@ -12,6 +12,7 @@ public sealed record ProgressoAnexo(string Nome, int Pagina, int Total);
 internal sealed class SessaoLegislacao : IAsyncDisposable
 {
     readonly Func<Task<IExtratorPdf>> criarExtrator;
+    readonly Func<string?>? pastaKit;
     readonly SemaphoreSlim operacao = new(1, 1);
     readonly SemaphoreSlim criacao = new(1, 1);
     readonly object trava = new();
@@ -27,8 +28,9 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
 
     /// <param name="pasta"><c>&lt;dados&gt;\legislacao</c>.</param>
     /// <param name="criarExtrator">Cria o extrator real (na thread da interface: quem chama garante).</param>
-    public SessaoLegislacao(string pasta, Func<Task<IExtratorPdf>> criarExtrator)
+    public SessaoLegislacao(string pasta, Func<Task<IExtratorPdf>> criarExtrator, Func<string?>? pastaKit = null)
     {
+        this.pastaKit = pastaKit;
         Acervo = new AcervoLegislacao(pasta);
         this.criarExtrator = criarExtrator;
         Extrator = new ExtratorDaSessao(this);
@@ -111,7 +113,9 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
                 {
                     r = await PrepararEExtrairAsync(caminho, null, nome, p, ct);
                     var pronto = r.Value;
-                    anexados.Add(await Task.Run(() => Acervo.Confirmar(pronto.Entrada, pronto.Resultado)));
+                    var anexo = await Task.Run(() => Acervo.Confirmar(pronto.Entrada, pronto.Resultado));
+                    anexados.Add(anexo);
+                    await PublicarIndiceAsync(anexo);
                 }
                 catch (AnexoRecusadoException e) when (e.Repetido) { ignorados++; }
                 catch (AnexoRecusadoException e) { recusas.Add(e.Message); }
@@ -143,7 +147,8 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
         {
             r = await PrepararEExtrairAsync(caminho, id, nome, p, ct);
             var pronto = r.Value;
-            await Task.Run(() => Acervo.ConfirmarSubstituicao(id, pronto.Entrada, pronto.Resultado));
+            var anexo = await Task.Run(() => Acervo.ConfirmarSubstituicao(id, pronto.Entrada, pronto.Resultado));
+            await PublicarIndiceAsync(anexo);
         }
         catch (AnexoRecusadoException e) { return e.Message; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -212,10 +217,23 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
         await AvisarMudancaAsync();
     }
 
+    async Task PublicarIndiceAsync(Anexo anexo)
+    {
+        if (pastaKit?.Invoke() is not { Length: > 0 } kit) return;
+        try { await Task.Run(() => NormaDoKit.Sincronizar(kit, Acervo, anexo)); }
+        catch (Exception e) when (e is not (OutOfMemoryException or OperationCanceledException))
+        { RegistroErros.Gravar("legislacao.indice-kit", e); }
+    }
+
     /// <summary>Refaz, um por vez e em segundo plano, o índice dos anexos que não o têm (ou cujo índice não vale mais). O que não
     /// puder ser lido fica para a próxima abertura.</summary>
     public async Task ReindexarPendentesAsync(CancellationToken ct)
     {
+        foreach (var anexo in await Task.Run(Acervo.Listar, ct))
+        {
+            ct.ThrowIfCancellationRequested();
+            await PublicarIndiceAsync(anexo);
+        }
         var pendentes = await Task.Run(Acervo.SemIndice, ct);
         if (pendentes.Count == 0) return;
         lock (trava) foreach (var a in pendentes) indexando.Add(a.Id);
@@ -232,6 +250,7 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
                     if (caminho is null) continue;
                     var r = await Extrator.ExtrairAsync(caminho, null, ct);
                     await Task.Run(() => Acervo.GravarIndice(a.Id, r), CancellationToken.None);
+                    await PublicarIndiceAsync(a);
                 }
                 catch (Exception e) when (e is ExtracaoRecusadaException or AnexoRecusadoException or IOException or UnauthorizedAccessException
                     or KeyNotFoundException or InvalidOperationException) { System.Diagnostics.Debug.WriteLine("[legislacao] índice de " + a.Id + ": " + e.Message); }

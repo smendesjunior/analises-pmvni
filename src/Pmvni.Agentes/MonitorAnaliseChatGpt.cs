@@ -79,7 +79,7 @@ public sealed partial class OrquestradorAnalise
                     Plano = grupo.Secoes.Select(s => new PassoDoPlanoChatGpt(s, confirmado || realizadas.Contains(s) ? "concluida" : "pendente")).ToArray()
                 });
             }
-            return new(rodadas, qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count);
+            return new(rodadas, qgis?["modalidade"]?.ToString() == "RELATORIO_PDF" && qgis["situacao"]?.ToString() == "CONSULTADA" ? "RELATORIO_PDF" : qgis?["situacao"]?.ToString(), (qgis?["candidatos"] as JsonArray)?.Count);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {

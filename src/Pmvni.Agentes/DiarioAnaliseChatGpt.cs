@@ -159,7 +159,20 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
     static string Limpar(string texto) => Segredos.Replace(texto, "$1$2***");
 
     internal bool ModeloPrincipalIndisponivel { get; private set; }
-    internal void IniciarTentativa() => ModeloPrincipalIndisponivel = false;
+    internal bool CotaConfirmada { get; private set; }
+    internal void IniciarTentativa() { ModeloPrincipalIndisponivel = false; CotaConfirmada = false; }
+
+    internal static bool RecusaCota(JsonObject? evento)
+    {
+        if (evento?["type"]?.ToString() is not ("turn.failed" or "error")) return false;
+        var erro = evento["error"] as JsonObject ?? evento;
+        var codigo = erro["code"]?.ToString() ?? erro["type"]?.ToString();
+        if (codigo is "usage_limit_reached" or "insufficient_quota") return true;
+        var mensagem = erro["message"]?.ToString() ?? "";
+        return mensagem.Contains("usage_limit_reached", StringComparison.OrdinalIgnoreCase) ||
+            mensagem.Contains("you've hit your usage limit", StringComparison.OrdinalIgnoreCase) ||
+            mensagem.Contains("you have reached your usage limit", StringComparison.OrdinalIgnoreCase);
+    }
     internal static bool RecusaModelo(string texto) =>
         texto.Contains("model", StringComparison.OrdinalIgnoreCase) &&
         new[] { "model_not_found", "unsupported_model", "not supported", "not available", "unavailable", "does not exist", "not found", "do not have access", "not allowed", "indisponível" }
@@ -173,6 +186,7 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         try { obj = JsonNode.Parse(linha) as JsonObject; }
         catch (JsonException) { obj = null; }
         var tipo = obj?["type"]?.ToString() ?? "stdout";
+        if (RecusaCota(obj)) CotaConfirmada = true;
         if (tipo is "turn.failed" or "error" && RecusaModelo(linha)) ModeloPrincipalIndisponivel = true;
         if (tipo == "turn.completed" && obj?["usage"] is JsonObject uso &&
             Inteiro(uso,"input_tokens") is { } entrada && Inteiro(uso,"output_tokens") is { } saida)
@@ -307,13 +321,32 @@ internal sealed class DiarioAnaliseChatGpt : IDisposable
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 
+    internal static void ConfirmarAbertura(string trabalho, string documento)
+    {
+        var pasta = Path.Combine(trabalho, Pasta);
+        if (!Directory.Exists(pasta)) return;
+        var lote = Listar(pasta).FirstOrDefault();
+        if (lote.Consumo?.Estado != "aguardando_abertura") return;
+        var agora = DateTimeOffset.UtcNow;
+        lote.Consumo.Estado = "concluida";
+        lote.Consumo.Fim = agora;
+        var tmp = lote.Arquivo + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllText(tmp, JsonSerializer.Serialize(lote.Consumo, Json));
+            File.Move(tmp, lote.Arquivo, true);
+        }
+        finally { File.Delete(tmp); }
+        File.AppendAllText(LogDe(lote.Arquivo), JsonSerializer.Serialize(new EventoDoPlugin(agora, "fim", "Relatório aberto no Editor", documento), Json) + Environment.NewLine);
+    }
+
     public void Encerrar(string situacao, string? detalhe)
     {
         lock (trava)
         {
             consumo.Estado = situacao;
-            consumo.Fim = DateTimeOffset.UtcNow;
-            Registrar("fim", situacao, detalhe ?? "");
+            consumo.Fim = situacao == "aguardando_abertura" ? null : DateTimeOffset.UtcNow;
+            Registrar(situacao == "aguardando_abertura" ? "entrega" : "fim", situacao, detalhe ?? "");
             Salvar();
         }
     }

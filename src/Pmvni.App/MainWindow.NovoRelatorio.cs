@@ -1350,6 +1350,45 @@ public sealed partial class MainWindow
         FimAnalise fim;
         try { fim = await e.Fim; }
         catch (Exception x) { fim = new FimAnalise("falhou", null, null, "A análise não pôde ser executada: " + Erro(x) + ". Veja o registro: " + e.Registro.Pasta + ".", null); }
+        if (fim.Situacao == "aguardando_abertura" && fim.Documento is not null && e.PastaAnaliseChatGpt is { } trabalho)
+        {
+            try
+            {
+                var pacote = Path.Combine(trabalho, "relatorio.rpmvni");
+                var espera = 1;
+                while (!fechada && !e.Abandonada)
+                {
+                    e.Cancelamento.Token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var destino = await Task.Run(() => OrquestradorAnalise.PublicarPacoteChatGpt(e.Processo, pacote, DateOnly.FromDateTime(DateTime.Now)));
+                        var hash = await Task.Run(() => EstadoDisco.Ler(pacote).Sha256);
+                        var abriu = await NaFilaAsync(async () =>
+                        {
+                            if (sessao is not null && MesmoRegistro(sessao.Caminho, destino) && sessao.Disco.Sha256 == hash) return true;
+                            if (sessao is not null || novo is { Passo: PassoNovoDespacho.Conteudo or PassoNovoDespacho.Conferencia } or { Preparando: true } or { Gravando: true })
+                                return await JanelaEntrega.AbrirAsync(destino, hash, e.Cancelamento.Token);
+                            return await AbrirPacoteAsync(destino) && sessao is not null &&
+                                MesmoRegistro(sessao.Caminho, destino) && sessao.Disco.Sha256 == hash;
+                        });
+                        if (!abriu) throw new IOException("O Editor ainda não confirmou a abertura do relatório.");
+                        await Task.Run(() => DiarioAnaliseChatGpt.ConfirmarAbertura(trabalho, destino));
+                        using var registro = RegistroExecucao.Abrir(e.Registro.Pasta, e.Processo.Pasta);
+                        registro.Atualizar(o => { o["situacao"] = "concluida"; o["pmvrel"] = destino; o["document"] = destino; o["fim"] = DateTimeOffset.UtcNow.ToString("o"); });
+                        fim = fim with { Situacao = "concluida", Documento = destino };
+                        EsquecerPendenteChatGpt(e.Registro.Pasta);
+                        break;
+                    }
+                    catch (Exception ex) when (!e.Cancelamento.IsCancellationRequested && ex is not OutOfMemoryException)
+                    {
+                        RegistroErros.Gravar("entrega.abrir", ex);
+                        await Task.Delay(TimeSpan.FromSeconds(espera), e.Cancelamento.Token);
+                        espera = Math.Min(60, espera * 2);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (e.Cancelamento.IsCancellationRequested) { fim = fim with { Situacao = "cancelada" }; }
+        }
         sessaoNR.Remover(e);
         e.Cancelamento.Dispose();
         if (fechada) return fim;
@@ -1370,7 +1409,11 @@ public sealed partial class MainWindow
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
         // Ruling FD-I3: o fim em segundo plano nunca troca de módulo nem fecha o que está aberto; abre direto só com o usuário na vista desta execução,
         // sem relatório aberto e sem despacho em edição (conferido na vez da fila). Senão, "Relatório pronto" com "Abrir relatório".
-        if (comRelatorio)
+        if (comRelatorio && e.PastaAnaliseChatGpt is not null)
+        {
+            NotificacoesWindows.Mostrar("Relatório aberto para revisão", Path.GetFileName(fim.Documento!));
+        }
+        else if (comRelatorio)
         {
             string? recusa = null;
             var importado = await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf, paraRevisao),
@@ -1483,6 +1526,11 @@ public sealed partial class MainWindow
                 break;
             }
             continuarChatGpt = new ContinuacaoChatGpt(processo, pend.Registro);
+            if (OrquestradorAnalise.RegistroAnaliseChatGpt(pend.Registro) &&
+                historico?.Situacao is not ("cota_esgotada" or "cancelada" or "pausada"))
+            {
+                if (await ContinuarAnaliseAsync() is not null) continue;
+            }
             var aviso = NR.AvisoResultado;
             aviso.Severity = InfoBarSeverity.Warning;
             aviso.Title = "Uma análise com o ChatGPT ficou pela metade";

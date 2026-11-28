@@ -8,20 +8,26 @@ namespace Pmvni.App;
 /// <c>--captura &lt;pasta&gt;</c> (2026-11-16, desenvolvimento): grava um PNG da janela em cada módulo e fecha, para conferir o visual sem o roteiro.
 internal sealed record Argumentos(string? Dados, string? Roteiro, string? AnexarLeis = null, string? Captura = null)
 {
+    public string? CanalEntrega { get; init; }
     public static Argumentos Atual { get; private set; } = new(null, null);
 
     public static Argumentos Ler(string[] args)
     {
-        string? dados = null, roteiro = null, leis = null, captura = null;
+        string? dados = null, roteiro = null, leis = null, captura = null, canal = null;
         for (var i = 0; i < args.Length; i++)
         {
             if (args[i] == "--autoteste") { i++; continue; } // tratado por Autoteste.Configurar
             if (args[i] == "--anexar-leis") { if (i + 1 < args.Length) leis = Path.GetFullPath(args[++i]); continue; }
+            if (args[i] == "--confirmar-entrega" && i + 1 < args.Length)
+            {
+                if (Guid.TryParseExact(args[++i], "N", out var id)) canal = id.ToString("N");
+                continue;
+            }
             if (args[i] == "--captura") { if (i + 1 < args.Length) captura = Path.GetFullPath(args[++i]); continue; }
             if (args[i] == "--roteiro") { if (i + 1 < args.Length) roteiro = Path.GetFullPath(args[++i]); continue; }
             if (args[i].Equals("-Embedding", StringComparison.OrdinalIgnoreCase)) continue; // ativação COM de notificações
             if (!args[i].StartsWith("--", StringComparison.Ordinal) && dados is null) dados = Path.GetFullPath(args[i]);
         }
-        return Atual = new Argumentos(dados, roteiro, leis, captura);
+        return Atual = new Argumentos(dados, roteiro, leis, captura) { CanalEntrega = canal };
     }
 }

@@ -806,7 +806,9 @@ public sealed partial class MainWindow
 
     void IniciarLegislacaoAjustes()
     {
-        legislacao = new SessaoLegislacao(Path.Combine(PastaDados.Itinerante, "legislacao"), CriarExtratorLegislacaoAsync);
+        legislacao = new SessaoLegislacao(Path.Combine(PastaDados.Itinerante, "legislacao"), CriarExtratorLegislacaoAsync,
+            () => (Argumentos.Atual.Roteiro is not null || Environment.GetEnvironmentVariable("PMVNI_DADOS_DIR") is not null) &&
+                string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ")) ? null : ajustes.PastaKitEfetiva);
         legislacao.Mudou += () => DispatcherQueue.TryEnqueue(() => _ = AtualizarListaLegislacaoAsync());
         var a = PaginaDeAjustes;
         a.ListaAnexos.ItemsSource = linhasNaTela;

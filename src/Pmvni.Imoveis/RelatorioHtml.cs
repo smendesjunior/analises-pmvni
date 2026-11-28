@@ -36,7 +36,7 @@ public static class RelatorioHtml
 
     /// <summary>Só a moldura que o modelo deixa para o gerador de PDF do kit: a folha na tela, a margem da página (o cabeçalho aqui vai
     /// no corpo, não na margem) e o alinhamento dos números nas tabelas da consulta.</summary>
-    const string CssDaFolha = """
+    static readonly string CssDaFolha = $$"""
         @page { size: A4; margin: 12mm 14mm 14mm; }
         html { background: #E9EDF2; }
         .folha { width: 210mm; margin: 16px auto; background: #fff; padding: 12mm 14mm 12mm; box-shadow: 0 2px 10px rgba(20,45,71,.15); }
@@ -51,6 +51,10 @@ public static class RelatorioHtml
         .lmapa .lleg { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 9px; margin: 4px 0 0; font-size: 6.1pt; line-height: 1.2; }
         .lmapa .lleg span { gap: 4px; white-space: nowrap; }
         .lmapa .lk { width: 12px; height: 8px; border-radius: 2px; }
+        .lmapa .lk.zona { background: {{MapaSvg.FundoZona}}; border: 1px dashed {{MapaSvg.LimiteZona}}; }
+        .lmapa .lk.dnit { background: rgba(242,150,40,.09); border: 1px dashed {{MapaSvg.BordaFaixa}}; }
+        .lmapa .lk.lote { background: rgba(226,45,40,.10); }
+        .lmapa .lk.app { background: rgba(120,186,240,.28); }
         .lmapa .lk.rio { height: 3px; }
         .locblk > .lside { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 12px; margin-top: 6px; break-inside: avoid; }
         .locblk > .lside .src { grid-column: 1 / -1; margin-top: 2px; padding-top: 0; }

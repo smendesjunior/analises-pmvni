@@ -23,6 +23,7 @@ public sealed partial class PaginaNovoRelatorio
 
     static string TextoQgisChatGpt(MonitorAnaliseChatGpt dados) => dados.Qgis switch
     {
+        "RELATORIO_PDF" => "Relatório QGIS anexado — consultado.",
         "CONSULTADA" => dados.Candidatos switch
         {
             0 => "Base consultada. Nenhum candidato retornado.",
@@ -133,7 +134,7 @@ public sealed partial class PaginaNovoRelatorio
         {
             qgis = CartaoChatGpt("Consulta QGIS", TextoQgisChatGpt(dados));
             qgis.HorizontalAlignment = HorizontalAlignment.Left;
-            var barra = new ProgressBar { Minimum = 0, Maximum = 100, Value = dados.Qgis == "CONSULTADA" ? 100 : 0 };
+            var barra = new ProgressBar { Minimum = 0, Maximum = 100, Value = dados.Qgis is "CONSULTADA" or "RELATORIO_PDF" ? 100 : 0 };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(barra, "Consulta QGIS. " + TextoQgisChatGpt(dados));
             ((StackPanel)qgis.Child).Children.Add(barra);
             corpo.Children.Add(qgis);

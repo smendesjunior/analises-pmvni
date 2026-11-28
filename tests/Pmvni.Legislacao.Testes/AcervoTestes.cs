@@ -19,6 +19,32 @@ public sealed class AcervoTestes : IDisposable
     string Bak => Path.Combine(c.Dados, "catalogo.json.bak");
 
     [Fact]
+    public void IndiceDoKitAcompanhaInclusaoSubstituicaoERecuperacao()
+    {
+        var kit = Path.Combine(c.Dados, "kit");
+        var inventario = Path.Combine(kit, "00 - INDICE DO KIT", "indice_do_kit.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(inventario)!);
+        File.WriteAllText(inventario, """{"arquivos":[]}""");
+        var lei = c.Anexar(Cenario.Lei);
+        void Conferir(Anexo a)
+        {
+            NormaDoKit.Sincronizar(kit, c.Acervo, a);
+            var pdf = Directory.GetFiles(kit, "*.pdf", SearchOption.AllDirectories).Single();
+            var indice = JsonNode.Parse(File.ReadAllText(Path.ChangeExtension(pdf, ".json")))!;
+            Assert.Equal(a.Sha256, Sha(pdf));
+            Assert.Equal(a.Sha256, indice["sha256"]?.ToString());
+            Assert.Equal(a.Paginas, indice["paginas"]!.AsArray().Count);
+            Assert.Equal(2, JsonNode.Parse(File.ReadAllText(inventario))!["arquivos"]!.AsArray().Count);
+        }
+        Conferir(lei);
+        var entrada = c.Acervo.Preparar(c.Original(Cenario.Lei2), lei.Id);
+        var nova = c.Acervo.ConfirmarSubstituicao(lei.Id, entrada, c.Extrair(entrada.Caminho));
+        Conferir(nova);
+        File.Delete(Path.ChangeExtension(Directory.GetFiles(kit, "*.pdf", SearchOption.AllDirectories).Single(), ".json"));
+        Conferir(nova);
+    }
+
+    [Fact]
     public void anexar_dois_lista_cada_um_individualmente()
     {
         var antesLei = Cenario.Marca.De(c.Original(Cenario.Lei));

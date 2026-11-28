@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.0
+
+- O mapa emitido em Imóveis usa zoneamento cinza-esverdeado claro, divisas tracejadas e cotas horizontais. A ficha reúne os dados cadastrais e as ressalvas.
+- O relatório cadastral e territorial anexado passou a fornecer os dados, o mapa e a legenda para a análise. O plugin confere o imóvel e preserva a página de origem.
+- Ao anexar ou substituir uma lei, o Editor prepara o índice JSON para consulta por página e dispositivo.
+- Os grupos compartilham evidências da execução. O Editor recupera falhas operacionais e confirma a abertura do arquivo final.
+
 ## 5.0.4
 
 - O aviso de análise interrompida em Relatórios traz o botão **Retomar análise** e abre o registro do processo indicado.

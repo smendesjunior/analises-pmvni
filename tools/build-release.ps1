@@ -37,6 +37,7 @@ if (!$SemGitHub -and $alteracoesLocais) { throw 'Grave o código em um commit an
 # procurar bin/Release depois de compilar em bin/x64/Release. Sem retry: toda falha bloqueia.
 $testesEntrega = @{
     'Pmvni.Agentes.Testes' = 'FullyQualifiedName~AnaliseChatGpt'
+    'Pmvni.Legislacao.Testes' = 'FullyQualifiedName~IndiceDoKit'
     'Pmvni.Revisao.Testes' = (@(
         'ArquivamentoTestes.anexos_arquivados_como_o_kit'
         'CompactadosTestes.zip_com_pastas_e_zip_dentro_vira_arquivos_soltos_sem_lixo'
@@ -51,7 +52,7 @@ $testesEntrega = @{
         'RegrasAtualizacaoTestes.Troca_recusada_deixa_o_executavel_como_estava'
     ) | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
     'Pmvni.Composicao.Testes' = 'FullyQualifiedName~tabela_de_vaos_distingue_conta_nominal_da_conclusao_tecnica|FullyQualifiedName~com_vista_planta_a_chamada_vai_para_a_planta|FullyQualifiedName~com_vista_volumetria_a_chamada_vai_para_a_volumetria'
-    'Pmvni.Imoveis.Testes' = 'FullyQualifiedName~ConsultaParaAnalise'
+    'Pmvni.Imoveis.Testes' = 'FullyQualifiedName~MapaLocalizacaoTestes'
     'Pmvni.Web.Testes' = 'FullyQualifiedName~TextosDoRelatorioWebTestes'
 }
 $projetosTeste = @(Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse | Sort-Object FullName |

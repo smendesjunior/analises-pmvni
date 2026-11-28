@@ -419,7 +419,7 @@ public sealed partial class OrquestradorAnalise
                 o["provedor"] ??= Provedores.Sufixo(pe.Provedor);
                 o["modo"] ??= pe.Modo switch { ModoAcesso.Chave => "chave", ModoAcesso.ContaGemini => "conta_gemini", _ => "conta" };
                 o["inicio"] ??= inicio.ToString("o", CultureInfo.InvariantCulture);
-                o["fim"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+                o["fim"] = fim.Situacao == "aguardando_abertura" ? null : DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture);
                 o["situacao"] = fim.Situacao;
                 o["codigo"] = fim.Codigo;
                 o["mensagem"] = fim.Mensagem;

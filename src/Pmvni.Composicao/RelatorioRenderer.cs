@@ -135,6 +135,16 @@ public static class RelatorioRenderer
         var revisoes = Dados.Obter(d, "_textos_da_revisao") as IReadOnlyDictionary<string, object?> ?? new Dictionary<string, object?>();
         var textos = editarTextos || revisoes.Count > 0 ? new TextosDoModelo(revisoes) : null;
         var fonte = NovasLinhas(m.Html);
+        if (loc is not null && Equals(Dados.Obter(loc, "origem_grafica"), "relatorio_pdf"))
+        {
+            fonte = fonte.Replace("<div class=\"lbl\">LEGENDA</div><div class=\"lleg\">", "<div class=\"lleg\">", StringComparison.Ordinal)
+                .Replace("{% if localizacao.origem_grafica %}{% else %}{{ localizacao.situacao|pill }}{% endif %}",
+                    "{{ localizacao.situacao|pill }}", StringComparison.Ordinal)
+                .Replace("</style>", ".mapa-composto .lmrow{display:block}.mapa-composto .lmap img{width:100%;height:auto;object-fit:contain}.mapa-composto .lleg:empty{display:none}</style>", StringComparison.Ordinal);
+        }
+        if (loc is not null && Equals(Dados.Obter(loc, "estilo_zoneamento"), "neutro"))
+            fonte = fonte.Replace(".mapa-composto .lk.zona { background:#CEB0EF; border:1px dashed #674395; }",
+                ".mapa-composto .lk.zona { background:#EFF2EE; border:1px dashed #89988E; }", StringComparison.Ordinal);
         if (op.Instrucoes)
             fonte = fonte.Replace("Ele é desenhado pelo gerador a partir dos rótulos do JSON: não é cópia do projeto e não tem escala.",
                 "A vista superior segue a situação e a implantação da prancha. A volumetria mostra os níveis do terreno e dos acessos observados nos cortes, com a forma e as alturas das fachadas.")

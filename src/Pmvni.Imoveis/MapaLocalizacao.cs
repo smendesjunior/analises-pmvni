@@ -562,7 +562,7 @@ public static class MapaLocalizacao
             }
         }
 
-        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, ficha, rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
+        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, loteN.Length > 0 ? "LOTE " + loteN : "LOTE SEM Nº", rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
 
         double? dif = null;
         if (o.AreaDeclarada is > 0 && (areaBase is > 0 || areaGeo > 0))

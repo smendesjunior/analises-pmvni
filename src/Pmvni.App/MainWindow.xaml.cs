@@ -527,7 +527,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 #else
             var demoMonitor = Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1";
 #endif
-            if (args.Roteiro is null && !demoMonitor) _ = TentarAsync(RetomarExecucoesChatGptAsync);
+            if (args.Roteiro is null && !demoMonitor && args.CanalEntrega is null) _ = TentarAsync(RetomarExecucoesChatGptAsync);
 #if !PMVNI_DISTRIBUICAO
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
             else
@@ -776,7 +776,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             }
             else if (args.Dados is { } arquivo)
             {
-                if (Path.GetExtension(arquivo).ToLowerInvariant() is ".rpmvni" or ".pmvrel") await AbrirPacoteAsync(arquivo);
+                if (Path.GetExtension(arquivo).ToLowerInvariant() is ".rpmvni" or ".pmvrel")
+                {
+                    var abriu = await AbrirPacoteAsync(arquivo);
+                    if (args.CanalEntrega is { } canal)
+                    {
+                        var hash = abriu && sessao is not null && MesmoRegistro(sessao.Caminho, arquivo) ? sessao.Disco.Sha256 : "";
+                        try { await JanelaEntrega.ConfirmarAsync(canal, hash); }
+                        catch (Exception e) when (e is IOException or TimeoutException) { RegistroErros.Gravar("entrega.confirmar", e); Close(); return; }
+                        if (!abriu) Close();
+                    }
+                }
                 else await ImportarComSeletorAsync(arquivo);
             }
         }

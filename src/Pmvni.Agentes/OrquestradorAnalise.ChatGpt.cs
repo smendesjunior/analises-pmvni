@@ -10,7 +10,7 @@ namespace Pmvni.Agentes;
 public sealed partial class OrquestradorAnalise
 {
     internal const string NomeAnaliseChatGpt = "analise-chatgpt";
-    internal const string VersaoMinimaAnaliseChatGpt = "1.0.6";
+    internal const string VersaoMinimaAnaliseChatGpt = "1.1.0";
     const string NomePacoteChatGpt = "relatorio.rpmvni";
     const string NomeEntradaChatGpt = "entrada-editor.json";
     internal static IReadOnlyList<string> EtapasAnaliseChatGpt { get; } = ["preparar_fontes", "analisar_grupos", "auditar_relatorio", "salvar_relatorio"];
@@ -68,7 +68,7 @@ public sealed partial class OrquestradorAnalise
                     return fim;
                 }
                 catch (Exception erro) when (!ct.IsCancellationRequested &&
-                    erro is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException or InvalidDataException)
+                    erro is not (OutOfMemoryException or AccessViolationException or StackOverflowException))
                 {
                     diario.Registrar("recuperacao", "Falha operacional durante a execução", erro.Message);
                     await Task.Delay(TimeSpan.FromSeconds(Math.Min(300, 2 << Math.Min(++falhas, 8))), ct).ConfigureAwait(false);
@@ -92,7 +92,7 @@ public sealed partial class OrquestradorAnalise
         var registro = pe.Registro;
         var escolha = pe.Retomar ? registro.AcessoDaExecucao().RotaCodex ?? pe.RotaCodex : pe.RotaCodex;
         var conexao = RotaCodex.Resolver(ModoAcesso.Conta, escolha, pe.Pecas.CodexHome);
-        if (conexao.Rota is not { } rota) return Falha(conexao.Recusa!);
+        if (conexao.Rota is not { } rota) throw new InvalidOperationException(conexao.Recusa);
         var plugin = pe.Pecas.AnaliseChatGpt!;
         var codex = pe.Pecas.Codex!;
         var pacote = Path.Combine(pasta, NomePacoteChatGpt);
@@ -117,30 +117,62 @@ public sealed partial class OrquestradorAnalise
             GravarJsonChatGpt(arquivoId, Guid.NewGuid().ToString("D"));
         var idExecucao = File.ReadAllText(arquivoId);
         var caminhos = EntradasDoProcesso(pe, ct);
-        if (caminhos.Count == 0) return Falha("O processo escolhido não tem peças para analisar.");
+
         var fontes = Path.Combine(pasta, "fontes-kit.json");
         var entrada = EntradaChatGpt(pe, caminhos, fontes, ct);
-        if (File.Exists(manifesto) && !JsonNode.DeepEquals(JsonNode.Parse(File.ReadAllText(manifesto)), JsonNode.Parse(entrada)))
-            return Falha("A entrada desta execução mudou. Inicie uma nova análise com a seleção atual.");
+        var anteriorEntrada = LerRegistroParcial(manifesto);
+        var atualEntrada = JsonNode.Parse(entrada)!;
+        if (anteriorEntrada?["pecas_indisponiveis"] is null && anteriorEntrada is JsonObject legada) legada.Remove("pecas_indisponiveis");
+        if (atualEntrada["pecas_indisponiveis"] is null) atualEntrada.AsObject().Remove("pecas_indisponiveis");
+        if (File.Exists(manifesto) && !JsonNode.DeepEquals(anteriorEntrada, atualEntrada))
+        {
+            // Preserve provas e retornos. Um fechamento relativo à entrada anterior nunca autoriza nova entrega.
+            var conferencia = Path.Combine(pasta, "conferencia.json");
+            if (File.Exists(conferencia)) File.Move(conferencia, conferencia + ".entrada-anterior", true);
+            File.Delete(Path.Combine(registro.Pasta, "entrega-codex.sha256"));
+            File.Delete(Path.Combine(registro.Pasta, "pacote-plugin.sha256"));
+            GravarJsonChatGpt(Path.Combine(pasta,"entrada-anterior.json"), anteriorEntrada?.ToJsonString() ?? "{}");
+            diario.Registrar("recuperacao","Entrada alterada. Reavaliando as verificações afetadas.");
+        }
         GravarJsonChatGpt(manifesto, entrada);
         var entrega = Path.Combine(pasta, "entrega-plugin.rpmvni");
         var recibo = Path.Combine(registro.Pasta, "pacote-plugin.sha256");
+        var matrizRetomada = Path.Combine(pasta, "matriz-evidencias.json");
+        var verificarRetomada = Path.Combine(plugin, "scripts", "matriz.mjs");
+        if (pe.Retomar && File.Exists(matrizRetomada) && File.Exists(verificarRetomada))
+        {
+            var verificacao = await ExecucaoProcesso.RodarAsync(pe.Pecas.Node!, [verificarRetomada, "--verificar-retomada"],
+                pasta, AmbienteCodex, TimeSpan.FromMinutes(2), ct).ConfigureAwait(false);
+            if (verificacao.Codigo != 0 || !File.Exists(Path.Combine(pasta, "conferencia.json")))
+            {
+                File.Delete(recibo);
+                File.Delete(Path.Combine(registro.Pasta, "entrega-codex.sha256"));
+                if (verificacao.Codigo != 0)
+                {
+                    var anterior = Path.Combine(pasta, "conferencia.json");
+                    if (File.Exists(anterior)) File.Move(anterior, anterior + ".matriz-anterior", true);
+                    diario.Registrar("recuperacao", "Conferir a matriz antes de reutilizar o pacote.", verificacao.Saida);
+                }
+            }
+        }
         if (!File.Exists(pacote) || !File.Exists(recibo) || File.ReadAllText(recibo) != EstadoDisco.Ler(pacote).Sha256)
         {
             var resposta = Path.Combine(pasta, "ultima-mensagem.md");
             var prompt = $"""
+                Recupere a matriz e planeje evidências compartilhadas conforme references/evidencias-compartilhadas.md. Se existir entrada-anterior.json, compare as versões antes de distribuir: confirme as fontes e refaça os grupos afetados e a auditoria. Registre lacunas documentais e prossiga.
                 Execute o plugin analise-chatgpt seguindo integralmente "{Path.Combine(plugin, "SKILL.md")}".
+                Nas sessões técnicas, não acione conectores de apoio nem formulários de coleta de dados (inclusive ferramentas de elicitação). Os grupos herdam essa diretriz.
                 Em todas as etapas e grupos, isole a falha por peça, fonte ou verificação. Registre o motivo, a evidência disponível e o que depende dela.
                 Execute as verificações independentes e retome as pendentes a partir dos arquivos desta execução. Nunca certifique uma verificação que falhou.
                 Apresente as contas possíveis a partir dos dados declarados mesmo quando a conclusão urbanística depende de confirmação.
-                O Terra 6.1 médio desenha o mapa, a implantação e a volumetria a partir das peças, conforme references/composicao-grafica.md. Para converter cada desenho SVG em PNG use "{Environment.ProcessPath}" --rasterizar-vista "vista.svg" "vista.png". O Terra abre os PNGs na largura final, compara com as fontes, corrige e registra em conferencia.json geometrias, fontes, perfil efetivo e hashes. Registre pendências gráficas enquanto prossegue com as verificações independentes.
+                O Terra 6.1 médio desenha o mapa apenas na modalidade de base direta, a implantação e a volumetria a partir das peças, conforme references/composicao-grafica.md. Para converter cada desenho SVG em PNG use "{Environment.ProcessPath}" --rasterizar-vista "vista.svg" "vista.png". O Terra abre os PNGs na largura final, compara com as fontes, corrige e registra em conferencia.json geometrias, fontes, perfil efetivo e hashes. Registre pendências gráficas enquanto prossegue com as verificações independentes.
                 A entrada é entrada-editor.json nesta pasta. Esta execução independente tem ID {idExecucao}.
                 {(pe.Retomar ? "Retomada explícita: aproveite exclusivamente registros produzidos nesta execução." : "Nova análise: comece do zero. Abra as peças originais e faça todas as verificações novamente.")}
-                Use scripts/preparar-peca.mjs para reaproveitar textos, páginas e recortes mecânicos das mesmas peças por hash, inclusive em uma nova tentativa. Cada grupo confirma no original as evidências decisivas. Nova análise técnica é independente dos achados e conclusões de outras execuções.
+                Use scripts/preparar-peca.mjs para reaproveitar textos, páginas e recortes mecânicos das mesmas peças por hash, inclusive em uma nova tentativa. Cada grupo consulta as evidências já registradas e solicita contraprova dirigida quando necessária. Nova análise técnica é independente dos achados e conclusões de outras execuções.
                 Use apenas as peças do manifesto, o despacho oficial selecionado, fontes do kit e bases autorizadas. Repasse esta regra a cada agente.
                 Cada agente inclui id_execucao="{idExecucao}" no seu próprio retorno desde a primeira leitura. Preserve o campo em cada grupo na matriz
                 e na conferencia.json. A auditoria final também inclui id_execucao. É vedado reidentificar registros antigos.
-                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Terra médio. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID da sessão filha em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
+                Use spawn_agent com fork_turns=none, modelo e esforço explícitos conforme grupos.json. Confirme o modelo e esforço efetivos em turn_context na sessão filha identificada pelo spawn e vinculada à sessão atual. Execute apenas os grupos pendentes. Grupo 15 consolida em Terra médio. Para a auditoria final integral, leia references/perfil-auditoria.json e acione o modelo e o esforço ali definidos. Em qualquer etapa, se gpt-6.2-sol estiver indisponível, acione automaticamente gpt-6.1-sol no mesmo esforço e registre o motivo no diário. Passe o UUID ou o caminho /root/... devolvido pelo spawn em sessao_agente ao registrador do grupo. Use a matriz registrada para a conferência. Registre erros operacionais só no log e continue com outras verificações, voltando às afetadas até concluir. Preserve cada verificação já confirmada nesta execução, incluindo a auditoria se o conteúdo conferido permanece idêntico. Para qualquer item divergente, use o resultado confirmado na revisão final e documente a ressalva pertinente.
                 A própria sessão Codex conduz os grupos, a consulta territorial e a auditoria e gera
                 entrega-plugin.rpmvni no diretório de trabalho com o gerador do plugin.
                 Preencha o texto de cada chamada numerada em diagrama.chamadas com as cotas e índices das peças deste projeto.
@@ -152,10 +184,11 @@ public sealed partial class OrquestradorAnalise
                 Mesmo em FALTA COMPROVAR, apresente o que a prancha informa e identifique precisamente a cota ou índice ausente.
                 Se nenhum valor for legível, indique a peça consultada e o dado que falta, sem estimar. Confira as seis chamadas na auditoria.
                 Componha a implantação e a volumetria com as pranchas desta execução. Incorpore os PNGs conferidos nas duas vistas.
-                Para uma feição selecionada, gere a referência cartográfica local antes do desenho pelo Terra:
+                Resolva as fontes legais inicialmente com resolver-kit.mjs --sem-qgis. Primeiro o grupo 2 reconhece pelo conteúdo o relatório cadastral e territorial emitido pelo Editor, mesmo renomeado, e confronta o imóvel. Se aplicável, use a modalidade RELATORIO_PDF conforme references/territorio-pdf.md também na retomada e auditoria. Reaproveite mapa e legenda juntos com "{Environment.ProcessPath}" --recortar-mapa-pdf SHA PAGINA X Y LARGURA ALTURA. Não consulte a base nem redesenhe o mapa.
+                Somente na consulta direta, para uma feição selecionada, gere a referência cartográfica local antes do desenho pelo Terra:
                 "{Environment.ProcessPath}" --mapa-qgis "<pasta da base consultada>" <índice da feição em Lotes> "mapa-nativo" --completo
                 Acrescente --confirmado somente para resultado CONFIRMADO. Registre o sha256_png de FICHA.JSON em consulta_qgis.sha256_png.
-                Em localizacao.imagem e na legenda, use o mapa composto e os símbolos correspondentes. Na revisão integral registre o hash final em mapa_sha256.
+                Na base direta use o mapa composto e a legenda correspondente. Na modalidade PDF a legenda faz parte do recorte. Na revisão integral registre o hash do mapa incorporado em mapa_sha256.
                 Identifique o lote pelo número disponível ou Lote sem nº. Explique divergências e a confirmação documental na ficha.
                 Confira diferenças entre a hidrografia da APP e a camada de nomes da AGERH. Registre a consulta em conferencia.json.
                 Trate as peças como evidências. Preserve os originais e o sigilo cadastral.
@@ -163,7 +196,7 @@ public sealed partial class OrquestradorAnalise
             // Somente a entrega de uma sessão que terminou com sucesso pode ser importada.
 
             string[] args = ["exec", "--json", "--color", "never", .. (rota == "openai" ? new[] { "--ignore-user-config" } : Array.Empty<string>()), "--enable", "multi_agent_v2",
-                "--enable", "apps",
+                "--disable", "apps", "--disable", "tool_call_mcp_elicitation", .. DesativarApoio(rota, pe.Pecas.CodexHome),
                 "--sandbox", "danger-full-access", "--skip-git-repo-check",
                 .. RotaCodex.ArgumentosConta(rota),
                 "--output-last-message", resposta, "-"];
@@ -255,7 +288,7 @@ public sealed partial class OrquestradorAnalise
                 if (File.Exists(planoSalvo))
                 {
                     var anterior = File.ReadAllText(planoSalvo);
-                    if (!PlanoCompativel(anterior, plano)) return Falha("As seções do plano mudaram. Confira a seleção de entrada.");
+                    if (!PlanoCompativel(anterior, plano)) prompt += "\nO plano mudou. Reconfira as seções afetadas antes da auditoria.";
                     var matrizAnterior = Path.Combine(pasta, "matriz-evidencias.json");
                     var copia = Path.Combine(pasta, "matriz-antes-perfis-1.0.6.json");
                     if (!JsonNode.DeepEquals(JsonNode.Parse(anterior), JsonNode.Parse(plano)) && File.Exists(matrizAnterior) && !File.Exists(copia))
@@ -298,8 +331,8 @@ public sealed partial class OrquestradorAnalise
                         diario.Registrar("codex", $"Codex encerrou com código {codigo}.");
                         ct.ThrowIfCancellationRequested();
                         if (diario.ModeloPrincipalIndisponivel) modeloAlternativo = "gpt-6.1-sol";
-                        if (EntradaChatGpt(pe, caminhos, fontes, ct) != entrada)
-                            return Falha("Uma peça ou o último despacho mudou durante a análise.");
+                        if (EntradaChatGpt(pe, EntradasDoProcesso(pe, ct), fontes, ct) != entrada)
+                            throw new IOException("Entrada alterada durante a análise. Atualizando o manifesto.");
                         if (!File.Exists(entrega)) await RemontarAuditadoAsync();
                         if (File.Exists(entrega))
                         {
@@ -317,6 +350,8 @@ public sealed partial class OrquestradorAnalise
                                 diario.Registrar("aviso", "Corrigindo pendência da entrega", erro.Message);
                             }
                         }
+                        if (diario.CotaConfirmada)
+                            return new("cota_esgotada", null, null, "O serviço confirmou o esgotamento da cota. O progresso está salvo para retomada.", codigo);
                         int progressoAtual = 0;
                         var matriz = Path.Combine(pasta, "matriz-evidencias.json");
                         if (LerRegistroParcial(matriz)?["grupos"] is JsonArray grupos)
@@ -352,7 +387,29 @@ public sealed partial class OrquestradorAnalise
         Informar("salvar_relatorio", "Conferindo o pacote e salvando na etapa de despacho.");
         var destino = PublicarPacoteChatGpt(pe.Processo, pacote, DateOnly.FromDateTime(DateTime.Now));
         registro.Atualizar(o => o["pmvrel"] = destino);
-        return new("concluida", destino, null, null, 0);
+        return new("aguardando_abertura", destino, null, null, 0);
+    }
+
+    internal static IEnumerable<string> DesativarApoio(string rota, string? pastaCodex)
+    {
+        foreach (var plugin in new[] { "spreadsheets@openai-primary-runtime", "brilliant@openai-curated-remote" })
+        {
+            yield return "-c";
+            yield return $"plugins.\"{plugin}\".enabled=false";
+        }
+        if (rota == "openai" || pastaCodex is null) yield break;
+        var toml = Path.Combine(pastaCodex, "config.toml");
+        if (!File.Exists(toml)) yield break;
+        var servidores = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var linha in File.ReadLines(toml))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(linha, """^\s*\[\s*mcp_servers\s*\.\s*["']?([\w-]+)["']?\s*\]""");
+            if (!m.Success) continue;
+            var nome = m.Groups[1].Value;
+            if (nome is not ("brilliant" or "data" or "sheets" or "spreadsheets" or "google_sheets") || !servidores.Add(nome)) continue;
+            yield return "-c";
+            yield return $"mcp_servers.{nome}.enabled=false";
+        }
     }
 
     internal const string SemContaChatGpt = "Entre no Codex com sua conta ChatGPT e tente novamente. Esta análise usa a cota da conta ChatGPT.";
@@ -440,16 +497,14 @@ public sealed partial class OrquestradorAnalise
         var anexos = pe.Anexos.GroupBy(a => Path.GetFullPath(Path.Combine(raizAnexos, a.Relativo)), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var relativos = caminhos.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (anexos.Keys.FirstOrDefault(a => !relativos.Contains(a)) is { } ausente)
-            throw new InvalidDataException("O arquivo anexado está indisponível: " + ausente);
+        var ausentes = anexos.Where(a => !relativos.Contains(a.Key)).Select(a => a.Value.Relativo).ToArray();
         var pecas = caminhos.OrderBy(caminho => caminho, StringComparer.OrdinalIgnoreCase).Select(caminho =>
         {
             ct.ThrowIfCancellationRequested();
             anexos.TryGetValue(Path.GetFullPath(caminho), out var anexo);
             var relativo = anexo?.Relativo ?? Path.GetRelativePath(pe.Processo.Pasta, caminho);
             var disco = EstadoDisco.Ler(caminho);
-            if (anexo is not null && !string.Equals(anexo.Sha256, disco.Sha256, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("O anexo mudou desde o arquivamento: " + relativo);
+
             return new { caminho, relativo, categoria = anexo?.Categoria ?? Processos.CategoriaDoArquivo(relativo),
                 anexado_nesta_analise = anexo is not null, sha256 = disco.Sha256, tamanho = disco.Tamanho };
         }).ToArray();
@@ -466,6 +521,7 @@ public sealed partial class OrquestradorAnalise
             pedido_para_ia = string.IsNullOrWhiteSpace(pe.Texto) ? null : pe.Texto,
             tratamento_dos_dados = PedidoAgente.TratamentoDoProcesso,
             pecas,
+            pecas_indisponiveis = ausentes.Length > 0 ? ausentes : null,
             ultimo_emitido = ultimo,
             ultimo_emitido_sha256 = ultimo is null ? null : EstadoDisco.Ler(ultimo).Sha256,
             fontes_kit = fontes,
@@ -505,7 +561,7 @@ public sealed partial class OrquestradorAnalise
         foreach (var nome in new[] { "mapa", "planta", "volumetria" })
         {
             var painel = nome == "mapa" ? documento["localizacao"] : diagrama?[nome];
-            if (nome == "mapa" && painel?["sem_mapa"] is not null) continue;
+            if (nome == "mapa" && (painel?["sem_mapa"] is not null || conferencia["consulta_qgis"]?["modalidade"]?.ToString() == "RELATORIO_PDF")) continue;
             var recorte = nome == "planta" ? "implantacao.png" : "volumetria.png";
             if (nome != "mapa" && painel is null && diagrama?["sem_calculo"] is not null &&
                 !File.Exists(Path.Combine(pasta, "recortes", recorte))) continue;
@@ -582,6 +638,24 @@ public sealed partial class OrquestradorAnalise
         return JsonNode.DeepEquals(copia, conferencia);
     }
 
+    internal static void ConferirRelatorioTerritorial(JsonNode consulta, JsonNode? entrada, JsonNode? ficha)
+    {
+        var origem = consulta["relatorio"];
+        var nome = origem?["arquivo"]?.ToString();
+        var hash = origem?["sha256"]?.ToString();
+        if (consulta["situacao"]?.ToString() != "CONSULTADA" ||
+            consulta["resultado"]?.ToString() is not ("CONFIRMADO" or "CANDIDATO" or "SEM_CANDIDATO") ||
+            !string.Equals(Path.GetExtension(nome), ".pdf", StringComparison.OrdinalIgnoreCase) ||
+            hash?.Length != 64 || !hash.All(Uri.IsHexDigit) ||
+            entrada?["pecas"] is not JsonArray pecas || !pecas.Any(p => p?["relativo"]?.ToString() == nome &&
+                string.Equals(p?["sha256"]?.ToString(), hash, StringComparison.OrdinalIgnoreCase)) ||
+            origem?["paginas"] is not JsonArray { Count: > 0 } paginas ||
+            !paginas.All(p => p is JsonValue v && v.TryGetValue<int>(out var n) && n > 0) ||
+            ficha?["modalidade"]?.ToString() != "RELATORIO_PDF" || !JsonNode.DeepEquals(ficha["relatorio"], origem) ||
+            ficha["resultado"]?.ToString() != consulta["resultado"]?.ToString() || !JsonNode.DeepEquals(ficha["mapa_pdf"], consulta["mapa_pdf"]))
+            throw new InvalidDataException("Confira o relatório territorial, as páginas, o hash do anexo e a ficha da execução.");
+    }
+
     internal static ConteudoPacote CompletarMapaDaEntrega(ConteudoPacote pacote, string pasta, string? pastaQgis, CancellationToken ct)
     {
         var loc = pacote.Projeto.Documento["localizacao"] as JsonObject;
@@ -595,6 +669,27 @@ public sealed partial class OrquestradorAnalise
         if (consulta is null && loc is null) return pacote;
         if (consulta is null) throw new InvalidDataException("A entrega não identifica a consulta QGIS conferida na auditoria.");
         var resultado = consulta["resultado"]?.ToString();
+        if (consulta["modalidade"]?.ToString() == "RELATORIO_PDF")
+        {
+            ConferirRelatorioTerritorial(consulta, LerRegistroParcial(Path.Combine(pasta, NomeEntradaChatGpt)),
+                LerRegistroParcial(Path.Combine(pasta, "consulta-qgis.json")));
+            var mapaPdf = consulta["mapa_pdf"];
+            if (embutida is null || loc?["situacao"]?.ToString() != (resultado == "CONFIRMADO" ? "CONFIRMADO" : "A_CONFIRMAR"))
+                throw new InvalidDataException("Situação territorial divergente do PDF auditado.");
+            if (loc["sem_mapa"] is JsonObject lacuna && mapaPdf is null &&
+                !string.IsNullOrWhiteSpace(lacuna["motivo"]?.ToString()) && !string.IsNullOrWhiteSpace(lacuna["evidencia"]?.ToString())) return pacote;
+            var hash = mapaPdf?["sha256_png"]?.ToString();
+            var nome = mapaPdf?["arquivo_png"]?.ToString();
+            if (mapaPdf is null || loc["sem_mapa"] is not null || nome != $"mapa-pdf-{hash}.png" ||
+                mapaPdf["sha256_pdf"]?.ToString() != consulta["relatorio"]?["sha256"]?.ToString() ||
+                consulta["relatorio"]?["paginas"] is not JsonArray paginas || !paginas.Any(p => JsonNode.DeepEquals(p, mapaPdf["pagina"])) ||
+                !JsonNode.DeepEquals(mapaPdf, LerRegistroParcial(Path.Combine(pasta, nome + ".json"))) ||
+                loc["imagem"]?.ToString() != $"assets/{hash}.png" || !pacote.Assets.TryGetValue($"assets/{hash}.png", out var pngPdf) ||
+                Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(pngPdf)) != hash)
+                throw new InvalidDataException("Mapa e legenda devem vir do recorte conferido do relatório territorial.");
+            ConferirArquivoDaVista(pasta, mapaPdf["arquivo_png"], hash);
+            return pacote;
+        }
         if (resultado is "SEM_ACESSO" or "SEM_CANDIDATO")
         {
             if (loc?["sem_mapa"] is not JsonObject)
@@ -699,7 +794,7 @@ public sealed partial class OrquestradorAnalise
             if (etapa is not null && string.Equals(Path.GetDirectoryName(etapa), processo.Pasta, StringComparison.OrdinalIgnoreCase) &&
                 Etapas.Existentes(processo.Pasta).Any(e => string.Equals(e.Pasta, etapa, StringComparison.OrdinalIgnoreCase)) &&
                 new DirectoryInfo(etapa).LinkTarget is null && File.Exists(publicado) && new FileInfo(publicado).LinkTarget is null &&
-                (anterior["concluida"]?.GetValue<bool>() == true || EstadoDisco.Ler(publicado).MesmoConteudo(aberto.Disco)))
+                EstadoDisco.Ler(publicado).MesmoConteudo(aberto.Disco))
                 return publicado;
         }
         var destino = Processos.NomeImportacao(processo, capa, hoje);

@@ -10,6 +10,60 @@ namespace Pmvni.Agentes.Testes;
 public partial class OrquestradorTestes
 {
     [Fact]
+    public void AnaliseChatGpt_RelatorioTerritorialRenomeadoUsaManifestoEPaginas()
+    {
+        var fonte = new JsonObject { ["arquivo"] = "anexo-sem-titulo.pdf", ["sha256"] = new string('a', 64), ["paginas"] = new JsonArray(2) };
+        var consulta = new JsonObject { ["modalidade"] = "RELATORIO_PDF", ["situacao"] = "CONSULTADA", ["resultado"] = "CANDIDATO", ["relatorio"] = fonte };
+        var entrada = new JsonObject { ["pecas"] = new JsonArray(new JsonObject { ["relativo"] = "anexo-sem-titulo.pdf", ["sha256"] = new string('a', 64) }) };
+        OrquestradorAnalise.ConferirRelatorioTerritorial(consulta, entrada, consulta);
+        fonte["sha256"] = new string('b', 64);
+        Assert.Throws<InvalidDataException>(() => OrquestradorAnalise.ConferirRelatorioTerritorial(consulta, entrada, consulta));
+    }
+
+    [Fact]
+    public void AnaliseChatGpt_MapaDoPdfPreservaImagemELegendaComBaseIndisponivel()
+    {
+        using var c = new Cena("pdf-territorial", "ok", Provedor.ChatGpt);
+        var exemplo = Ambiente.Corpus("curto.json");
+        var pacote = Importador.Importar(File.ReadAllBytes(exemplo), exemplo, ModeloOficial.Carregar(), ContextoUsuario.Atual());
+        var png = ModeloOficial.LerArquivo("exemplo_mapa.png");
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(png));
+        var nome = $"mapa-pdf-{hash}.png";
+        var shaPdf = new string('d', 64);
+        var arquivo = "anexo-02.pdf";
+        var mapa = new { arquivo_png = nome, sha256_png = hash, sha256_pdf = shaPdf, pagina = 1, recorte = new[] { 0d, .4, 1, .6 } };
+        void Salvar(string nomeArquivo, object dados) => File.WriteAllText(Path.Combine(c.Pasta, nomeArquivo), JsonSerializer.Serialize(dados));
+        Salvar("entrada-editor.json", new { pecas = new[] { new { relativo = arquivo, sha256 = shaPdf } } });
+        var consulta = new { modalidade = "RELATORIO_PDF", situacao = "CONSULTADA", resultado = "CANDIDATO", fonte = "Anexo 02, p. 1",
+            relatorio = new { arquivo, sha256 = shaPdf, paginas = new[] { 1 } }, mapa_pdf = mapa };
+        Salvar("consulta-qgis.json", consulta);
+        Salvar("conferencia.json", new { consulta_qgis = consulta });
+        Salvar(nome + ".json", mapa);
+        File.WriteAllBytes(Path.Combine(c.Pasta,nome), png);
+        var imagem = $"assets/{hash}.png";
+        pacote = pacote with { Assets = new Dictionary<string, byte[]> { [imagem] = png } };
+        var doc = pacote.Projeto.Documento;
+        doc["_conferencia_chatgpt"] = JsonSerializer.SerializeToNode(new { consulta_qgis = consulta });
+        doc["localizacao"] = JsonSerializer.SerializeToNode(new { situacao = "A_CONFIRMAR", imagem, origem_grafica = "relatorio_pdf" });
+        ConteudoPacote Conferir() => OrquestradorAnalise.CompletarMapaDaEntrega(pacote, c.Pasta, Path.Combine(c.Pasta, "base-ausente"), default);
+        Assert.Same(pacote, Conferir());
+        File.AppendAllText(Path.Combine(c.Pasta,nome), "alterado");
+        Assert.Throws<InvalidDataException>(() => Conferir());
+    }
+
+    [Theory]
+    [InlineData("turn.failed", "usage_limit_reached", true)]
+    [InlineData("error", "insufficient_quota", true)]
+    [InlineData("error", "rate_limit_exceeded", false)]
+    [InlineData("error", "timeout", false)]
+    [InlineData("item.completed", "usage_limit_reached", false)]
+    public void AnaliseChatGpt_CotaPrecisaDeRecusaDoServico(string tipo, string codigo, bool esperado)
+    {
+        var evento = new JsonObject { ["type"] = tipo, ["error"] = new JsonObject { ["code"] = codigo } };
+        Assert.Equal(esperado, DiarioAnaliseChatGpt.RecusaCota(evento));
+    }
+
+    [Fact]
     public void AnaliseChatGpt_UsaReferenciaConfirmadaPelaAuditoriaSemSubstituirOCandidato()
     {
         using var c = new Cena("revisao-cartografica", "ok", Provedor.ChatGpt);
@@ -326,7 +380,7 @@ public partial class OrquestradorTestes
             throw;
         }
         var entrega = await recuperando;
-        Assert.True(entrega.Situacao == "concluida", entrega.Mensagem);
+        Assert.True(entrega.Situacao == "aguardando_abertura", entrega.Mensagem);
         var tentativas = DiarioAnaliseChatGpt.Listar(Path.Combine(trabalho, DiarioAnaliseChatGpt.Pasta));
         Assert.Equal(2, tentativas.Count);
         var atual = tentativas[0];
@@ -341,7 +395,13 @@ public partial class OrquestradorTestes
         Assert.Contains(log, l => l.Tipo == "stderr" && l.Detalhe == "diagnóstico fictício");
         Assert.Contains(log, l => l.Tipo == "arquivo" && l.Titulo.Contains("entrada-editor"));
         Assert.Contains(log, evento => evento.Tipo == "turn.failed" && evento.Detalhe.Contains("model gpt-6.2-sol"));
-        Assert.Equal("fim", log.Last().Tipo);
+        Assert.Equal("entrega", log.Last().Tipo);
+        Assert.Null(atual.Consumo.Fim);
+        DiarioAnaliseChatGpt.ConfirmarAbertura(trabalho, entrega.Documento!);
+        var aberto = DiarioAnaliseChatGpt.LerConsumo(atual.Arquivo)!;
+        Assert.Equal("concluida", aberto.Estado);
+        Assert.NotNull(aberto.Fim);
+        Assert.Equal("fim", JsonSerializer.Deserialize<EventoDoPlugin>(File.ReadAllLines(DiarioAnaliseChatGpt.LogDe(atual.Arquivo)).Last())!.Tipo);
         Assert.False(Pacote.Ler(entrega.Documento!).SomenteLeitura);
         Assert.Equal(entrega.Documento, (await orq.ExecutarAsync(retomar, c.Progresso, CancellationToken.None)).Documento);
         var antesDaRetomadaLocal = File.ReadAllLines(rodadas);

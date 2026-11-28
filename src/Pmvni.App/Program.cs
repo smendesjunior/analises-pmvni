@@ -40,6 +40,11 @@ internal static class Program
             return OcrDaAnalise.Executar(args).GetAwaiter().GetResult();
         if (args.FirstOrDefault() == Pmvni.Imoveis.ConsultaParaAnalise.Comando)
             return Pmvni.Imoveis.ConsultaParaAnalise.Executar(args, Console.Error);
+        if (args.FirstOrDefault() == "--recortar-mapa-pdf")
+        {
+            try { RecorteMapaPdf.ExecutarAsync(args).GetAwaiter().GetResult(); return 0; }
+            catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }
+        }
         if (args.FirstOrDefault() == "--rasterizar-vista")
         {
             if (args.Length != 3) return 2;

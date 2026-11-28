@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using NetTopologySuite.Geometries;
 using P = Pmvni.Imoveis.PontoTela;
@@ -67,36 +66,25 @@ internal static class Letras
 /// mapa é 4:3 por decisão do usuário (2026-11-17): 840 × 630, grade 1680 × 1260 (<see cref="MapaLocalizacao.Largura"/>). Paleta inspirada no
 /// Apple Maps (modo claro), com cores firmes para o papel. Ordem das camadas: zonas, edificações, faixas da BR-262, ruas, APP e cursos
 /// d'água, lotes, quadras, rótulos de zona, lote em vermelho com as suas edificações, números dos lotes, nomes de ruas e do rio, cota até a
-/// calha, confrontantes, etiqueta do lote, escala, balão e norte.</summary>
+/// calha, confrontantes, etiqueta do lote, escala e norte.</summary>
 public static class MapaSvg
 {
     const int S = 2;
-    const string Fundo = "#F0ECE4", RuaBorda = "#D6CFC3", Rua = "#FFFFFF", Rodovia = "#FAD470", RodoviaBorda = "#E2AA3A";
+    const string Fundo = "#FAFAF8", RuaBorda = "#D6CFC3", Rua = "#FFFFFF", Rodovia = "#FAD470", RodoviaBorda = "#E2AA3A";
     const string Edif = "#DED8CF", EdifBorda = "#C6BEB3", LoteLinha = "#B2AA9E", QuadraLinha = "#8C8478";
-    const string Agua = "#78BAF0", AguaLinha = "#2884DE", AguaTxt = "#1660B0", Dnit = "#F29628", DnitBorda = "#E37400";
+    const string Agua = "#78BAF0", AguaLinha = "#2884DE", AguaTxt = "#1660B0", Dnit = "#F29628", DnitBorda = BordaFaixa;
     const string Texto = "#2C2C30", Texto2 = "#6E6860", Vermelho = "#E22D28", EdifLote = "#5C5650";
     const string Fontes = "'Segoe UI',Arial,sans-serif";
 
-    static readonly (string Claro, string Escuro)[] ZonasPastel =
-    [
-        ("#D6CAF2", "#6042AA"), ("#F7CFB4", "#AA521E"), ("#C0E4C8", "#247440"), ("#E2D0EC", "#803C96"),
-        ("#F0DEA8", "#8A640C"), ("#F0C4D6", "#9C3060"), ("#DCE6AC", "#606E12"), ("#E0D6C4", "#6A5A40"),
-    ];
+    internal const string FundoZona = "#EFF2EE", LimiteZona = "#89988E", RotuloZona = "#506359";
+    internal const string BordaFaixa = "#A35B15";
     static readonly double[] PosicoesNoTrecho = [0.5, 0.32, 0.68, 0.16, 0.84, 0.4, 0.6, 0.24, 0.76, 0.08, 0.92]; // onde tentar o rótulo ao longo de um trecho de rua ou rio
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
-
-    /// <summary>Tom pastel fixo por zona (mesma zona, mesma cor em todos os mapas, igual ao kit) e tom escuro para o rótulo.</summary>
-    public static (string Claro, string Escuro) CorDaZona(string nome)
-    {
-        var hex = Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(nome)))[..6];
-        return ZonasPastel[int.Parse(hex, NumberStyles.HexNumber, Inv) % ZonasPastel.Length];
-    }
-
 
     static string N(double v) => Math.Round(v, 1).ToString("0.#", Inv);
 
     internal static (string Svg, List<string> Ruas, List<ItemLegenda> Legenda) Desenhar(BaseQgis b, Envelope ext, Fe alvo, string modo,
-        IReadOnlyList<string> ficha, IReadOnlyList<(Fe Lote, string Nome)> rotulosVizinhos, CursoDagua? rio, string nomeRio, FaixaBr262? dnit,
+        string tLote, IReadOnlyList<(Fe Lote, string Nome)> rotulosVizinhos, CursoDagua? rio, string nomeRio, FaixaBr262? dnit,
         bool cotasLote = true, bool cotasDnit = true, bool cotasRua = true)
     {
         const int W = MapaLocalizacao.Largura, H = MapaLocalizacao.Altura;
@@ -105,7 +93,6 @@ public static class MapaSvg
         P T(Coordinate p) => new((p.X - ext.MinX) * sx, (ext.MaxY - p.Y) * sy);
         var s = new StringBuilder();
         s.Append($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{W}\" height=\"{H}\" viewBox=\"0 0 {W * S} {H * S}\" font-family=\"{Fontes}\">");
-        s.Append("<defs><filter id=\"sombra\" x=\"-20%\" y=\"-40%\" width=\"140%\" height=\"190%\"><feGaussianBlur stdDeviation=\"20\"/></filter></defs>");
         s.Append($"<rect width=\"{W * S}\" height=\"{H * S}\" fill=\"{Fundo}\"/>");
 
         // Só o que aparece vai para o arquivo: a geometria é cortada com folga (em metros) além do recorte.
@@ -133,6 +120,7 @@ public static class MapaSvg
                         if (!soCascas) foreach (var furo in p.InteriorRings) Anel(furo.Coordinates, true);
                         break;
                     case LineString l: Anel(l.Coordinates, false); break;
+                    case GeometryCollection colecao: sb.Append(Caminho(colecao, soCascas)); break;
                 }
             return sb.ToString();
         }
@@ -144,10 +132,14 @@ public static class MapaSvg
 
         // zonas (tons suaves sobre o terreno)
         var zonas = MapaLocalizacao.Em(b, Camada.Zoneamento, ext).Where(z => z.Tipo == 'A').ToList();
-        foreach (var z in zonas)
+        foreach (var grupo in zonas.GroupBy(z => z.Campo("ZONA")))
         {
-            var d = Caminho(Cortar(z.G, 0), soCascas: true);
-            if (d.Length > 0) s.Append($"<path d=\"{d}\" fill=\"{CorDaZona(z.Campo("ZONA") is { Length: > 0 } zn ? zn : "?").Claro}\" fill-opacity=\".784\"/>");
+            var partes = grupo.Select(z => Cortar(z.G, 0)).Where(g => !g.IsEmpty).ToList();
+            if (partes.Count == 0) continue;
+            Geometry cobertura;
+            try { cobertura = partes.Count == 1 ? partes[0] : Shapefile.Fabrica.BuildGeometry(partes).Union(); }
+            catch (TopologyException) { cobertura = Shapefile.Fabrica.BuildGeometry(partes); }
+            s.Append($"<path d=\"{Caminho(cobertura)}\" fill=\"{FundoZona}\" fill-rule=\"evenodd\" stroke=\"{LimiteZona}\" stroke-width=\"2.5\" stroke-dasharray=\"9 7\"/>");
         }
         // edificações
         s.Append($"<g fill=\"{Edif}\" stroke=\"{EdifBorda}\" stroke-width=\"1\">");
@@ -168,8 +160,8 @@ public static class MapaSvg
                     var faixa = eixo.Buffer(metros, 8).Intersection(moldura);
                     var d = Caminho(faixa);
                     if (d.Length == 0) continue;
-                    if (veu) s.Append($"<path d=\"{d}\" fill=\"{Dnit}\" fill-opacity=\".188\" fill-rule=\"evenodd\"/>");
-                    s.Append($"<path d=\"{d}\" fill=\"none\" stroke=\"{DnitBorda}\" stroke-opacity=\".824\" stroke-width=\"6.5\" stroke-linejoin=\"round\"/>");
+                    if (veu) s.Append($"<path d=\"{d}\" fill=\"{Dnit}\" fill-opacity=\".09\" fill-rule=\"evenodd\"/>");
+                    s.Append($"<path d=\"{d}\" fill=\"none\" stroke=\"{DnitBorda}\" stroke-opacity=\".824\" stroke-width=\"3\" stroke-dasharray=\"10 6\" stroke-linejoin=\"round\"/>");
                 }
                 catch (TopologyException) { }
         }
@@ -184,7 +176,7 @@ public static class MapaSvg
         var hidro = MapaLocalizacao.Em(b, Camada.HidroApp, extHidro).Where(h => h.Tipo == 'L').ToList();
         if (hidro.Count > 0)
         {
-            s.Append("<g opacity=\".373\">");
+            s.Append("<g opacity=\".28\">");
             foreach (var h in hidro)
             {
                 var larg = MapaLocalizacao.FaixaApp(h.Campo("APP"));
@@ -253,7 +245,7 @@ public static class MapaSvg
 
         // lote do projeto
         var contorno = Caminho(alvo.G);
-        s.Append($"<path d=\"{Caminho(alvo.G, soCascas: true)}\" fill=\"{Vermelho}\" fill-opacity=\".216\"/>");
+        s.Append($"<path d=\"{Caminho(alvo.G, soCascas: true)}\" fill=\"{Vermelho}\" fill-opacity=\".10\"/>");
         s.Append($"<path d=\"{contorno}\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"{9 * S / 2 + 4}\" stroke-linejoin=\"round\"/>");
         s.Append($"<path d=\"{contorno}\" fill=\"none\" stroke=\"{Vermelho}\" stroke-width=\"{(modo == "VERIFIED_LOT" ? 4 * S : 3 * S)}\" stroke-linejoin=\"round\"/>");
         var edifLote = MapaLocalizacao.EdificacoesDoLote(b, alvo);
@@ -265,7 +257,6 @@ public static class MapaSvg
         var centroLote = T(MapaLocalizacao.Centro(alvo.Partes));
 
         // 1º (prioridade máxima): a etiqueta vermelha "LOTE nº", fora do lote e encostada nele
-        var tLote = ficha.Count > 0 ? ficha[0].Split(" · ")[0] : "";
         Ret? caixaEtiqueta = null;
         var posLote = centroLote;
         var (wTxtLote, cimaLote, baixoLote) = Letras.Medir(tLote, 19 * S, true);
@@ -313,7 +304,7 @@ public static class MapaSvg
                 nomeRio.Length > 0 ? nomeRio : "Curso d'água (sem nome na base)");
         }
 
-        // As ruas e o rio, num quadro (q). Com saida null é só um ensaio: mostra onde os nomes querem ficar, para o balão e a escala os evitarem.
+        // As ruas e o rio, num quadro (q). Com saida null é só um ensaio: mostra onde os nomes querem ficar, para a escala os evitar.
         List<string> RotularNomes(QuadroRotulos q, StringBuilder? saida)
         {
             var feitos = new HashSet<string>(StringComparer.Ordinal);
@@ -359,70 +350,66 @@ public static class MapaSvg
         // trecho) e a distância do eixo ao ponto mais próximo do lote (perpendicular ao eixo). A base não tem a faixa desenhada nem a largura
         // como atributo: só o eixo (Logradouro.shp, NomeLogra "BR 262"); a faixa sai do eixo ± a distância. Prioridade logo abaixo da
         // etiqueta do lote. As linhas só são desenhadas no passe final (saida); as etiquetas entram no quadro nos dois.
-        // Uma linguagem só para todas as cotas: linha fina com traços nas pontas e o valor numa pílula pequena (12 px, branca, borda suave),
-        // paralela à linha e nunca de cabeça para baixo; a explicação vai no <title> (dica). A pílula entra no quadro como qualquer rótulo:
-        // sem lugar, a cota inteira (linha e valor) fica de fora. lado: de que lado da linha a pílula prefere ficar (+1/−1; 0 = os dois);
-        // soDeUmLado: a pílula nunca vai para o outro lado (as cotas do lote ficam sempre do lado de fora). Sem lugar paralelo à linha, a
-        // pílula tenta ficar na horizontal, encostada a uma das pontas (cotas curtas com texto longo).
+        // Valores horizontais. A chamada liga o rótulo ao segmento medido quando há afastamento.
+        // As cotas dos lados do lote ficam sempre do lado de fora.
         bool Cota(QuadroRotulos q, StringBuilder? saida, P a, P c, string cor, string corTxt, string borda, string texto, string dica, int lado, bool soDeUmLado = false)
         {
             var compPx = Math.Sqrt((c.X - a.X) * (c.X - a.X) + (c.Y - a.Y) * (c.Y - a.Y));
             if (compPx < 4 * S) return false;
             double ux = (c.X - a.X) / compPx, uy = (c.Y - a.Y) / compPx, nx = -uy, ny = ux, tk = 5 * S;
-            var ang = Cotas.AnguloLegivel(a, c);
             foreach (var tamCota in new[] { 12.0 * S, 10.0 * S }) // sem lugar nenhum, letra menor
                 if (CotaEm(tamCota)) return true;
             return false;
 
             bool CotaEm(double tamCota)
             {
-            var (tw, th, _, _) = Medida(texto, tamCota, true, true);
-            int[] lados = lado == 0 ? [1, -1] : soDeUmLado ? [lado] : [lado, -lado];
-            var posicoes = new List<(P Centro, double Ang)>();
-            foreach (var t in new[] { .5, .35, .65, .2, .8, .1, .9 })
-                foreach (var k in new[] { 1.0, 1.8, 2.6, 3.6 })
-                    foreach (var ld in lados)
-                    {
-                        var d = (th / 2 + 2 * S) * k * ld;
-                        posicoes.Add((new P(a.X + (c.X - a.X) * t + nx * d, a.Y + (c.Y - a.Y) * t + ny * d), ang));
-                    }
-            if (!soDeUmLado)
-                foreach (var p in new[] { a, c })
-                    foreach (var sx2 in new[] { 1, -1 })
-                        foreach (var sy2 in new[] { 0.0, 1.2, -1.2 })
-                            posicoes.Add((new P(p.X + sx2 * (tw / 2 + 4 * S), p.Y + sy2 * th), 0));
-            // último recurso (2026-11-17: as cotas não somem): mais longe da linha, dos dois lados, e na horizontal junto das pontas
-            foreach (var t in new[] { .5, .3, .7, .15, .85, .05, .95 })
-                foreach (var k in new[] { 4.8, 6.2, 8.0, 10.0, 12.0 })
-                    foreach (var ld in new[] { lado == 0 ? 1 : lado, lado == 0 ? -1 : -lado })
-                    {
-                        var d = (th / 2 + 2 * S) * k * ld;
-                        posicoes.Add((new P(a.X + (c.X - a.X) * t + nx * d, a.Y + (c.Y - a.Y) * t + ny * d), ang));
-                    }
-            foreach (var t in new[] { .5, .25, .75 })
-                foreach (var ld in new[] { lado == 0 ? -1 : -lado })
-                    posicoes.Add((new P(a.X + (c.X - a.X) * t + nx * (th / 2 + 2 * S) * ld, a.Y + (c.Y - a.Y) * t + ny * (th / 2 + 2 * S) * ld), ang));
-            foreach (var p in new[] { a, c })
-                foreach (var sx2 in new[] { 1, -1 })
-                    foreach (var sy2 in new[] { 0.0, 1.2, -1.2, 2.4, -2.4 })
-                        posicoes.Add((new P(p.X + sx2 * (tw / 2 + 4 * S), p.Y + sy2 * th), 0));
-            foreach (var (centro, angulo) in posicoes)
-                    {
-                        var marca = saida?.Length ?? 0;
-                        if (saida is not null)
+                var (tw, th, _, _) = Medida(texto, tamCota, true, true);
+                int[] lados = lado == 0 ? [1, -1] : soDeUmLado ? [lado] : [lado, -lado];
+                var posicoes = new List<P>();
+                var afastamento = Math.Abs(nx) * tw / 2 + Math.Abs(ny) * th / 2 + 3 * S;
+                foreach (var extra in new[] { 0, 6, 14, 26, 42, 64, 88 })
+                    foreach (var t in new[] { .5, .35, .65, .2, .8, .1, .9 })
+                        foreach (var ld in lados)
                         {
-                            saida.Append($"<g><title>{Html.E(dica)}</title><path d=\"M{N(a.X)},{N(a.Y)}L{N(c.X)},{N(c.Y)}");
-                            foreach (var p in new[] { a, c }) saida.Append($"M{N(p.X - nx * tk)},{N(p.Y - ny * tk)}L{N(p.X + nx * tk)},{N(p.Y + ny * tk)}");
-                            saida.Append($"\" stroke=\"{cor}\" stroke-width=\"{S}\" fill=\"none\"/>");
+                            var d = (afastamento + extra * S) * ld;
+                            posicoes.Add(new P(a.X + (c.X - a.X) * t + nx * d, a.Y + (c.Y - a.Y) * t + ny * d));
                         }
-                        if (Etiqueta(q, saida, centro, texto, tamCota, true, corTxt, "#FFFFFF", angulo, borda: borda, alfaFundo: .96))
-                        {
-                            saida?.Append("</g>");
-                            return true;
-                        }
-                        saida?.Remove(marca, saida.Length - marca);
+                foreach (var centro in posicoes)
+                {
+                    var t = Math.Clamp(((centro.X-a.X)*ux + (centro.Y-a.Y)*uy) / compPx, 0, 1);
+                    var pe = new P(a.X + (c.X-a.X)*t, a.Y + (c.Y-a.Y)*t);
+                    var dx = centro.X-pe.X;
+                    var dy = centro.Y-pe.Y;
+                    var comp = Dist(dx,dy);
+                    var razao = Math.Min(tw/2/Math.Max(.001,Math.Abs(dx)), th/2/Math.Max(.001,Math.Abs(dy)));
+                    var fim = new P(centro.X-dx*razao,centro.Y-dy*razao);
+                    var inicio = new P(pe.X+dx*3*S/comp,pe.Y+dy*3*S/comp);
+                    P[]? chamada = null;
+                    if (Dist(pe.X-fim.X,pe.Y-fim.Y) > 5*S) {
+                        chamada = Rotulagem.CaixaGirada(new P((inicio.X+fim.X)/2,(inicio.Y+fim.Y)/2),
+                            Dist(inicio.X-fim.X,inicio.Y-fim.Y), S, Cotas.AnguloLegivel(inicio,fim));
+                        if (!q.Cabe(chamada)) continue;
                     }
-            return false;
+                    var marca = saida?.Length ?? 0;
+                    if (saida is not null)
+                    {
+                        saida.Append($"<g><title>{Html.E(dica)}</title><path d=\"M{N(a.X)},{N(a.Y)}L{N(c.X)},{N(c.Y)}");
+                        foreach (var p in new[] { a, c }) saida.Append($"M{N(p.X - nx * tk)},{N(p.Y - ny * tk)}L{N(p.X + nx * tk)},{N(p.Y + ny * tk)}");
+                        saida.Append($"\" stroke=\"{cor}\" stroke-width=\"{S}\" fill=\"none\"/>");
+                    }
+                    if (Etiqueta(q, saida, centro, texto, tamCota, true, corTxt, "#FFFFFF", 0, borda: borda, alfaFundo: .96))
+                    {
+                        if (chamada is not null)
+                        {
+                            q.Ocupar(chamada);
+                            saida?.Append($"<path d=\"M{N(pe.X)},{N(pe.Y)}L{N(fim.X)},{N(fim.Y)}\" stroke=\"{cor}\" stroke-width=\"1.5\" fill=\"none\"/>");
+                        }
+                        saida?.Append("</g>");
+                        return true;
+                    }
+                    saida?.Remove(marca, saida.Length - marca);
+                }
+                return false;
             }
         }
 
@@ -533,13 +520,13 @@ public static class MapaSvg
         if (cotaRio is { } cr0) Linha(cr0.A, cr0.C);
         foreach (var (a, c, _, _, _) in cotasDnitLinhas) Linha(a, c);
         if (largura is { } lr0) Linha(T(lr0.Inicio), T(lr0.Fim));
-        if (ficha.Count > 0)
+        if (tLote.Length > 0)
         {
             posLote = PosicaoEtiquetaLote(ptsLote, centroLote, we, he, lw, lh, [rosa.Contorno(), .. linhasFixas]);
             caixaEtiqueta = new Ret(posLote.X - we / 2, posLote.Y - he / 2, posLote.X + we / 2, posLote.Y + he / 2);
         }
 
-        // Ensaio dos nomes, para a escala e o balão escolherem onde ficar sem cobri-los.
+        // Ensaio dos nomes, para a escala escolher onde ficar sem cobri-los.
         var ensaio = new QuadroRotulos(lw, lh);
         ensaio.Ocupar(rosa);
         if (caixaEtiqueta is { } ce0) ensaio.Ocupar(ce0);
@@ -550,12 +537,11 @@ public static class MapaSvg
         CotaDoRio(ensaio, null);
         CotasBr262(ensaio, null);
         CotaDaRua(ensaio, null);
-        var cotasEnsaio = ensaio.Ocupados.Skip(jaPostos).Select(Rotulagem.Envolvente).ToList(); // o balão e a escala nunca as cobrem
+        var cotasEnsaio = ensaio.Ocupados.Skip(jaPostos).Select(Rotulagem.Envolvente).ToList(); // a escala não as cobre
         jaPostos = ensaio.Ocupados.Count;
         RotularNomes(ensaio, null);
         var nomesEnsaio = ensaio.Ocupados.Skip(jaPostos).ToList();
-        var nNomes = nomesEnsaio.Count; // ruas, rio e largura da rua: o balão evita mais que números e vizinhos
-        // os números e os nomes dos confrontantes não podem mudar de lote: o balão também prefere não cobri-los
+        // os números e os nomes dos confrontantes não podem mudar de lote: a escala também prefere não cobri-los
         var perto = alvo.Bb.Copy();
         perto.ExpandBy(Math.Max(35.0, (alvo.Bb.Width + alvo.Bb.Height) / 2));
         var numerosPerto = MapaLocalizacao.Em(b, Camada.NumerosLote, perto)
@@ -567,46 +553,22 @@ public static class MapaSvg
             nomesEnsaio.Add(Rotulagem.CaixaGirada(T(CentroInterno(l.G)), tw, th, 0));
         }
 
-        // escala gráfica (no canto livre mais próximo) e balão do lote: fixos antes dos nomes, que se ajeitam em volta deles
+        // escala gráfica (no canto livre mais próximo), reservada antes do posicionamento final dos nomes
         var topo = new StringBuilder();
         var evitar = new List<Ret> { rosa, new Ret(cl.X0 - m_, cl.Y0 - m_, cl.X1 + m_, cl.Y1 + m_) };
         if (caixaEtiqueta is { } ce1) evitar.Add(ce1);
         evitar.AddRange(cotasEnsaio);
         evitar.AddRange(linhasFixas.Select(Rotulagem.Envolvente));
         var painel = PainelEscala(topo, ext, sx, lw, lh, evitar.ToArray(), nomesEnsaio.Select(Rotulagem.Envolvente).ToList());
-        Ret? caixaBalao = null;
-        P[]? chamada = null;
-        if (ficha.Count > 0)
-        {
-            var (larg, alt) = TamanhoBalao(ficha);
-            var proibidos = new List<Ret> { rosa, painel };
-            if (caixaEtiqueta is { } ce2) proibidos.Add(ce2.Expandida(4 * S));
-            proibidos.AddRange(cotasEnsaio.Select(c => c.Expandida(2 * S))); // nunca cobre o lote nem as cotas (lote, rio, BR-262, rua)
-            var pesos = nomesEnsaio.Select((_, i) => i < nNomes ? 3.0 : 1.0).Concat(linhasFixas.Select(_ => 5.0)).ToList();
-            var (cb, _) = Rotulagem.EscolherBalao(cl, larg, alt, lw, lh, proibidos, nomesEnsaio.Concat(linhasFixas).ToList(), m_, m_, pesos);
-            caixaBalao = cb;
-        }
-
-        // Os nomes de verdade: sobre a rosa, a escala, o balão, a linha de chamada do balão, a etiqueta do lote e as linhas das cotas.
         var quadro = new QuadroRotulos(lw, lh);
         quadro.Ocupar(rosa);
         quadro.Ocupar(painel);
-        if (caixaBalao is { } cb2) quadro.Ocupar(cb2);
         if (caixaEtiqueta is { } ce3) quadro.Ocupar(ce3);
         foreach (var l in linhasFixas) quadro.Ocupar(l);
-        var marcaCotas = quadro.Ocupados.Count;
         CotasDoLote(quadro, s);
         CotaDoRio(quadro, s);
         CotasBr262(quadro, s);
         CotaDaRua(quadro, s);
-        // o balão (já no lugar) e a linha de chamada, desenhada depois das cotas: o ponto dela na borda do lote evita as pílulas postas e a
-        // etiqueta do lote (a última da lista, pesa mais); a linha entra no quadro antes dos nomes
-        if (caixaBalao is { } cbx)
-        {
-            P[][] evitarChamada = [.. quadro.Ocupados.Skip(marcaCotas), .. caixaEtiqueta is { } ce4 ? [ce4.Contorno()] : Array.Empty<P[]>()];
-            chamada = Balao(topo, ficha, centroLote, cbx, ptsLote, evitarChamada, caixaEtiqueta is not null);
-            quadro.Ocupar(chamada);
-        }
         var nomesRuas = RotularNomes(quadro, s);
         // números dos lotes (só em volta do lote do projeto), cada um no seu ponto: se não couber, não aparece
         foreach (var n in numerosPerto) // o do lote do projeto vai na etiqueta vermelha
@@ -651,11 +613,10 @@ public static class MapaSvg
             if (!NoRecorte(c))
             {
                 var pts = z.Partes.SelectMany(a => a).Where(NoRecorte).ToList();
-                if (pts.Count == 0) continue;
-                c = new Coordinate(pts.Average(p => p.X), pts.Average(p => p.Y));
+                c = pts.Count == 0 ? ext.Centre : new Coordinate(pts.Average(p => p.X), pts.Average(p => p.Y));
             }
             if (nome.Length == 0) continue;
-            var (tw, th, _, _) = Medida(nome, 18 * S, true, false);
+            var (tw, th, _, _) = Medida(nome, 14 * S, true, true);
             // o centro e em volta; depois, pontos da parte visível da zona, do mais perto do centro ao mais longe
             var vz = z.Bb.Intersection(ext);
             var pontos = new List<Coordinate>();
@@ -669,12 +630,12 @@ public static class MapaSvg
             var cands = Rotulagem.AoRedor(T(c), tw, th, 6 * S).Select(k => k.Centro)
                 .Concat(pontos.OrderBy(g => g.Distance(c)).Select(T));
             foreach (var cand in cands)
-                if (Etiqueta(quadro, zonasSvg, cand, nome, 18 * S, true, CorDaZona(nome).Escuro, null, 0)) break;
+                if (MapaLocalizacao.Dentro(Mundo(cand), z.Partes) && Etiqueta(quadro, zonasSvg, cand, nome, 14 * S, true, "#FFFFFF", RotuloZona, 0)) break;
         }
         s.Insert(marcaZonas, zonasSvg.ToString());
 
-        // a etiqueta do número do lote do projeto (o lugar já estava reservado), a escala, o balão e o norte por cima de tudo
-        if (ficha.Count > 0) Etiqueta(null, s, posLote, tLote, 19 * S, true, "#FFFFFF", Vermelho, 0);
+        // a etiqueta do número do lote do projeto (o lugar já estava reservado), a escala e o norte por cima de tudo
+        if (tLote.Length > 0) Etiqueta(null, s, posLote, tLote, 19 * S, true, "#FFFFFF", Vermelho, 0);
         s.Append(topo);
         Norte(s, lw - 50 * S, 50 * S);
         s.Append("</svg>");
@@ -753,66 +714,7 @@ public static class MapaSvg
         return new Ret(x0, y0, x0 + larg, y0 + alt);
     }
 
-    static (double Larg, double Alt) TamanhoBalao(IReadOnlyList<string> linhas) =>
-        (linhas.Select((t, i) => Letras.Largura(t, i == 0 ? 19 * S : 15 * S, i == 0)).Max() + 52 * S, 26 * S + 24 * S * linhas.Count);
-
-    /// <summary>O balão branco com os dados do lote, na caixa escolhida por <see cref="Rotulagem.EscolherBalao"/> (fora do lote, da etiqueta
-    /// do lote, da escala e da rosa dos ventos; cobrindo o mínimo de nomes). A linha de chamada termina na borda do lote, com o ponto
-    /// vermelho.</summary>
-    static P[] Balao(StringBuilder s, IReadOnlyList<string> linhas, P alvoPx, Ret caixa, List<P> contorno, IReadOnlyList<P[]> evitar, bool etiqueta)
-    {
-        double f1 = 19 * S, f2 = 15 * S;
-        double x0 = caixa.X0, y0 = caixa.Y0, larg = caixa.Largura, alt = caixa.Altura;
-        P[] ancoras = [new(x0, y0 + alt / 2), new(x0 + larg, y0 + alt / 2), new(x0 + larg / 2, y0), new(x0 + larg / 2, y0 + alt)];
-        // o ponto na borda do lote (vértices e pontos dos lados) e a âncora do balão: a linha e o ponto não cobrem cota nem a etiqueta do
-        // lote; sem par livre, o que cobre menos; empate: a linha mais curta. A âncora só serve para pontos do lado de fora daquela borda.
-        var pontos = contorno.Concat(new[] { .25, .5, .75 }.SelectMany(k => contorno.Select((q, i) => { var r = contorno[(i + 1) % contorno.Count]; return new P(q.X + (r.X - q.X) * k, q.Y + (r.Y - q.Y) * k); }))).ToList();
-        bool DeFora(int k, P q) => k switch { 0 => q.X < x0, 1 => q.X > x0 + larg, 2 => q.Y < y0, _ => q.Y > y0 + alt };
-        // custo: a linha que atravessa uma pílula conta 1; o ponto vermelho conta a fração dele (amostrada em 5 × 5) que cai sobre ela
-        double Cobertos(P a0, P q)
-        {
-            var linha = Rotulagem.CaixaGirada(new P((a0.X + q.X) / 2, (a0.Y + q.Y) / 2), Math.Max(Dist(q.X - a0.X, q.Y - a0.Y), 1), 4 * S, Cotas.AnguloLegivel(a0, q));
-            var amostras = Enumerable.Range(0, 25).Select(k => new P(q.X + (k % 5 - 2) * 4 * S, q.Y + (k / 5 - 2) * 4 * S)).ToList();
-            return evitar.Select((e, i) => ((Rotulagem.Sobrepoe(linha, e) ? 1.0 : 0) + amostras.Count(p => Dentro(p, e)) / 25.0) * (i == evitar.Count - 1 && etiqueta ? 10 : 1)).Sum();
-        }
-        var pares = ancoras.SelectMany((a0, k) => pontos.Where(q => DeFora(k, q)).Select(q => (A: a0, Q: q))).ToList();
-        var padrao = ancoras.MinBy(p => Dist(p.X - alvoPx.X, p.Y - alvoPx.Y));
-        if (pares.Count == 0) pares = pontos.Select(q => (A: padrao, Q: q)).ToList();
-        var (a, fim) = pares.Count == 0 ? (padrao, alvoPx) : pares.MinBy(x => (Cobertos(x.A, x.Q), Dist(x.Q.X - x.A.X, x.Q.Y - x.A.Y)));
-        s.Append($"<path d=\"M{N(a.X)},{N(a.Y)}L{N(fim.X)},{N(fim.Y)}\" stroke=\"#FFFFFF\" stroke-width=\"{7 * S}\"/>");
-        s.Append($"<path d=\"M{N(a.X)},{N(a.Y)}L{N(fim.X)},{N(fim.Y)}\" stroke=\"{Vermelho}\" stroke-width=\"{3 * S}\"/>");
-        s.Append($"<circle cx=\"{N(fim.X)}\" cy=\"{N(fim.Y)}\" r=\"{8 * S - 1.5 * S}\" fill=\"{Vermelho}\" stroke=\"#FFFFFF\" stroke-width=\"{3 * S}\"/>");
-        s.Append($"<rect x=\"{N(x0)}\" y=\"{N(y0 + 6 * S)}\" width=\"{N(larg)}\" height=\"{N(alt)}\" rx=\"{16 * S}\" fill=\"#000000\" fill-opacity=\".18\" filter=\"url(#sombra)\"/>");
-        s.Append($"<rect x=\"{N(x0)}\" y=\"{N(y0)}\" width=\"{N(larg)}\" height=\"{N(alt)}\" rx=\"{16 * S}\" fill=\"#FFFFFF\" stroke=\"#E8E4DC\" stroke-width=\"{S}\"/>");
-        s.Append($"<circle cx=\"{N(x0 + 18 * S)}\" cy=\"{N(y0 + 27 * S)}\" r=\"{6 * S}\" fill=\"{Vermelho}\"/>");
-        var y = y0 + 15 * S;
-        for (var i = 0; i < linhas.Count; i++)
-        {
-            var t = linhas[i];
-            var cor = i == 0 ? "#1C1C1E" : t.StartsWith("APP ATINGE", StringComparison.Ordinal) ? Vermelho : "#636366";
-            var tam = i == 0 ? f1 : f2;
-            s.Append($"<text x=\"{N(x0 + 32 * S)}\" y=\"{N(y + Letras.Subida * tam)}\" font-size=\"{N(tam)}\"{(i == 0 ? " font-weight=\"700\"" : "")} fill=\"{cor}\">{Html.E(t)}</text>");
-            y += 24 * S;
-        }
-        // a linha de chamada, como obstáculo para os rótulos
-        var comp = Dist(fim.X - a.X, fim.Y - a.Y);
-        return Rotulagem.CaixaGirada(new P((a.X + fim.X) / 2, (a.Y + fim.Y) / 2), Math.Max(comp, 1), 7 * S, Cotas.AnguloLegivel(a, fim));
-    }
-
     static double Dist(double dx, double dy) => Math.Sqrt(dx * dx + dy * dy);
-
-    /// <summary>O ponto está dentro do polígono convexo (qualquer sentido)?</summary>
-    static bool Dentro(P p, P[] poli)
-    {
-        int pos = 0, neg = 0;
-        for (var i = 0; i < poli.Length; i++)
-        {
-            var (a, b) = (poli[i], poli[(i + 1) % poli.Length]);
-            var c = (b.X - a.X) * (p.Y - a.Y) - (b.Y - a.Y) * (p.X - a.X);
-            if (c > 0) pos++; else if (c < 0) neg++;
-        }
-        return pos == 0 || neg == 0;
-    }
 
     /// <summary>A rosa dos ventos: disco branco com a ponta vermelha para o norte (o mapa é sempre norte para cima).</summary>
     static void Norte(StringBuilder s, double x, double y)

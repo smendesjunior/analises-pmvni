@@ -171,7 +171,7 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.Equal(0, MapaParaAnalise.Executar([MapaParaAnalise.Comando, pasta, feicao.ToString(), mapa], TextWriter.Null));
         using var ficha = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(mapa, "FICHA.JSON")));
         Assert.Equal(feicao, ficha.RootElement.GetProperty("feicao").GetInt32());
-        Assert.Contains("FULANO DE TAL EXEMPLO", File.ReadAllText(Path.Combine(mapa, "MAPA.SVG")));
+        Assert.Contains(">LOTE 4<", File.ReadAllText(Path.Combine(mapa, "MAPA.SVG")));
 
         var fallback = ConsultaParaAnalise.ConsultarArquivo(Path.Combine(pasta, "ausente"), pasta, entrada, CancellationToken.None);
         Assert.Equal("CONSULTADA", fallback["situacao"]!.GetValue<string>());
@@ -202,14 +202,10 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.False(MapaLocalizacao.EhRodovia("RUA DAS ACACIAS"));
         Assert.Equal("Beltrana Modelo", MapaLocalizacao.Curto("BELTRANA DE SOUZA MODELO E SOCIO (A)(S)"));
         Assert.Equal("Fulano Exemplo", MapaLocalizacao.Curto("FULANO DE TAL EXEMPLO e outros 2"));
-        // A cor da zona é a do kit: md5 do nome, módulo 8 (os valores abaixo saíram do próprio script).
-        Assert.Equal("#DCE6AC", MapaSvg.CorDaZona("ZCN2").Claro);
-        Assert.Equal("#E0D6C4", MapaSvg.CorDaZona("ZRE").Claro);
-        Assert.Equal("#C0E4C8", MapaSvg.CorDaZona("ZEIS").Claro);
     }
 
     [Fact]
-    public void mapa_tem_o_enquadramento_as_camadas_o_balao_e_a_legenda_do_kit()
+    public void mapa_preserva_enquadramento_camadas_e_identifica_zonas_com_simbologia_uniforme()
     {
         // sem as cotas (2026-11-17), o mapa fica como o do kit
         var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { AreaDeclarada = 1500, AreaFonte = "matrícula", Endereco = "Rua das Acácias, 120", Cotas = false });
@@ -249,19 +245,29 @@ public class MapaLocalizacaoTestes : IDisposable
         var svg = m.Svg;
         // a mesma grade dobrada do kit (o dobro do tamanho final), agora 4:3
         Assert.StartsWith("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"840\" height=\"630\" viewBox=\"0 0 1680 1260\"", svg);
-        foreach (var t in new[] { ">LOTE 4<", ">ZCN2<", ">ZRE<", ">BR-262<", ">Rua Das Acacias<", ">Córrego Fictício<", ">Sicrano Teste<", ">APP ATINGE O LOTE<", ">FAIXA DA BR-262 ATINGE O LOTE<", " m<" })
+        foreach (var t in new[] { ">LOTE 4<", ">ZCN2<", ">ZRE<", ">BR-262<", ">Rua Das Acacias<", ">Córrego Fictício<", ">Sicrano Teste<", " m<" })
             Assert.Contains(t, svg);
+        var zonas = System.Xml.Linq.XDocument.Parse(svg).Descendants().Where(e => (string?)e.Attribute("fill") == "#EFF2EE").ToList();
+        Assert.Equal(2, zonas.Count);
+        Assert.All(zonas, zona =>
+        {
+            Assert.Equal("#89988E", (string?)zona.Attribute("stroke"));
+            Assert.NotNull(zona.Attribute("stroke-dasharray"));
+            Assert.NotEmpty((string)zona.Attribute("d")!);
+        });
+        Assert.DoesNotContain("sombra", svg);
+        Assert.DoesNotContain("ATINGE O LOTE", svg);
         // os nomes dos vizinhos têm a prioridade mais baixa (depois das cotas, das ruas e dos números): sem lugar, ficam ocultos
         Assert.Empty(VerificadorSvg.Sobreposicoes(svg));
         Assert.Contains("stroke=\"#E22D28\" stroke-width=\"8\"", svg);   // lote confirmado: contorno vermelho de 4 px
         Assert.Contains("fill=\"#5C5650\"", svg);                          // edificação do lote, escura
-        Assert.Contains("stroke=\"#E37400\"", svg);                        // faixas da BR-262
+        Assert.Contains("stroke=\"#A35B15\"", svg);                        // faixas da BR-262
         Assert.Contains("stroke=\"#78BAF0\"", svg);                        // faixa de APP
         Assert.Contains("fill=\"#FAD470\"".Replace("fill", "stroke"), svg); // rodovia em amarelo
         // A ordem do desenho: zonas, edificações, faixas, ruas, água, lotes, lote em vermelho, balão e norte por último.
         int Pos(string t) => svg.IndexOf(t, StringComparison.Ordinal);
-        Assert.True(Pos("fill=\"#DCE6AC\"") < Pos("stroke=\"#E37400\"") && Pos("stroke=\"#E37400\"") < Pos("stroke=\"#D6CFC3\"") && Pos("stroke=\"#D6CFC3\"") < Pos("stroke=\"#2884DE\""));
-        Assert.True(Pos("stroke=\"#2884DE\"") < Pos("stroke=\"#B2AA9E\"") && Pos("stroke=\"#B2AA9E\"") < Pos("fill-opacity=\".216\"") && Pos("fill-opacity=\".216\"") < Pos("filter=\"url(#sombra)\""));
+        Assert.True(Pos("fill=\"#EFF2EE\"") < Pos("stroke=\"#A35B15\"") && Pos("stroke=\"#A35B15\"") < Pos("stroke=\"#D6CFC3\"") && Pos("stroke=\"#D6CFC3\"") < Pos("stroke=\"#2884DE\""));
+        Assert.True(Pos("stroke=\"#2884DE\"") < Pos("stroke=\"#B2AA9E\"") && Pos("stroke=\"#B2AA9E\"") < Pos("fill-opacity=\".10\"") && Pos("fill-opacity=\".10\"") < Pos(">LOTE 4<"));
 
         var d = m.Dados.ToDictionary(x => x.Rotulo);
         Assert.Equal(["Identificação", "Áreas e edificação", "Zona e condicionantes", "Cadastro e entorno"], m.Dados.Select(x => x.Grupo).Distinct());
@@ -287,6 +293,9 @@ public class MapaLocalizacaoTestes : IDisposable
         if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "mapa-exemplo-cotas.svg"), m.Svg);
         foreach (var t in new[] { ">30,00 m<", ">40,00 m<", ">Domínio DNIT 40,00 m<", ">Eixo → terreno 41,79 m<", ">Eixo → alinhamento 10,00 m<", ">LOTE 4<" })
             Assert.Contains(t, m.Svg);
+        var textos = System.Xml.Linq.XDocument.Parse(m.Svg).Descendants().Where(e => e.Name.LocalName == "text" && e.Value.EndsWith(" m"));
+        Assert.All(textos, texto => Assert.DoesNotContain(texto.AncestorsAndSelf(), e => ((string?)e.Attribute("transform"))?.Contains("rotate") == true));
+        Assert.Empty(VerificadorSvg.Sobreposicoes(m.Svg));
         Assert.Contains("<title>Domínio a confirmar no DNIT para o trecho; faixa não edificável: Lei 6.766/1979, art. 4º, III.", m.Svg);
     }
 
@@ -315,8 +324,9 @@ public class MapaLocalizacaoTestes : IDisposable
         var svg = File.ReadAllText(Path.Combine(saida, "MAPA.SVG"));
         Assert.Contains(">30,00 m<", svg);
         Assert.Contains("stroke=\"#E22D28\" stroke-width=\"6\"", svg);
-        Assert.Contains(indice == 0 ? "FULANO" : "BELTRANA", svg, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(indice == 0 ? "BELTRANA" : "FULANO", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(indice == 0 ? ">LOTE 4<" : ">LOTE 3<", svg);
+        Assert.DoesNotContain("FULANO", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("BELTRANA", svg, StringComparison.OrdinalIgnoreCase);
         using var ficha = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(saida, "FICHA.JSON")));
         var raiz = ficha.RootElement;
         Assert.Equal(indice, raiz.GetProperty("feicao").GetInt32());
@@ -363,6 +373,7 @@ public class MapaLocalizacaoTestes : IDisposable
         var a = b.Analisar(r);
         Assert.True(a.Conclusivo);
         var html = RelatorioHtml.Gerar(b, a, null, new DateTimeOffset(2026, 11, 16, 10, 0, 0, TimeSpan.Zero));
+        Assert.Contains(".lk.zona { background: #EFF2EE; border: 1px dashed #89988E; }", html);
         Assert.Contains(RelatorioHtml.CssOficial, html);              // o CSS oficial inteiro, sem alteração
         Assert.Contains(".lmrow { display: grid;", RelatorioHtml.CssOficial);
         foreach (var t in new[]
