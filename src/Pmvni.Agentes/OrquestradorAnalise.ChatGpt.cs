@@ -18,7 +18,7 @@ public sealed partial class OrquestradorAnalise
         _ => throw new ArgumentOutOfRangeException(nameof(p))
     };
 
-    internal static string? MotivoDoPlugin(Provedor p, Pecas pecas)
+    public static string? MotivoDoPlugin(Provedor p, Pecas pecas)
     {
         if (p == Provedor.ChatGpt) return MotivoAnaliseChatGpt(pecas);
         if (p != Provedor.Claude) return "Plugin indisponível.";
