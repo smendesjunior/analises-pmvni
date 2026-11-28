@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.3
+
+- A tela Análise de projetos reúne a busca e a seleção do processo acima dos painéis Anexos e Analisar. Em janelas estreitas, os painéis ficam um abaixo do outro.
+- Cada categoria tem uma área de soltura, um botão para anexar e remoção individual. O Editor conserva os anexos de cada processo enquanto a janela está aberta e informa quais arquivos recusou.
+- Os cartões do ChatGPT e do Claude mostram a marca e a disponibilidade do provedor. O pedido opcional continua disponível abaixo dos anexos.
+
 ## 5.1.2
 
 - Nos relatórios de Imóveis e de Análise, o quadro do mapa mostra em vermelho as observações sobre incidências no lote. Entre elas estão APP, faixas rodoviárias e sobreposição de zonas. Cada observação identifica as estimativas aplicáveis.

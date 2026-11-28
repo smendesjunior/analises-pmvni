@@ -20,8 +20,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         InitializeComponent();
         CaixaPedido.PlaceholderText = FluxoNovoRelatorio.DicaPedido;
         TextoPedidoClaude.Text = FluxoNovoRelatorio.TextoPedidoClaude;
-        // Correções 2026-11-15 (image7): a coluna do formulário tem a largura da área visível, menos as margens, até 1400 (centralizada).
-        PainelFormulario.SizeChanged += (_, e) => AjustarLarguraDoFormulario(e.NewSize.Width);
+        PainelFormulario.SizeChanged += (_, _) => AjustarFormulario();
+        CartaoProcesso.SizeChanged += (_, _) => AjustarFormulario();
+        CabecalhoFormulario.SizeChanged += (_, _) => AjustarFormulario();
+        CategoriasAnexos.SizeChanged += (_, e) =>
+            CabecalhoAnexos.Visibility = Visivel(e.NewSize.Width >= LinhaCategoriaAnexos.LarguraTabela);
         RolagemMonitor.SizeChanged += (_, e) => AjustarColunasExecucao(e.NewSize.Width);
         BotaoEvidenciasPdf.SizeChanged += (_, e) => IconeAbrirEvidencias.Visibility =
             e.NewSize.Width >= 290 ? Visibility.Visible : Visibility.Collapsed;
@@ -31,20 +34,40 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => AtualizarAcoesRetomada());
     }
 
-    /// <summary>Largura da coluna do formulário: a da área visível menos 24 de cada lado, entre 280 e 1400.</summary>
-    internal static double LarguraDoFormulario(double larguraVisivel) => Math.Clamp(larguraVisivel - 48, 280, 1400);
-
-    void AjustarLarguraDoFormulario(double larguraVisivel)
+    void AjustarFormulario()
     {
-        if (double.IsNaN(larguraVisivel) || larguraVisivel <= 0) return;
-        var nova = Math.Round(LarguraDoFormulario(larguraVisivel));
-        bool ampla = nova >= 940;
-        GradeEtapas.ColumnSpacing = ampla ? 16 : 0;
-        GradeEtapas.ColumnDefinitions[1].Width = ampla ? new GridLength(nova * .38) : new GridLength(0);
-        Grid.SetRow(CartaoEscolhaAgente, ampla ? 0 : 1);
-        Grid.SetColumn(CartaoEscolhaAgente, ampla ? 1 : 0);
-        if (double.IsNaN(ColunaFormulario.Width) || Math.Abs(ColunaFormulario.Width - nova) >= 1) ColunaFormulario.Width = nova; // sem realimentar o layout por frações de pixel
+        var largura = PainelFormulario.ActualWidth;
+        if (largura <= 0) return;
+        var util = Math.Min(1440, Math.Max(0, largura - (largura < 720 ? 32 : 64)));
+        ColunaFormulario.Width = util;
+        bool compacta = util < 700;
+        CamposProcesso.ColumnSpacing = compacta ? 0 : 16;
+        CamposProcesso.RowSpacing = compacta ? 8 : 0;
+        foreach (var campo in new FrameworkElement[] { CaixaFiltro, CaixaProcesso, BotaoCriarProcesso })
+        {
+            int indice = CamposProcesso.Children.IndexOf(campo);
+            Grid.SetColumn(campo, compacta ? 0 : indice);
+            Grid.SetRow(campo, compacta ? indice : 0);
+            Grid.SetColumnSpan(campo, compacta ? 3 : 1);
+        }
+        Grid.SetColumnSpan((FrameworkElement)CabecalhoFormulario.Children[0], compacta ? 2 : 1);
+        Grid.SetRow(AcoesFormulario, compacta ? 1 : 0);
+        Grid.SetColumn(AcoesFormulario, compacta ? 0 : 1);
+        Grid.SetColumnSpan(AcoesFormulario, compacta ? 2 : 1);
+        CabecalhoFormulario.RowSpacing = compacta ? 8 : 0;
 
+        bool ampla = util >= 940;
+        bool fixar = ampla && PainelFormulario.ActualHeight - CabecalhoFormulario.ActualHeight - CartaoProcesso.ActualHeight > 260;
+        ColunaFormulario.Height = fixar ? PainelFormulario.ActualHeight - 32 : double.NaN;
+        GradeEtapas.ColumnSpacing = ampla ? 20 : 0;
+        GradeEtapas.RowSpacing = ampla ? 0 : 16;
+        Grid.SetColumnSpan(RolagemAnexos, ampla ? 1 : 2);
+        Grid.SetColumnSpan(RolagemAgentes, ampla ? 1 : 2);
+        Grid.SetRow(RolagemAgentes, ampla ? 0 : 1);
+        Grid.SetColumn(RolagemAgentes, ampla ? 1 : 0);
+        RolagemAnexos.VerticalScrollMode = RolagemAgentes.VerticalScrollMode = fixar ? ScrollMode.Auto : ScrollMode.Disabled;
+        RolagemAnexos.VerticalScrollBarVisibility = RolagemAgentes.VerticalScrollBarVisibility =
+            fixar ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
     }
 
     /// <summary>Formulário (false) ou vista da execução (true).</summary>

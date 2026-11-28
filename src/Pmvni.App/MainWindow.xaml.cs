@@ -754,6 +754,27 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                             await SoltarArquivosAsync([compactado]);
                             await Task.Delay(1500);
                             await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "novo-relatorio-compactado.png"));
+                            NR.AvisoMensagem.IsOpen = false;
+                            var tema = NR.RequestedTheme;
+                            try
+                            {
+                                foreach (var variante in new[] { ("claro", ElementTheme.Light, 1440), ("escuro", ElementTheme.Dark, 1440), ("compacto", ElementTheme.Light, 640) })
+                                {
+                                    NR.Width = variante.Item3;
+                                    NR.Height = 860;
+                                    NR.RequestedTheme = variante.Item2;
+                                    await Task.Delay(450);
+                                    await Roteiro.CapturarXamlAsync((Grid)NR.Content, Path.Combine(pastaCaptura, $"analise-{variante.Item1}.png"));
+                                    if (variante.Item1 == "compacto")
+                                    {
+                                        NR.PainelFormulario.ChangeView(null, NR.PainelFormulario.ScrollableHeight, null, true);
+                                        await Task.Delay(250);
+                                        await Roteiro.CapturarXamlAsync((Grid)NR.Content, Path.Combine(pastaCaptura, "analise-compacto-provedores.png"));
+                                        NR.PainelFormulario.ChangeView(null, 0, null, true);
+                                    }
+                                }
+                            }
+                            finally { NR.Width = NR.Height = double.NaN; NR.RequestedTheme = tema; }
                         }
                     }
                 }

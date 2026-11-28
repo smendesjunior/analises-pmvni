@@ -31,6 +31,7 @@ public sealed partial class MainWindow
         /// <summary>O compactado de onde o arquivo saiu (.zip, .rar, .7z) e o caminho dentro dele; null num anexo comum.</summary>
         public string? Compactado { get; } = compactado;
         public string? Interno { get; } = interno;
+        public string OrigemDaSelecao { get; init; } = origem;
         public string Nome => Path.GetFileName(Origem);
         public long Tamanho { get; } = tamanho;
         public DestinoAnexo Destino { get; set; } = destino;
@@ -45,7 +46,10 @@ public sealed partial class MainWindow
     IReadOnlyList<Processo> processosNR = [];
     Processo? processoNR;
     string? revisaoAtualNR;
-    readonly List<AnexoNovo> anexosNR = [];
+    List<AnexoNovo> anexosNR = [];
+    readonly Dictionary<string, List<AnexoNovo>> rascunhosAnexos = new(StringComparer.OrdinalIgnoreCase);
+    bool importandoAnexos, iniciandoAnalise;
+    bool FormularioOcupado => importandoAnexos || iniciandoAnalise || partindoNR;
     readonly List<string> recusasNR = [];
     /// <summary>A pasta temporária desta janela onde os compactados anexados são abertos (apagada ao fechar; sobras de mais de 1 dia, ao abrir outro).</summary>
     string? pastaCompactadosNR;
@@ -212,7 +216,6 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
 
         var n = NR;
-        if (!RoteiroLegado) n.CartaoClaudeIndisponivel.Opacity = .68;
         n.EvidenciasSolicitadas += (_, _) => AbrirEvidenciasDoMonitor();
         n.ParcelaSolicitada += (evidencia, recorte) =>
         {
@@ -453,11 +456,28 @@ public sealed partial class MainWindow
     /// <summary>O processo da análise: a pasta à vista, os destinos padrão das linhas que o usuário não escolheu e a prévia de novo.</summary>
     internal async Task EscolherProcessoNovoRelatorioAsync(Processo? p)
     {
+        if (!string.Equals(processoNR?.Pasta, p?.Pasta, StringComparison.OrdinalIgnoreCase))
+        {
+            // Anexos temporários acompanham a primeira seleção. Depois pertencem à pasta escolhida.
+            if (processoNR is { } anterior)
+            {
+                if (anexosNR.Count > 0) rascunhosAnexos[anterior.Pasta] = anexosNR;
+                anexosNR = [];
+            }
+            if (p is not null && rascunhosAnexos.Remove(p.Pasta, out var guardados))
+                anexosNR.AddRange(guardados);
+            recusasNR.Clear();
+            NR.TextoRecusas.Visibility = Visibility.Collapsed;
+            NR.AvisoMensagem.IsOpen = false;
+            revisaoAtualNR = null;
+            RenderizarAnexos();
+        }
         processoNR = p;
         NR.TextoPastaProcesso.Text = p?.Pasta ?? "";
         NR.TextoPastaProcesso.Visibility = string.IsNullOrEmpty(NR.TextoPastaProcesso.Text) ? Visibility.Collapsed : Visibility.Visible;
         var mostrado = (NR.CaixaProcesso.SelectedItem as ComboBoxItem)?.Tag as Processo;
         if (p is not null && mostrado?.Pasta != p.Pasta) PreencherProcessosNR(p);
+        else if (p is null && mostrado is not null) NR.CaixaProcesso.SelectedItem = null;
         if (p is not null)
         {
             var (padrao, revisao) = await Task.Run(() => (Arquivamento.Padrao(p.Pasta), Arquivamento.RevisaoAtual(p.Pasta)));
@@ -513,15 +533,15 @@ public sealed partial class MainWindow
 
     // ---------- anexos ----------
 
-    static readonly (DestinoAnexo Destino, string Rotulo)[] CategoriasDoFormulario =
+    static readonly (DestinoAnexo Destino, string Nome, string Glifo, string? Descricao)[] CategoriasDoFormulario =
     [
-        (DestinoAnexo.ProjetoInicial, "PROJETOS"),
-        (DestinoAnexo.Bci, "BCI"),
-        (DestinoAnexo.ArtRrt, "ART/RRT"),
-        (DestinoAnexo.EscrituraCertidao, "ESCRITURA OU CERTIDÃO DE INTEIRO TEOR"),
-        (DestinoAnexo.OutrosDocumentos, "OUTROS DOCUMENTOS")
+        (DestinoAnexo.ProjetoInicial, "Projetos", "\uED5E", "Arquivos de projeto"),
+        (DestinoAnexo.Bci, "BCI", "\uE9F9", null),
+        (DestinoAnexo.ArtRrt, "ART/RRT", "\uEB95", null),
+        (DestinoAnexo.EscrituraCertidao, "Escritura ou certidão de inteiro teor", "\uF28B", null),
+        (DestinoAnexo.OutrosDocumentos, "Outros documentos", "\uE8B7", "Declarações, autorizações e complementares")
     ];
-    readonly Dictionary<DestinoAnexo, StackPanel> listasDeAnexos = [];
+    readonly Dictionary<DestinoAnexo, LinhaCategoriaAnexos> linhasDeAnexos = [];
 
     static DestinoAnexo CategoriaDoDestino(DestinoAnexo destino) => destino switch
     {
@@ -532,68 +552,62 @@ public sealed partial class MainWindow
 
     void MontarCategoriasDeAnexos()
     {
-        foreach (var (destino, rotulo) in CategoriasDoFormulario)
+        foreach (var (destino, nome, glifo, descricao) in CategoriasDoFormulario)
         {
-            var painel = new StackPanel { Spacing = 6 };
-            var cabecalho = new Grid { ColumnSpacing = 8 };
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            cabecalho.Children.Add(new TextBlock { Text = rotulo, Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"],
-                TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
-            var escolher = new Button { Content = "Selecionar arquivos…" };
-            IconeDeAcao.SetGlifo(escolher, Glifos.Anexar);
-            AutomationPropertiesNome(escolher, "Selecionar arquivos em " + rotulo);
-            escolher.Click += async (_, _) => await TentarAsync(() => AnexarAsync(destino));
-            Grid.SetColumn(escolher, 1);
-            cabecalho.Children.Add(escolher);
-            painel.Children.Add(cabecalho);
-            if (destino == DestinoAnexo.OutrosDocumentos)
-                painel.Children.Add(new TextBlock { Text = "Inclua aqui declarações, autorizações e outros documentos complementares.",
-                    Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextWrapping = TextWrapping.Wrap });
-            var lista = new StackPanel { Spacing = 4 };
-            listasDeAnexos.Add(destino, lista);
-            painel.Children.Add(lista);
-            var zona = new Grid { Tag = destino, AllowDrop = true, Padding = new Thickness(10, 8, 10, 8), CornerRadius = new CornerRadius(6),
-                Style = (Style)Application.Current.Resources["PmvniGradeCartaoStyle"] };
-            AutomationPropertiesNome(zona, rotulo);
-            zona.DragOver += (_, e) =>
-            {
-                e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.StorageItems) ? DataPackageOperation.Copy : DataPackageOperation.None;
-                e.DragUIOverride.Caption = "Anexar em " + rotulo;
-                e.Handled = true;
-            };
-            zona.Drop += (_, e) => AoSoltarAnexos(destino, e);
-            zona.Children.Add(painel);
-            NR.CategoriasAnexos.Children.Add(zona);
+            var linha = new LinhaCategoriaAnexos { Tag = destino };
+            linha.Configurar(nome, glifo, descricao, async (_, _) => await TentarAsync(() => AnexarAsync(destino)));
+            linha.ArquivosSoltos += (_, e) => AoSoltarAnexos(destino, e);
+            AutomationPropertiesNome(linha, nome);
+            linhasDeAnexos.Add(destino, linha);
+            NR.CategoriasAnexos.Children.Add(linha);
         }
     }
 
-    internal async Task AnexarAsync(DestinoAnexo? categoria = null)
+    async Task DuranteImportacaoAsync(Func<Task> importar)
     {
-        var caminhos = await Perguntas.Atual.AbrirArquivosAsync();
-        if (caminhos is not null) await AdicionarAnexosAsync(caminhos, [], categoria);
+        if (FormularioOcupado || ProcessoEmExecucao) return;
+        importandoAnexos = true;
+        AtualizarBotoesNR();
+        try { await importar(); }
+        finally { importandoAnexos = false; AtualizarBotoesNR(); }
     }
 
+    internal Task AnexarAsync(DestinoAnexo? categoria = null) => DuranteImportacaoAsync(async () =>
+    {
+        var pasta = processoNR?.Pasta;
+        var caminhos = await Perguntas.Atual.AbrirArquivosAsync();
+        if (caminhos is not null && pasta == processoNR?.Pasta) await AdicionarAnexosAsync(caminhos, [], categoria);
+    });
+
     internal Task SoltarArquivosAsync(IReadOnlyList<string> caminhos, DestinoAnexo? categoria = null) =>
-        AdicionarAnexosAsync(caminhos, [], categoria);
+        DuranteImportacaoAsync(() => AdicionarAnexosAsync(caminhos, [], categoria));
 
     async void AoSoltarAnexos(DestinoAnexo categoria, DragEventArgs e)
     {
         e.Handled = true;
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems) || FormularioOcupado || ProcessoEmExecucao)
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
         var adiamento = e.GetDeferral();
+        e.AcceptedOperation = DataPackageOperation.Copy;
         try
         {
-            var itens = await e.DataView.GetStorageItemsAsync();
-            var caminhos = new List<string>();
-            var semCaminho = new List<string>();
-            foreach (var item in itens)
+            await DuranteImportacaoAsync(async () =>
             {
-                // Um anexo arrastado do e-mail chega sem caminho no disco: não há o que copiar.
-                if (string.IsNullOrEmpty(item.Path)) semCaminho.Add(FluxoNovoRelatorio.ItemSemCaminho(item.Name));
-                else caminhos.Add(item.Path);
-            }
-            await AdicionarAnexosAsync(caminhos, semCaminho, categoria);
+                var pasta = processoNR?.Pasta;
+                var itens = await e.DataView.GetStorageItemsAsync();
+                var caminhos = new List<string>();
+                var recusas = new List<string>();
+                foreach (var item in itens)
+                {
+                    if (item is StorageFolder) recusas.Add(string.Format(Arquivamento.MsgPasta, item.Name));
+                    else if (item is StorageFile && !string.IsNullOrWhiteSpace(item.Path)) caminhos.Add(item.Path);
+                    else recusas.Add(FluxoNovoRelatorio.ItemSemCaminho(item.Name));
+                }
+                if (pasta == processoNR?.Pasta) await AdicionarAnexosAsync(caminhos, recusas, categoria);
+            });
         }
         catch (Exception x) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível anexar", Erro(x)); }
         finally { adiamento.Complete(); }
@@ -604,7 +618,8 @@ public sealed partial class MainWindow
     {
         // Compactados (.zip, .rar, .7z; pedido do usuário, 2026-11-16): o kit não descompacta, então o editor abre o arquivo numa pasta
         // temporária e cada arquivo de dentro entra como um anexo comum, com o destino sugerido pela regra do kit (documento ou projeto).
-        var deCompactado = new Dictionary<string, ArquivoExtraido>(StringComparer.OrdinalIgnoreCase);
+        var pasta = processoNR?.Pasta;
+        var deCompactado = new Dictionary<string, (string Origem, ArquivoExtraido Arquivo)>(StringComparer.OrdinalIgnoreCase);
         var avisosCompactados = new List<string>();
         var abertos = new List<string>();
         if (caminhos.Any(c => Compactados.EhCompactado(c) && File.Exists(c)))
@@ -614,6 +629,7 @@ public sealed partial class MainWindow
             foreach (var c in caminhos)
             {
                 if (!Compactados.EhCompactado(c) || !File.Exists(c)) { lista.Add(c); continue; }
+                NR.TextoArraste.Visibility = Visibility.Visible;
                 NR.TextoArraste.Text = "Abrindo " + Path.GetFileName(c) + "…";
                 // Compactado grande pode levar minutos: "Cancelar abertura" para a extração (nada dele entra como anexo).
                 using var cancelar = new CancellationTokenSource();
@@ -625,7 +641,7 @@ public sealed partial class MainWindow
                     var sessaoNR = pastaCompactadosNR;
                     var token = cancelar.Token;
                     var r = await Task.Run(() => { Compactados.LimparAntigos(TimeSpan.FromDays(1), exceto: sessaoNR); return Compactados.Extrair(c, sessaoNR, token); });
-                    foreach (var a in r.Arquivos) { lista.Add(a.Caminho); deCompactado[Path.GetFullPath(a.Caminho)] = a; }
+                    foreach (var a in r.Arquivos) { lista.Add(a.Caminho); deCompactado[Path.GetFullPath(a.Caminho)] = (Path.GetFullPath(c), a); }
                     avisosCompactados.AddRange(r.Avisos);
                     if (r.Arquivos.Count > 0) abertos.Add($"{Path.GetFileName(c)} ({r.Arquivos.Count} {(r.Arquivos.Count == 1 ? "arquivo" : "arquivos")})");
                 }
@@ -645,19 +661,24 @@ public sealed partial class MainWindow
                 }
             }
             NR.TextoArraste.Text = "";
+            NR.TextoArraste.Visibility = Visibility.Collapsed;
             caminhos = lista;
             recusasDeFora = [.. recusasDeFora, .. avisosCompactados];
         }
+        var recusasEntrada = recusasDeFora.ToList();
         var novos = new List<string>();
         foreach (var c in caminhos)
         {
             string completo;
             try { completo = Path.GetFullPath(c); }
-            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { continue; }
-            if (novos.Contains(completo, StringComparer.OrdinalIgnoreCase)) continue;
+            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { recusasEntrada.Add("Caminho inválido: " + c); continue; }
+            if (novos.Contains(completo, StringComparer.OrdinalIgnoreCase))
+            {
+                recusasEntrada.Add(Path.GetFileName(completo) + " foi selecionado mais de uma vez.");
+                continue;
+            }
             novos.Add(completo);
         }
-        var pasta = processoNR?.Pasta;
         var base_ = RoteiroLegado ? pasta ?? ajustes.PastaProcessosEfetiva : Path.Combine(PastaDados.Raiz, "prever-anexos");   // sem processo, a conferência só lê o anexo
         var conferidos = await Task.Run(() =>
         {
@@ -666,17 +687,31 @@ public sealed partial class MainWindow
             return plano.Select(x =>
             {
                 long tamanho = 0;
-                if (x.Recusa is null) try { tamanho = new FileInfo(x.Origem).Length; } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-                return (x.Origem, x.Recusa, Tamanho: tamanho, Padrao: padrao);
+                var recusa = x.Recusa;
+                if (recusa is null)
+                {
+                    try
+                    {
+                        using var arquivo = File.Open(x.Origem, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                        tamanho = arquivo.Length;
+                        if (tamanho == 0) recusa = Path.GetFileName(x.Origem) + " está vazio.";
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    { recusa = string.Format(Arquivamento.MsgIlegivel, Path.GetFileName(x.Origem), Erro(e)); }
+                }
+                return (x.Origem, Recusa: recusa, Tamanho: tamanho, Padrao: padrao);
             }).ToList();
         });
-        if (fechada) return;
+        if (fechada || pasta != processoNR?.Pasta) return;
         recusasNR.Clear();
-        recusasNR.AddRange(recusasDeFora);
+        recusasNR.AddRange(recusasEntrada);
+        var adicionados = 0;
         foreach (var (origem, recusa, tamanho, padrao) in conferidos)
         {
             if (recusa is not null) { recusasNR.Add(recusa); continue; }
-            deCompactado.TryGetValue(origem, out var extraido);
+            var deArquivo = deCompactado.TryGetValue(origem, out var entrada);
+            var extraido = entrada.Arquivo;
+            var origemDaSelecao = deArquivo ? entrada.Origem : origem;
             var destino = categoria switch
             {
                 DestinoAnexo.ProjetoInicial => padrao,
@@ -684,11 +719,19 @@ public sealed partial class MainWindow
                 _ => extraido is null ? padrao : Compactados.SugerirDestino(extraido.Interno, padrao)
             };
             if (anexosNR.Any(a => CategoriaDoDestino(a.Destino) == CategoriaDoDestino(destino) &&
-                string.Equals(a.Origem, origem, StringComparison.OrdinalIgnoreCase))) continue;
+                string.Equals(a.OrigemDaSelecao, origemDaSelecao, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(a.Interno, extraido?.Interno, StringComparison.OrdinalIgnoreCase)))
+            {
+                recusasNR.Add(Path.GetFileName(origem) + " já está nesta categoria.");
+                continue;
+            }
+            adicionados++;
             anexosNR.Add(new AnexoNovo(origem, tamanho, destino, extraido?.Compactado, extraido?.Interno)
-                { Escolhido = CategoriaDoDestino(destino) != DestinoAnexo.ProjetoInicial });
+                { OrigemDaSelecao = origemDaSelecao, Escolhido = CategoriaDoDestino(destino) != DestinoAnexo.ProjetoInicial });
         }
-        if (abertos.Count > 0)
+        if (recusasNR.Count > 0)
+            MostrarMensagem(InfoBarSeverity.Warning, "Confira os anexos", string.Join(Environment.NewLine, recusasNR));
+        else if (abertos.Count > 0 && adicionados > 0)
             MostrarMensagem(InfoBarSeverity.Informational, "Compactado aberto", string.Join(", ", abertos) + ".");
         NR.TextoRecusas.Text = string.Join(Environment.NewLine, recusasNR);
         NR.TextoRecusas.Visibility = recusasNR.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -745,26 +788,29 @@ public sealed partial class MainWindow
 
     void RenderizarAnexos()
     {
-        foreach (var listaCategoria in listasDeAnexos.Values) listaCategoria.Children.Clear();
+        foreach (var linha in linhasDeAnexos.Values) linha.Lista.Children.Clear();
         var opcoes = FluxoNovoRelatorio.OpcoesDestino(revisaoAtualNR);
         var semProcesso = processoNR is null;
         foreach (var a in anexosNR)
         {
             var categoria = CategoriaDoDestino(a.Destino);
-            var lista = listasDeAnexos[categoria];
-            var grade = new Grid { ColumnSpacing = 10, Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(6),
-                Style = (Style)Application.Current.Resources["PmvniGradeCartaoStyle"] };
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = RoteiroLegado && categoria == DestinoAnexo.ProjetoInicial ? new GridLength(2, GridUnitType.Star) : new GridLength(0), MaxWidth = 340 });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = semProcesso ? new GridLength(0) : new GridLength(3, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var lista = linhasDeAnexos[categoria].Lista;
+            var grade = new Grid { ColumnSpacing = 6, RowSpacing = 2 };
+            grade.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
+            grade.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
+            grade.RowDefinitions.Add(new() { Height = GridLength.Auto });
+            grade.RowDefinitions.Add(new() { Height = GridLength.Auto });
+            grade.RowDefinitions.Add(new() { Height = GridLength.Auto });
+            grade.Children.Add(new FontIcon { Glyph = Glifos.Relatorio, FontSize = 16 });
             var nome = new StackPanel();
-            nome.Children.Add(new TextBlock { Text = a.Nome, TextTrimming = TextTrimming.CharacterEllipsis });
+            nome.Children.Add(new TextBlock { Text = a.Nome, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap });
             var detalhe = ListasPastas.TextoDoTamanho(a.Tamanho);
             if (a.Compactado is { } arquivoZip) detalhe = Path.GetFileName(arquivoZip) + " · " + detalhe;
             if (a.Compactado is not null && a.Interno is { } dentro && dentro.Contains('/'))
                 detalhe = "pasta " + dentro[..dentro.LastIndexOf('/')].Replace("/", " › ") + " · " + detalhe;
-            nome.Children.Add(new TextBlock { Text = detalhe, TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+            nome.Children.Add(new TextBlock { Text = detalhe, TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+            Grid.SetColumn(nome, 1);
             grade.Children.Add(nome);
             if (RoteiroLegado && categoria == DestinoAnexo.ProjetoInicial)
             {
@@ -774,12 +820,17 @@ public sealed partial class MainWindow
                 caixa.SelectedItem = caixa.Items.OfType<ComboBoxItem>().FirstOrDefault(x => x.Tag is DestinoAnexo d && d == a.Destino);
                 if (caixa.SelectedItem is ComboBoxItem { Content: string rotuloDestino }) ToolTipService.SetToolTip(caixa, rotuloDestino);
                 caixa.SelectionChanged += (_, _) => { if (caixa.SelectedItem is ComboBoxItem { Tag: DestinoAnexo d } && d != a.Destino) DefinirDestino(a, d); };
-                Grid.SetColumn(caixa, 1);
+                Grid.SetRow(caixa, 1);
+                Grid.SetColumnSpan(caixa, 3);
                 grade.Children.Add(caixa);
             }
-            var previa = new TextBlock { Text = semProcesso ? "" : a.Previa, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = true };
-            Grid.SetColumn(previa, 2);
-            grade.Children.Add(previa);
+            if (RoteiroLegado && !semProcesso)
+            {
+                var previa = new TextBlock { Text = a.Previa, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+                Grid.SetRow(previa, 2);
+                Grid.SetColumnSpan(previa, 3);
+                grade.Children.Add(previa);
+            }
             var remover = new Button
             {
                 Content = new FontIcon { Glyph = Glifos.Excluir, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] },
@@ -789,10 +840,11 @@ public sealed partial class MainWindow
             AutomationPropertiesNome(remover, "Remover " + a.Nome + " da lista");
             remover.Click += (_, _) => RemoverAnexo(a);
             Dicas.Aplicar(remover, "Remover da lista", "Tira este arquivo da análise; o arquivo continua no computador.");
-            Grid.SetColumn(remover, 3);
+            Grid.SetColumn(remover, 2);
             grade.Children.Add(remover);
             lista.Children.Add(grade);
         }
+        foreach (var linha in linhasDeAnexos.Values) linha.AtualizarDica();
     }
 
     static void AutomationPropertiesNome(DependencyObject d, string nome) => Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(d, nome);
@@ -806,26 +858,31 @@ public sealed partial class MainWindow
             ajustes.Agentes[p].Modo == ModoAcesso.Chave && CofreChaves.Existe(PastaDados.Raiz, p), p == Provedor.Gemini ? PerfilDoGemini : null,
             usarAnaliseChatGpt: p == Provedor.ChatGpt && !RoteiroLegado);
 
+    bool ProcessoEmExecucao => processoNR is not null && sessaoNR.EmAndamento(processoNR.Pasta);
+
     void AtualizarBotoesNR()
     {
         if (fechada) return;
+        NR.CaixaFiltro.IsEnabled = NR.CaixaProcesso.IsEnabled = NR.BotaoCriarProcesso.IsEnabled = !FormularioOcupado;
+        NR.CaixaPedido.IsEnabled = !FormularioOcupado && !ProcessoEmExecucao;
+        foreach (var linha in linhasDeAnexos.Values) linha.IsEnabled = !FormularioOcupado && !ProcessoEmExecucao;
         foreach (var p in Provedores.Ativos)
         {
             var botao = BotaoDoProvedor(p);
             var texto = p switch { Provedor.ChatGpt => NR.TextoMotivoChatGpt, Provedor.Claude => NR.TextoMotivoClaude, _ => NR.TextoMotivoGemini };
-            var motivo = MotivoBotao(p) ?? (partindoNR ? "Uma análise está sendo iniciada." : null);
+            var motivo = MotivoBotao(p) ?? (importandoAnexos ? "Aguarde a importação dos anexos." : FormularioOcupado ? "Uma análise está sendo iniciada." : null);
             var servico = Provedores.Nome(p);
             var dica = DicasComandos.Livre("Analisar com o " + servico, $"Manda o processo, os anexos e o pedido para o {servico} analisar e montar o relatório.", motivo: motivo);
             AtualizarDicaDeDisponibilidade(botao, dica);
             texto.Text = motivo ?? "";
-            texto.Visibility = motivo is null || p == Provedor.Claude && !RoteiroLegado ? Visibility.Collapsed : Visibility.Visible;
+            texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
             // 2026-11-16: a versão instalada do plugin que vai fazer a análise, sempre à vista (também gravada no execucao.json).
             var direto = p == Provedor.ChatGpt && !RoteiroLegado;
             var versao = direto ? pecasAgentes.VersaoAnaliseChatGpt : Pmvni.Agentes.OrquestradorAnalise.VersaoDoPlugin(p, pecasAgentes);
             var rotulo = (p switch { Provedor.ChatGpt => "Pelo Codex · ", Provedor.Claude => "Pelo Claude Code · ", _ => "Pelo Antigravity · " })
                 + (direto ? OrquestradorAnalise.NomeAnaliseChatGpt : TextosAgentes.NomeDaRota(p)) + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
             var vaga = p switch { Provedor.ChatGpt => NR.TextoPluginChatGpt, Provedor.Claude => NR.TextoPluginClaude, _ => NR.TextoPluginGemini };
-            if (p == Provedor.Claude && !RoteiroLegado) vaga.Text = SemPluginClaude;
+            if (p == Provedor.Claude && !RoteiroLegado) vaga.Text = "Plugin de análise indisponível";
             else if (vaga.Text != rotulo) vaga.Text = rotulo;
             if (p == Provedor.Gemini)
             {
@@ -835,11 +892,19 @@ public sealed partial class MainWindow
             }
         }
         NR.AnelPartida.IsActive = partindoNR;
+        NR.AnelPartida.Visibility = partindoNR ? Visibility.Visible : Visibility.Collapsed;
         AtualizarComandosNovoRelatorio();
     }
 
     /// <summary>O clique em "Analisar com o …": na fila de comandos só até a partida. null = não partiu (o motivo à vista).</summary>
-    internal Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p) => NaFilaAsync(() => AnalisarNaVezAsync(p));
+    internal async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p)
+    {
+        if (FormularioOcupado) return null;
+        iniciandoAnalise = true;
+        AtualizarBotoesNR();
+        try { return await NaFilaAsync(() => AnalisarNaVezAsync(p)); }
+        finally { iniciandoAnalise = false; AtualizarBotoesNR(); }
+    }
 
     async Task<ExecucaoEmCurso?> AnalisarNaVezAsync(Provedor p)
     {

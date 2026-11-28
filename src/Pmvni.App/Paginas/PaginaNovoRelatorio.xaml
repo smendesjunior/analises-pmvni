@@ -88,170 +88,171 @@
             </StackPanel>
     </StackPanel>
 
-    <!-- Formulário. -->
-    <!-- Correções 2026-11-15 (image7): sem rolagem horizontal; a coluna do formulário fica centralizada, com a largura da área visível
-         (no máximo 1080) posta pelo código a cada mudança de tamanho: nada sai da tela, mesmo que um texto peça mais largura. -->
     <ScrollViewer x:Name="PainelFormulario" x:FieldModifier="internal" Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-      <Grid x:Name="ColunaFormulario" x:FieldModifier="internal" Margin="0,12,0,16" HorizontalAlignment="Center">
-      <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="0"/></Grid.ColumnDefinitions>
-      <StackPanel Spacing="12">
-        <Grid ColumnSpacing="12" RowSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/><StackPanel Grid.Column="1" Spacing="4"><TextBlock AutomationProperties.HeadingLevel="Level1" Text="Novo relatório" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Selecione o processo e escolha como analisar." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/></StackPanel></Grid>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+        HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+      <Grid x:Name="ColunaFormulario" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Top"
+          Margin="0,16" RowSpacing="16" RowDefinitions="Auto,Auto,*">
+        <Grid x:Name="CabecalhoFormulario" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Análise de projetos" TextAlignment="Left" FontSize="28" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.HeadingLevel="Level1"/>
+            <TextBlock Text="Selecione um processo, adicione os documentos e inicie a análise." TextAlignment="Left" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+          </StackPanel>
+          <local:PainelQuebra x:Name="AcoesFormulario" Grid.Column="1" VerticalAlignment="Top" Espaco="8" EspacoLinhas="4">
             <Button x:Name="BotaoHistoricoMonitor" x:FieldModifier="internal" Content="Consumo e logs" local:Dicas.Descricao="Consulta o histórico de consumo e eventos das análises desta estação."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atividade}" x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver andamento" Visibility="Collapsed"
-                    local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
+                local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Voltar}" x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"
-                    local:Dicas.Descricao="Fecha esta tela e volta ao relatório que estava aberto."/>
-          </StackPanel>
+                local:Dicas.Descricao="Fecha esta tela e volta ao relatório que estava aberto."/>
+          </local:PainelQuebra>
         </Grid>
-
-        <Grid x:Name="GradeEtapas" ColumnSpacing="0" RowSpacing="12" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
-        <Border Grid.Row="0" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
-              <FontIcon Glyph="{x:Bind local:Glifos.Pasta}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock Text="Processo" Style="{StaticResource PmvniTituloSecao}"/>
+        <Border x:Name="CartaoProcesso" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" CornerRadius="8" Padding="20,16">
+          <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="{x:Bind local:Glifos.Pasta}" FontSize="18" AutomationProperties.AccessibilityView="Raw"/>
+              <TextBlock Text="Processo" FontSize="18" FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level2"/>
             </StackPanel>
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*" MaxWidth="240"/>
-            <ColumnDefinition Width="5*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <AutoSuggestBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Número ou requerente"
-                          AutomationProperties.Name="Filtrar processos" UpdateTextOnSelect="False"
-                          ToolTipService.ToolTip="Digite o número, o ano ou parte do nome e escolha o processo na lista de sugestões.">
-            <AutoSuggestBox.ItemTemplate>
-              <DataTemplate x:DataType="local:SugestaoProcesso">
-                <TextBlock TextAlignment="Left" Text="{x:Bind Rotulo}" TextWrapping="Wrap"/>
-              </DataTemplate>
-            </AutoSuggestBox.ItemTemplate>
-          </AutoSuggestBox>
-          <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" PlaceholderText="Escolha o processo"
-                    AutomationProperties.Name="Processo"/>
-          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Adicionar}" x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"
+            <Grid x:Name="CamposProcesso" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="2*,4*,Auto" ColumnSpacing="16">
+              <AutoSuggestBox x:Name="CaixaFiltro" x:FieldModifier="internal" Header="Buscar processo" QueryIcon="Find" PlaceholderText="Número ou requerente"
+                  AutomationProperties.Name="Buscar processo" UpdateTextOnSelect="False"
+                  ToolTipService.ToolTip="Digite o número, o ano ou parte do nome e escolha o processo na lista de sugestões.">
+                <AutoSuggestBox.ItemTemplate>
+                  <DataTemplate x:DataType="local:SugestaoProcesso">
+                    <TextBlock TextAlignment="Left" Text="{x:Bind Rotulo}" TextWrapping="Wrap"/>
+                  </DataTemplate>
+                </AutoSuggestBox.ItemTemplate>
+              </AutoSuggestBox>
+              <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" Header="Processo selecionado" PlaceholderText="Escolha o processo"
+                  AutomationProperties.Name="Processo"/>
+              <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Adicionar}" x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" VerticalAlignment="Bottom" Content="Criar processo…"
                   local:Dicas.Descricao="Cria a pasta de um processo novo na pasta de processos."/>
-        </Grid>
-        <!-- 1.0.0: o resultado do filtro ("3 processos encontrados", "Nenhum processo encontrado para …"). -->
-        <TextBlock x:Name="TextoFiltroProcessos" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}"
-                   TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-        <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+            </Grid>
+            <TextBlock x:Name="TextoFiltroProcessos" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}"
+                TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
 
-        </StackPanel></Border>
-        <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
-              <FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock Text="Anexos" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
-        <TextBlock Text="Anexe os arquivos para a IA consultar. O analista arquiva os originais no processo. O Editor salva o relatório na pasta de despacho."
-                   Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-        <StackPanel x:Name="CategoriasAnexos" x:FieldModifier="internal" Spacing="8"/>
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock x:Name="TextoArraste" x:FieldModifier="internal" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"
-                     Style="{StaticResource PmvniSecondaryTextStyle}"/>
-          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoCancelarAbertura" x:FieldModifier="internal" Content="Cancelar abertura" Visibility="Collapsed"
-                  local:Dicas.Descricao="Interrompe a extração deste arquivo compactado."/>
-        </StackPanel>
-        <TextBlock Text="O Editor extrai os anexos ZIP, RAR e 7Z para leitura pela IA."
-                   Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-        <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive"
-                   Style="{StaticResource PmvniTextoErroStyle}" TextAlignment="Left"/>
-
-        </StackPanel></Border>
-        <Border Grid.Row="2" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><Grid RowDefinitions="Auto,*" RowSpacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
-              <FontIcon Glyph="{x:Bind local:Glifos.Editar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock Text="Pedido para a IA" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
-        <TextBox Grid.Row="1" x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" MaxHeight="320"
-                 MaxLength="20000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido para a IA"/>
-
-        </Grid></Border>
-        </Grid>
-        <Border x:Name="CartaoEscolhaAgente" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
-              <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
-        <!-- Os agentes ativos com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
-        <StackPanel Spacing="6">
-
-            <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
-            <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
-              <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
-                <Grid Width="32" Height="32" VerticalAlignment="Center">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-                </Grid>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="ChatGPT" Style="{StaticResource PmvniAjusteTitulo}"/>
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Pelo Codex · Análise — rota ChatGPT" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+          </StackPanel>
+        </Border>
+        <Grid Grid.Row="2" x:Name="GradeEtapas" ColumnSpacing="20" RowDefinitions="*,Auto" ColumnDefinitions="2*,*">
+          <ScrollViewer x:Name="RolagemAnexos" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+              <Border Style="{StaticResource PmvniCartaoSecao}" CornerRadius="8" Padding="20,16">
+                <StackPanel Spacing="12">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="18" AutomationProperties.AccessibilityView="Raw"/>
+                    <TextBlock Text="Anexos" FontSize="18" FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level2"/>
+                  </StackPanel>
+                  <TextBlock Text="Arraste arquivos para a categoria correspondente ou utilize o botão Anexar arquivos." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                  <StackPanel>
+                    <Grid x:Name="CabecalhoAnexos" Padding="12,8" ColumnDefinitions="4*,5*,Auto" ColumnSpacing="12"
+                        Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4">
+                      <TextBlock Text="Tipo de documento" Style="{StaticResource CaptionTextBlockStyle}"/>
+                      <TextBlock Grid.Column="1" Text="Arquivos e área de soltura" Style="{StaticResource CaptionTextBlockStyle}"/>
+                      <TextBlock Grid.Column="2" Width="160" Text="Ações" Style="{StaticResource CaptionTextBlockStyle}"/>
+                    </Grid>
+                    <StackPanel x:Name="CategoriasAnexos" x:FieldModifier="internal"/>
+                  </StackPanel>
+                  <StackPanel Spacing="4" local:AcoesDeAviso.AutoOcultar="True">
+                    <TextBlock x:Name="TextoArraste" Visibility="Collapsed" x:FieldModifier="internal" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"
+                        Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoCancelarAbertura" x:FieldModifier="internal" Content="Cancelar abertura" Visibility="Collapsed"
+                        local:Dicas.Descricao="Interrompe a extração deste arquivo compactado."/>
+                    <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive" Style="{StaticResource PmvniTextoErroStyle}"/>
+                  </StackPanel>
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="12,8" CornerRadius="4" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                    <FontIcon Glyph="&#xE946;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                    <TextBlock Grid.Column="1" Text="Os originais são arquivados no processo pelo analista. O Editor extrai ZIP, RAR e 7Z para leitura pela IA. O relatório é salvo pelo Editor na pasta de despacho." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                  </Grid>
                 </StackPanel>
-              </Grid>
-              <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <TextBlock x:Name="TextoContasChatGpt" x:FieldModifier="internal" TextAlignment="Left" Margin="42,0,0,0" Visibility="Collapsed"
-                         Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" />
-              <Button x:Name="BotaoChatGpt" AutomationProperties.Name="Analisar com o ChatGPT" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+              </Border>
+              <Expander Header="Pedido para a IA" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <TextBox x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" MaxHeight="320"
+                    MaxLength="20000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido para a IA"/>
+              </Expander>
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="RolagemAgentes" Grid.Column="1" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <Border x:Name="CartaoEscolhaAgente" VerticalAlignment="Top" Style="{StaticResource PmvniCartaoSecao}" CornerRadius="8" Padding="20,16">
+              <StackPanel Spacing="12">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                  <TextBlock Text="Analisar com o ChatGPT"/>
+                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="18" AutomationProperties.AccessibilityView="Raw"/>
+                  <TextBlock Text="Analisar" FontSize="18" FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level2"/>
                 </StackPanel>
-              </Button>
-            </StackPanel>
-          </Border>
-          <Border x:Name="CartaoClaudeIndisponivel" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
-            <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
-              <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
-                <Grid Width="32" Height="32" VerticalAlignment="Center">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-                </Grid>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Claude" Style="{StaticResource PmvniAjusteTitulo}"/>
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Plugin de análise indisponível" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-                </StackPanel>
-              </Grid>
-              <TextBlock Visibility="Collapsed" x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <Button x:Name="BotaoClaude" IsEnabled="False" AutomationProperties.Name="Analisar com o Claude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                  <TextBlock Text="Analisar com o Claude"/>
-                </StackPanel>
-              </Button>
-            </StackPanel>
-          </Border>
-          <Border x:Name="CartaoGeminiInativo" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
-            <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
-              <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
-                <Grid Width="32" Height="32" VerticalAlignment="Center">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-                </Grid>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Gemini" Style="{StaticResource PmvniAjusteTitulo}"/>
-                  <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Pelo Antigravity · Análise — rota Gemini" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-                </StackPanel>
-              </Grid>
-              <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <Button x:Name="BotaoGemini" IsEnabled="False" AutomationProperties.Name="Analisar com o Gemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                  <TextBlock Text="Analisar com o Gemini"/>
-                </StackPanel>
-              </Button>
-            </StackPanel>
-          </Border>
-        </StackPanel>
-        </StackPanel></Border>
+                <TextBlock Text="Escolha a ferramenta de análise." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                <Border Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
+                  <StackPanel Spacing="8" Background="{ThemeResource SubtleFillColorTransparentBrush}">
+                    <Grid ColumnDefinitions="40,*" ColumnSpacing="12">
+                      <Border Width="40" Height="40" CornerRadius="6" Background="White"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <Image Width="26" Height="26" Stretch="Uniform" AutomationProperties.AccessibilityView="Raw"
+                            Source="ms-appx:///Recursos/Provedores/openai.svg"/>
+                      </Border>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="ChatGPT" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Verificando plugin…" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock TextAlignment="Left" x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TextoContasChatGpt" x:FieldModifier="internal" TextAlignment="Left" Visibility="Collapsed"
+                        Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" />
+                    <Button x:Name="BotaoChatGpt" AutomationProperties.Name="Analisar com o ChatGPT" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE721;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Analisar com o ChatGPT"/>
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Border>
+                <Border x:Name="CartaoClaudeIndisponivel" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
+                  <StackPanel Spacing="8" Background="{ThemeResource SubtleFillColorTransparentBrush}">
+                    <Grid ColumnDefinitions="40,*" ColumnSpacing="12">
+                      <Border Width="40" Height="40" CornerRadius="6" Background="White"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <Image Width="26" Height="26" Stretch="Uniform" AutomationProperties.AccessibilityView="Raw"
+                            Source="ms-appx:///Recursos/Provedores/claude-color.svg"/>
+                      </Border>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Claude" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Plugin de análise indisponível" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock Visibility="Collapsed" x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <TextBlock TextAlignment="Left" x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <Button x:Name="BotaoClaude" IsEnabled="False" AutomationProperties.Name="Analisar com o Claude" x:FieldModifier="internal" Style="{StaticResource DefaultButtonStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE721;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Analisar com o Claude"/>
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Border>
+                <Border x:Name="CartaoGeminiInativo" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniCartaoSecao}" Padding="16" CornerRadius="6">
+                  <StackPanel Spacing="8" Background="{ThemeResource SubtleFillColorTransparentBrush}">
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
+                      <Grid Width="32" Height="32" VerticalAlignment="Center">
+                        <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
+                      </Grid>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Gemini" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Pelo Antigravity · Análise — rota Gemini" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock TextAlignment="Left" x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <TextBlock TextAlignment="Left" x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <Button x:Name="BotaoGemini" IsEnabled="False" AutomationProperties.Name="Analisar com o Gemini" x:FieldModifier="internal" Style="{StaticResource DefaultButtonStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE721;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Analisar com o Gemini"/>
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Border>
+                <InfoBar Title="Para iniciar a análise" Message="Selecione o processo no campo acima e confira os arquivos anexados." IsOpen="True" IsClosable="False" Severity="Informational"/>
+                <TextBlock Text="Disponibilidade conforme o plugin instalado." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                <ProgressRing x:Name="AnelPartida" x:FieldModifier="internal" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left" local:Trabalhando.Automatico="False"/>
+              </StackPanel>
+            </Border>
+          </ScrollViewer>
         </Grid>
-        <ProgressRing x:Name="AnelPartida" x:FieldModifier="internal" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"
-                      local:Trabalhando.Automatico="False"/>
-      </StackPanel>
       </Grid>
     </ScrollViewer>
 

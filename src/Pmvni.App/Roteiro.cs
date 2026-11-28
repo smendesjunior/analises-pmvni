@@ -4097,8 +4097,8 @@ internal static class Roteiro
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0001()));
             var categorias = new[] { DestinoAnexo.ProjetoInicial, DestinoAnexo.Bci, DestinoAnexo.ArtRrt,
                 DestinoAnexo.EscrituraCertidao, DestinoAnexo.OutrosDocumentos };
-            var zonas = j.NovoRelatorio.CategoriasAnexos.Children.OfType<Microsoft.UI.Xaml.Controls.Grid>().ToList();
-            if (!zonas.Select(z => z.Tag).SequenceEqual(categorias.Cast<object>()) || zonas.Any(z => !z.AllowDrop))
+            var zonas = j.NovoRelatorio.CategoriasAnexos.Children.OfType<LinhaCategoriaAnexos>().ToList();
+            if (!zonas.Select(z => z.Tag).SequenceEqual(categorias.Cast<object>()) || zonas.Any(z => !Arvore(z).Any(f => f.AllowDrop)))
                 throw new InvalidOperationException("As cinco zonas não aceitaram soltura com sua categoria própria.");
             foreach (var zona in zonas)
             {
@@ -4112,6 +4112,17 @@ internal static class Roteiro
             var destinosEsperados = categorias.Select(c => c == DestinoAnexo.ProjetoInicial ? Arquivamento.Padrao(P0001()) : c);
             if (!j.AnexosDoNovoRelatorio.Select(a => a.Destino).SequenceEqual(destinosEsperados))
                 throw new InvalidOperationException("As escolhas do mesmo arquivo em categorias distintas se perderam.");
+            var primeira = j.ProcessoDoNovoRelatorio!;
+            var segunda = j.ProcessosDoNovoRelatorio.First(x => x.Pasta != primeira.Pasta);
+            await j.EscolherProcessoNovoRelatorioAsync(segunda);
+            if (j.AnexosDoNovoRelatorio.Count != 0) throw new InvalidOperationException("Anexos de outro processo na tela.");
+            var vazio = Path.Combine(anexosPasta, "vazio.pdf");
+            File.WriteAllBytes(vazio, []);
+            await j.SoltarArquivosAsync([vazio, fotosPasta, planta], DestinoAnexo.ProjetoInicial);
+            if (j.AnexosDoNovoRelatorio.Count != 1 || j.RecusasDoNovoRelatorio.Count != 2)
+                throw new InvalidOperationException("A seleção parcial não distinguiu arquivo, pasta e arquivo vazio.");
+            await j.EscolherProcessoNovoRelatorioAsync(primeira);
+            if (j.AnexosDoNovoRelatorio.Count != 5) throw new InvalidOperationException("A troca de processo perdeu os anexos.");
             await j.SoltarArquivosAsync([planta, memorial], DestinoAnexo.Bci);
             await j.SoltarArquivosAsync([planta], DestinoAnexo.Bci);
             await j.AguardarNovoRelatorioAsync();
