@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.7
+
+O mapa de localização segue o formato do relatório de imóveis, com a legenda logo abaixo e os dados do lote em seguida.
+
 ## 5.1.6
 
 - Em Ajustes › Modelos da análise, escolha ChatGPT ou Claude para a análise inteira. Cada plugin guarda seus modelos e níveis de inteligência para os 15 grupos e a auditoria.

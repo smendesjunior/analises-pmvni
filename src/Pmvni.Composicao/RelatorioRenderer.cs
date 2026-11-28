@@ -70,7 +70,13 @@ public static class RelatorioRenderer
             var l = Localizacao.Agrupar(Dados.Dict(loc));
             if (!l.ContainsKey("origem_grafica") && PythonTexto.Verdadeiro(Dados.Obter(loc, "grafica_brilliant")))
                 l["origem_grafica"] = "legado";
-            l["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(loc, "imagem"), estrito);
+            var imagem = LerImagem(baseDir, Dados.Exigir(loc, "imagem"), estrito);
+            l["imagem_uri"] = new Seguro("data:image/png;base64," + Convert.ToBase64String(imagem));
+            // Os pacotes antigos deste recorte já traziam a legenda no PNG e também nos dados.
+            // Só reconhecer o conteúdo conferido: outros mapas vetoriais requerem a legenda do JSON.
+            if (!l.ContainsKey("legenda_na_imagem") && Equals(Dados.Obter(l, "origem_grafica"), "terra_vetorial"))
+                l["legenda_na_imagem"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(imagem))
+                    == "E200F404DD28CC2A271B722D91BB3A810DE69BE2348BDD969C8D91AE6A882FCB";
             ctx["localizacao"] = l;
         }
 
@@ -137,10 +143,8 @@ public static class RelatorioRenderer
         var fonte = NovasLinhas(m.Html);
         if (loc is not null && Equals(Dados.Obter(loc, "origem_grafica"), "relatorio_pdf"))
         {
-            fonte = fonte.Replace("<div class=\"lbl\">LEGENDA</div><div class=\"lleg\">", "<div class=\"lleg\">", StringComparison.Ordinal)
-                .Replace("{% if localizacao.origem_grafica %}{% else %}{{ localizacao.situacao|pill }}{% endif %}",
-                    "{{ localizacao.situacao|pill }}", StringComparison.Ordinal)
-                .Replace("</style>", ".mapa-composto .lmrow{display:block}.mapa-composto .lmap img{width:100%;height:auto;object-fit:contain}.mapa-composto .lleg:empty{display:none}</style>", StringComparison.Ordinal);
+            fonte = fonte.Replace("{% if localizacao.origem_grafica %}{% else %}{{ localizacao.situacao|pill }}{% endif %}",
+                "{{ localizacao.situacao|pill }}", StringComparison.Ordinal);
         }
         if (loc is not null && Equals(Dados.Obter(loc, "estilo_zoneamento"), "neutro"))
             fonte = fonte.Replace(".mapa-composto .lk.zona { background:#CEB0EF; border:1px dashed #674395; }",

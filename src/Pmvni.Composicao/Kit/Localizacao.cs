@@ -56,7 +56,7 @@ public static class Localizacao
         }
 
         var legenda = Dados.Obter(localizacao, "legenda");
-        if (Equals(Dados.Obter(localizacao, "origem_grafica"), "relatorio_pdf")) legenda = new List<object?>();
+        if (Equals(Dados.Obter(localizacao, "origem_grafica"), "relatorio_pdf") || PythonTexto.Verdadeiro(Dados.Obter(localizacao, "sem_mapa"))) legenda = new List<object?>();
         else if (!PythonTexto.Verdadeiro(legenda)) legenda = Situacoes.LegendaPadrao;
 
         var r = new Dictionary<string, object?>();

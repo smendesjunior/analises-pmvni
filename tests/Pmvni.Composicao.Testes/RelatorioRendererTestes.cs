@@ -39,6 +39,29 @@ public class RelatorioRendererTestes : IDisposable
         return texto[..pos] + por + texto[(pos + de.Length)..];
     }
 
+    [Theory]
+    [InlineData("terra_vetorial", false, true)]
+    [InlineData("terra_vetorial", true, false)]
+    [InlineData("relatorio_pdf", false, false)]
+    public void legenda_do_mapa_aparece_uma_vez_abaixo_da_imagem(string origem, bool incorporada, bool exibirLegenda)
+    {
+        var arquivo = GravarModelo(json =>
+        {
+            var dados = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+            var loc = dados["localizacao"]!;
+            loc["origem_grafica"] = origem;
+            loc["legenda_na_imagem"] = incorporada;
+            return dados.ToJsonString();
+        });
+        var r = RelatorioRenderer.Renderizar(arquivo, new OpcoesRender(false, true), _modelo);
+        Assert.True(r.Ok, string.Join("; ", r.Erros));
+        var mapa = r.Html.IndexOf("<div class=\"lmapa\">", StringComparison.Ordinal);
+        var detalhes = r.Html.IndexOf("<div class=\"lside\">", mapa, StringComparison.Ordinal);
+        var legenda = "<div class=\"lleg\">";
+        Assert.Equal(exibirLegenda ? 1 : 0, r.Html.Split(legenda).Length - 1);
+        if (exibirLegenda) Assert.Contains(legenda, r.Html[mapa..detalhes]);
+    }
+
     [Fact]
     public void tabela_de_vaos_distingue_conta_nominal_da_conclusao_tecnica()
     {
