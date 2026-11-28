@@ -84,7 +84,8 @@ public static class MapaSvg
     static string N(double v) => Math.Round(v, 1).ToString("0.#", Inv);
 
     internal static (string Svg, List<string> Ruas, List<ItemLegenda> Legenda) Desenhar(BaseQgis b, Envelope ext, Fe alvo, string modo,
-        string tLote, IReadOnlyList<(Fe Lote, string Nome)> rotulosVizinhos, CursoDagua? rio, string nomeRio, FaixaBr262? dnit,
+        string tLote, string cabecalhoLote, IReadOnlyList<(string Rotulo, string Valor)> dadosLote,
+        IReadOnlyList<(Fe Lote, string Nome)> rotulosVizinhos, CursoDagua? rio, string nomeRio, FaixaBr262? dnit,
         bool cotasLote = true, bool cotasDnit = true, bool cotasRua = true)
     {
         const int W = MapaLocalizacao.Largura, H = MapaLocalizacao.Altura;
@@ -520,15 +521,18 @@ public static class MapaSvg
         if (cotaRio is { } cr0) Linha(cr0.A, cr0.C);
         foreach (var (a, c, _, _, _) in cotasDnitLinhas) Linha(a, c);
         if (largura is { } lr0) Linha(T(lr0.Inicio), T(lr0.Fim));
+        var topo = new StringBuilder();
+        var cartucho = QuadroDoLote(topo, cabecalhoLote, dadosLote);
         if (tLote.Length > 0)
         {
-            posLote = PosicaoEtiquetaLote(ptsLote, centroLote, we, he, lw, lh, [rosa.Contorno(), .. linhasFixas]);
+            posLote = PosicaoEtiquetaLote(ptsLote, centroLote, we, he, lw, lh, [rosa.Contorno(), cartucho.Contorno(), .. linhasFixas]);
             caixaEtiqueta = new Ret(posLote.X - we / 2, posLote.Y - he / 2, posLote.X + we / 2, posLote.Y + he / 2);
         }
 
         // Ensaio dos nomes, para a escala escolher onde ficar sem cobri-los.
         var ensaio = new QuadroRotulos(lw, lh);
         ensaio.Ocupar(rosa);
+        ensaio.Ocupar(cartucho);
         if (caixaEtiqueta is { } ce0) ensaio.Ocupar(ce0);
         foreach (var l in linhasFixas) ensaio.Ocupar(l);
         var jaPostos = ensaio.Ocupados.Count;
@@ -554,8 +558,7 @@ public static class MapaSvg
         }
 
         // escala gráfica (no canto livre mais próximo), reservada antes do posicionamento final dos nomes
-        var topo = new StringBuilder();
-        var evitar = new List<Ret> { rosa, new Ret(cl.X0 - m_, cl.Y0 - m_, cl.X1 + m_, cl.Y1 + m_) };
+        var evitar = new List<Ret> { rosa, cartucho, new Ret(cl.X0 - m_, cl.Y0 - m_, cl.X1 + m_, cl.Y1 + m_) };
         if (caixaEtiqueta is { } ce1) evitar.Add(ce1);
         evitar.AddRange(cotasEnsaio);
         evitar.AddRange(linhasFixas.Select(Rotulagem.Envolvente));
@@ -563,6 +566,7 @@ public static class MapaSvg
         var quadro = new QuadroRotulos(lw, lh);
         quadro.Ocupar(rosa);
         quadro.Ocupar(painel);
+        quadro.Ocupar(cartucho);
         if (caixaEtiqueta is { } ce3) quadro.Ocupar(ce3);
         foreach (var l in linhasFixas) quadro.Ocupar(l);
         CotasDoLote(quadro, s);
@@ -691,6 +695,60 @@ public static class MapaSvg
 
     static double Sobre(double x, double y, double larg, double alt, Ret r) =>
         Math.Max(0, Math.Min(x + larg, r.X1) - Math.Max(x, r.X0)) * Math.Max(0, Math.Min(y + alt, r.Y1) - Math.Max(y, r.Y0));
+
+    static Ret QuadroDoLote(StringBuilder svg, string titulo, IReadOnlyList<(string Rotulo, string Valor)> dados)
+    {
+        const double corpo = 13 * S, margem = 11 * S, entrelinhas = 17 * S;
+        double coluna = dados.Max(c => Letras.Largura(c.Rotulo, corpo, false)) + 11 * S;
+        double areaValor = Math.Clamp(dados.Max(c => Letras.Largura(c.Valor, corpo, true)), 125 * S, 195 * S);
+        var linhas = new List<(string Nome, string Valor)>();
+        foreach (var (nome, valor) in dados)
+        {
+            var partes = QuebrarValor(string.IsNullOrWhiteSpace(valor) ? "Sem informação" : valor, areaValor, corpo);
+            for (var i = 0; i < partes.Count; i++) linhas.Add((i == 0 ? nome : "", partes[i]));
+        }
+        double w = margem * 2 + coluna + areaValor;
+        double h = 36 * S + linhas.Count * entrelinhas + 7 * S;
+        const double recuo = 12 * S;
+        var caixa = new Ret(recuo, recuo, recuo + w, recuo + h);
+        var x = caixa.X0 + margem;
+        var y = caixa.Y0 + 19 * S;
+        svg.Append($"<g id=\"dados-do-lote\"><title>{Html.E(titulo)} — {Html.E(string.Join(" · ", dados.Select(c => c.Rotulo + " " + c.Valor)))}</title>");
+        svg.Append($"<rect x=\"{N(caixa.X0)}\" y=\"{N(caixa.Y0)}\" width=\"{N(w)}\" height=\"{N(h)}\" rx=\"{9 * S}\" ry=\"{9 * S}\" fill=\"#FFFFFF\" stroke=\"#AAB7AF\" stroke-width=\"{S}\"/>");
+        svg.Append($"<g><text x=\"{N(x)}\" y=\"{N(y)}\" font-size=\"{14 * S}\" font-weight=\"700\" fill=\"#344C40\">{Html.E(titulo)}</text>");
+        y += 8 * S;
+        svg.Append($"<path d=\"M{N(x)},{N(y)}h{N(w-2*margem)}\" stroke=\"#DFE5E0\" stroke-width=\"{S}\"/>");
+        y += entrelinhas;
+        foreach (var (nome, valor) in linhas)
+        {
+            if (nome.Length > 0) svg.Append($"<text x=\"{N(x)}\" y=\"{N(y)}\" font-size=\"{corpo}\" fill=\"#505F56\">{Html.E(nome)}</text>");
+            svg.Append($"<text x=\"{N(x + coluna)}\" y=\"{N(y)}\" font-size=\"{corpo}\" font-weight=\"700\" fill=\"#28382F\">{Html.E(valor)}</text>");
+            y += entrelinhas;
+        }
+        svg.Append("</g></g>");
+        return caixa;
+    }
+
+    static List<string> QuebrarValor(string valor, double limite, double corpo)
+    {
+        var linhas = new List<string>();
+        var restante = valor.Trim();
+        while (restante.Length > 0)
+        {
+            if (Letras.Largura(restante, corpo, true) <= limite) { linhas.Add(restante); break; }
+            // A ficha completa e o título acessível preservam valores longos.
+            var ultima = linhas.Count == 2;
+            var disponivel = ultima ? limite - Letras.Largura("…", corpo, true) : limite;
+            var n = 1;
+            while (n < restante.Length && Letras.Largura(restante[..(n + 1)], corpo, true) <= disponivel) n++;
+            var espaco = restante.LastIndexOf(' ', n - 1);
+            if (espaco > 0) n = espaco;
+            linhas.Add(restante[..n].TrimEnd() + (ultima ? "…" : ""));
+            if (ultima) break;
+            restante = restante[n..].TrimStart();
+        }
+        return linhas;
+    }
 
     /// <summary>A escala gráfica num painel compacto, no canto que menos cobre o lote (a legenda fica no relatório, não na imagem).</summary>
     static Ret PainelEscala(StringBuilder s, Envelope ext, double sx, double lw, double lh, Ret[] evitar, List<Ret> suaves)

@@ -78,6 +78,11 @@ static class Program
         if (args[0] != "exec" || !args.Contains("--json")) return Uso();
         var prompt = Console.In.ReadToEnd();
         if (!prompt.Contains("SKILL.md") || !prompt.Contains("entrega-plugin.rpmvni")) return Uso();
+        if (File.Exists(dados["recusa_cota"]?.ToString()))
+        {
+            saida.WriteLine("""{"type":"turn.failed","error":{"code":"usage_limit_reached","message":"Quota exhausted"}}""");
+            return 1;
+        }
         File.AppendAllLines(dados["rodadas"]!.GetValue<string>(), ["exec"]);
         if (File.Exists(dados["pausa"]!.GetValue<string>())) Dormir(30000);
         if (dados["exigir_equivalente"]?.GetValue<bool>() == true &&

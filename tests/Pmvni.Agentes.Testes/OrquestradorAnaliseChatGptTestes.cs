@@ -331,12 +331,13 @@ public partial class OrquestradorTestes
         Pacote.Gravar(recebido, Importador.Importar(JsonFiel.Escrever(dados), exemplo, modelo, ContextoUsuario.Atual()), null);
         var bloqueio = Path.Combine(c.Pasta, "pausar.txt");
         var invalida = Path.Combine(c.Pasta, "invalidar.txt");
+        var recusaCota = Path.Combine(c.Pasta, "cota.txt");
         var rodadas = Path.Combine(c.Pasta, "rodadas.txt");
         File.WriteAllText(bloqueio, "pausar");
         var arquivoCenario = Path.Combine(c.Pasta, "cenario-plugin.json");
         File.WriteAllText(arquivoCenario, JsonSerializer.Serialize(new
         {
-            analise_chatgpt = new { pacote = recebido, rota, pausa = bloqueio, montagem_invalida = invalida, exigir_equivalente = true, rodadas, grupos }
+            analise_chatgpt = new { pacote = recebido, rota, pausa = bloqueio, recusa_cota = recusaCota, montagem_invalida = invalida, exigir_equivalente = true, rodadas, grupos }
         }));
         var pedido = c.Pedido(Provedor.ChatGpt) with
         {
@@ -360,6 +361,17 @@ public partial class OrquestradorTestes
         Assert.Equal(rota, pedido.Registro.AcessoDaExecucao().RotaCodex);
         var retomar = pedido with { Retomar = true, Texto = "", RotaCodex = rota == "openai" ? "codex-lb" : "openai" };
         using var prazo = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var parcialSalvo = Path.Combine(trabalho, "grupo-07.json");
+        var id = File.ReadAllText(Path.Combine(trabalho, "id-execucao.txt"));
+        var evidencia = JsonSerializer.Serialize(new { id = 7, id_execucao = id, secoes = parcial.secoes });
+        File.WriteAllText(parcialSalvo, evidencia);
+        File.WriteAllText(recusaCota, "recusa estruturada do serviço simulado");
+        var semCota = await orq.ExecutarAsync(retomar, c.Progresso, prazo.Token);
+        Assert.Equal("cota_esgotada", semCota.Situacao);
+        Assert.Null(semCota.Documento);
+        Assert.Equal(evidencia, File.ReadAllText(parcialSalvo));
+        Assert.Equal(id, File.ReadAllText(Path.Combine(trabalho, "id-execucao.txt")));
+        File.Delete(recusaCota);
         var recuperando = orq.ExecutarAsync(retomar, c.Progresso, prazo.Token);
         bool IniciouTerceiraRodada()
         {
@@ -382,7 +394,7 @@ public partial class OrquestradorTestes
         var entrega = await recuperando;
         Assert.True(entrega.Situacao == "aguardando_abertura", entrega.Mensagem);
         var tentativas = DiarioAnaliseChatGpt.Listar(Path.Combine(trabalho, DiarioAnaliseChatGpt.Pasta));
-        Assert.Equal(2, tentativas.Count);
+        Assert.Equal(3, tentativas.Count);
         var atual = tentativas[0];
         Assert.True(atual.Consumo.Entrada >= 120L);
         Assert.True(atual.Consumo.Cache >= 85L);

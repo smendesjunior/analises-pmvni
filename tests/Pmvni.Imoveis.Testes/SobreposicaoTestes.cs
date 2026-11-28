@@ -62,7 +62,7 @@ public static class VerificadorSvg
         // as linhas das cotas (grupos com <title>): nenhum texto de fora do grupo por cima delas
         foreach (var grupo in doc.Descendants(Ns + "g").Where(g => g.Element(Ns + "title") is not null))
         {
-            var d = (string?)grupo.Element(Ns + "path")?.Attribute("d") ?? "";
+            if (grupo.Element(Ns + "path")?.Attribute("d")?.Value is not { Length: > 0 } d) continue;
             var nums = d[1..].Split('M')[0].Split('L').Select(p => p.Split(',').Select(v => double.Parse(v, CultureInfo.InvariantCulture)).ToArray()).ToArray();
             if (nums.Length < 2) continue;
             PontoTela a = new(nums[0][0], nums[0][1]), c = new(nums[1][0], nums[1][1]);

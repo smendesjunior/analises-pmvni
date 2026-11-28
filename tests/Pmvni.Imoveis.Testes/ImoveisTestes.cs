@@ -255,6 +255,15 @@ public class MapaLocalizacaoTestes : IDisposable
             Assert.NotNull(zona.Attribute("stroke-dasharray"));
             Assert.NotEmpty((string)zona.Attribute("d")!);
         });
+        var quadroLote = System.Xml.Linq.XDocument.Parse(svg).Descendants().Single(e => (string?)e.Attribute("id") == "dados-do-lote");
+        var moldura = quadroLote.Elements().Single(e => e.Name.LocalName == "rect");
+        Assert.Equal("24", moldura.Attribute("x")?.Value);
+        Assert.Equal(moldura.Attribute("x")?.Value, moldura.Attribute("y")?.Value);
+        Assert.Equal("18", moldura.Attribute("rx")?.Value);
+        Assert.Equal(moldura.Attribute("rx")?.Value, moldura.Attribute("ry")?.Value);
+        var campos = quadroLote.Descendants().Where(e => e.Name.LocalName == "text").Select(e => e.Value).ToArray();
+        foreach (var campo in new[] { "Inscrição", BaseFicticia.Lote4, "Proprietário", "FULANO DE TAL EXEMPLO", "Endereço", "Rua das Acácias, 120", "Área na base", "1.200,00 m²", "Área declarada", "1.500,00 m²", "Zoneamento", "ZCN2" })
+            Assert.Contains(campo, campos);
         Assert.DoesNotContain("sombra", svg);
         Assert.DoesNotContain("ATINGE O LOTE", svg);
         // os nomes dos vizinhos têm a prioridade mais baixa (depois das cotas, das ruas e dos números): sem lugar, ficam ocultos

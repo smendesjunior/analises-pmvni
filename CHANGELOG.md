@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.1
+
+- O mapa do relatório cadastral traz um quadro de cantos arredondados no canto superior esquerdo, com inscrição, proprietário, endereço, área e zoneamento do lote. A legenda permanece abaixo do desenho.
+
 ## 5.1.0
 
 - O mapa emitido em Imóveis usa zoneamento cinza-esverdeado claro, divisas tracejadas e cotas horizontais. A ficha reúne os dados cadastrais e as ressalvas.

@@ -438,7 +438,11 @@ public static class MapaLocalizacao
                 var nome = z.Campo("ZONA");
                 partes[nome] = partes.TryGetValue(nome, out var anterior) ? anterior.Union(inter) : inter;
             }
-            if (partes.Count > 1) return ("", "Lote intersecta mais de uma zona");
+            if (partes.Count > 1)
+            {
+                var siglas = partes.Keys.Order(StringComparer.Ordinal).Select(z => z.Length > 0 ? z : "sem sigla na base");
+                return ("", "Mais de uma zona (" + string.Join(", ", siglas) + ")");
+            }
             if (partes.Count == 1 && partes.First() is var par && par.Key.Length > 0 && par.Value.Covers(lote))
                 return (par.Key, "Cobertura integral");
             return ("", "Cobertura cartográfica parcial ou sem zona identificada");
@@ -562,7 +566,19 @@ public static class MapaLocalizacao
             }
         }
 
-        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, loteN.Length > 0 ? "LOTE " + loteN : "LOTE SEM Nº", rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
+        // A ficha no mapa identifica a feição desenhada. Nos vínculos incertos, seus dados vêm da própria inscrição.
+        string endereco = o.Candidato || string.IsNullOrWhiteSpace(o.Endereco)
+            ? string.Join(", ", new[] { cad?.Endereco, cad?.Bairro }.Where(v => !string.IsNullOrWhiteSpace(v)))
+            : o.Endereco;
+        var quadroLote = new List<(string Rotulo, string Valor)> { ("Inscrição", ins) };
+        if (o.ComDonos) quadroLote.Add(("Proprietário", o.Candidato ? donos.GetValueOrDefault(ins, "") : proprietario));
+        quadroLote.Add(("Endereço", endereco));
+        quadroLote.Add((areaBase is > 0 ? "Área na base" : "Área calculada", $"{Num(areaBase ?? areaGeo)} m²"));
+        if (o.AreaDeclarada is > 0) quadroLote.Add(("Área declarada", $"{Num(o.AreaDeclarada.Value)} m²"));
+        quadroLote.Add(("Zoneamento", zona.Length > 0 ? zona : motivoZona));
+        var idLote = loteN.Length > 0 ? "LOTE " + loteN : "LOTE SEM Nº";
+        var cabecalho = quadra.Length > 0 ? $"{idLote} · QUADRA {quadra}" : idLote;
+        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, idLote, cabecalho, quadroLote, rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
 
         double? dif = null;
         if (o.AreaDeclarada is > 0 && (areaBase is > 0 || areaGeo > 0))
