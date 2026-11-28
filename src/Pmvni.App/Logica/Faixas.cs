@@ -18,9 +18,12 @@ public sealed record ComandoFaixa(string Id, string Rotulo, string Glifo, TipoCo
 /// <summary>Uma aba da faixa (Arquivo, Exibir, Ajuda…) com os seus comandos, na ordem em que aparecem.</summary>
 public sealed record AbaFaixa(string Nome, IReadOnlyList<ComandoFaixa> Comandos);
 
-/// <summary>A faixa inteira de um módulo: abas, a que abre por padrão (índice em <see cref="Abas"/>) e o botão primário tonal, à
-/// esquerda dos comandos e visível em todas as abas do módulo (como "Novo email"); null = sem primário (Ajustes).</summary>
-public sealed record DefinicaoFaixa(Modulo Modulo, IReadOnlyList<AbaFaixa> Abas, int AbaPadrao, ComandoFaixa? Primario = null, ComandoFaixa? Secundario = null);
+/// <summary>A faixa inteira de um módulo: abas, a que abre por padrão (índice em <see cref="Abas"/>) e o botão primário, à
+/// esquerda dos comandos e visível em todas as abas do módulo (como "Novo email"); null = sem primário (Ajustes). O primário é verde
+/// (<see cref="DestaquePrimario"/>) quando é a ação que cria o trabalho do módulo; senão fica no lugar dele com o visual comum
+/// (Imóveis: o trabalho é a pesquisa, e o verde dela fica na página).</summary>
+public sealed record DefinicaoFaixa(Modulo Modulo, IReadOnlyList<AbaFaixa> Abas, int AbaPadrao, ComandoFaixa? Primario = null, ComandoFaixa? Secundario = null,
+    bool DestaquePrimario = true);
 
 /// <summary>Faixa de opções por dados (desenho §9.1): uma definição por módulo; a faixa troca inteira com o módulo. Arquivo e Ajuda
 /// existem em todas; a aba padrão é a segunda (Relatórios: Página Inicial; Ajustes: a primeira, porque a sua segunda é Ajuda). Só aparece o que funciona:
@@ -270,7 +273,7 @@ public static class Faixas
             new(ComandosApp.ImoveisConfigurar, "Pasta QGIS", Glifos.Pasta),
         ]),
         Ajuda,
-    ], AbaPadrao: 1, Primario: NovoProcesso);
+    ], AbaPadrao: 1, Primario: NovoProcesso, DestaquePrimario: false);
 
     /// <summary>Acompanhamento de processos (2026-11-17): a planilha de tramitação.</summary>
     static readonly DefinicaoFaixa Acompanhamento = new(Modulo.Acompanhamento,

@@ -341,8 +341,8 @@ public sealed partial class MainWindow
             Dicas.Aplicar(abrir, "Abrir relatório", "Mostra os dados cadastrais e territoriais do imóvel.");
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);
             // 2026-11-17: o Boletim de Cadastro Imobiliário oficial, emitido pelo GPI com a inscrição municipal desta linha.
-            var gerar = new Button { Content = "Gerar boletim…", Padding = new Thickness(6, 5, 6, 6),
-                Style = (Style)Application.Current.Resources["PmvniBotaoTonalStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+            // Visual comum, igual ao "Relatório" ao lado: o verde da tela é "Pesquisar".
+            var gerar = new Button { Content = "Gerar boletim…", Padding = new Thickness(6, 5, 6, 6), HorizontalAlignment = HorizontalAlignment.Stretch };
             IconeDeAcao.SetGlifo(gerar, Glifos.Documento);
             Brilho.SetAtivo(gerar, false);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(gerar, "Gerar boletim cadastral do imóvel " + reg.InscricaoMunicipal);

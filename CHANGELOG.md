@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 5.1.4
+
+- O verde fica só nos botões principais: Novo relatório, Novo despacho, Anexar PDFs…, Novo processo (Acompanhamento), Emitir processo aprovado, Analisar com o ChatGPT, Gerar e conferir, Gravar na pasta do processo, Pesquisar e Salvar PDF… (Imóveis), Salvar dados e Reiniciar agora (Ajustes) e a ação que conclui cada janela.
+- Com o Novo relatório ou o Novo despacho aberto, o botão da faixa fica no visual comum e o verde passa para o botão que avança a tela.
+- Retomar análise e Descartar pendência… têm, na faixa, o mesmo formato e tamanho de texto dos outros comandos. Consumo e logs ganhou ícone.
+- Avisos, painéis, telas vazias, linhas de resultado e os botões de escolher pasta e arquivo em Ajustes passam ao visual comum.
+- Os alternadores Resumo (Acompanhamento) e Cotas (relatório do imóvel), quando ligados, têm o fundo neutro dos alternadores da faixa em vez do verde.
+
 ## 5.1.3
 
 - A tela Análise de projetos reúne a busca e a seleção do processo acima dos painéis Anexos e Analisar. Em janelas estreitas, os painéis ficam um abaixo do outro.

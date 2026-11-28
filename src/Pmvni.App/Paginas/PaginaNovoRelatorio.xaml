@@ -78,7 +78,7 @@
 
     <!-- 3.5.1: a janela leva este painel para a faixa de opções, ao lado do "Novo relatório" (MainWindow.NovoRelatorio.cs). -->
     <StackPanel x:Name="AcoesRetomadaFormulario" x:FieldModifier="internal" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
-            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Executar}" x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Executar}" x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
             <Button x:Name="BotaoDescartarPendencias" x:FieldModifier="internal" Content="Descartar pendência…" local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}"
                     local:Dicas.Descricao="Escolher uma análise salva para retirar da lista de retomada."/>
@@ -98,7 +98,7 @@
             <TextBlock Text="Selecione um processo, adicione os documentos e inicie a análise." TextAlignment="Left" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
           </StackPanel>
           <local:PainelQuebra x:Name="AcoesFormulario" Grid.Column="1" VerticalAlignment="Top" Espaco="8" EspacoLinhas="4">
-            <Button x:Name="BotaoHistoricoMonitor" x:FieldModifier="internal" Content="Consumo e logs" local:Dicas.Descricao="Consulta o histórico de consumo e eventos das análises desta estação."/>
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Grafico}" x:Name="BotaoHistoricoMonitor" x:FieldModifier="internal" Content="Consumo e logs" local:Dicas.Descricao="Consulta o histórico de consumo e eventos das análises desta estação."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atividade}" x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver andamento" Visibility="Collapsed"
                 local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Voltar}" x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"
@@ -582,7 +582,7 @@
           <Border Style="{StaticResource MonitorCartao}" Padding="0" CornerRadius="8">
             <StackPanel x:Name="EtapasAtividades" Spacing="0" AutomationProperties.Name="Atividades por etapa"/>
           </Border>
-          <Button Style="{StaticResource PmvniBotaoTonalStyle}" Click="AbrirLogDoMonitor" HorizontalAlignment="Left">
+          <Button Click="AbrirLogDoMonitor" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16"/><TextBlock Text="Ver registros"/></StackPanel>
           </Button>
         </StackPanel>
@@ -633,7 +633,7 @@
             <local:PainelQuebra Espaco="12" EspacoLinhas="4">
               <HyperlinkButton x:Name="LinkLogCompleto" Content="Abrir log completo" Click="AlternarLogCompleto" IsEnabled="False"/>
               <Button x:Name="BotaoEvidenciasPdf" x:FieldModifier="internal" Visibility="Collapsed" HorizontalAlignment="Left"
-                  HorizontalContentAlignment="Stretch" Padding="8,4" Style="{StaticResource PmvniBotaoTonalStyle}"
+                  HorizontalContentAlignment="Stretch" Padding="8,4"
                   AutomationProperties.Name="Evidências por PDF e página"
                   local:Dicas.Descricao="Abre as extrações locais das pranchas deste processo.">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
@@ -718,7 +718,7 @@
 
             </Button>
 
-            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoTonalStyle}"
+            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise"
 
                     local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
 

@@ -24,6 +24,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     Button? primario;
     Button? secundario;
     bool montando;
+    bool primarioEmDestaque = true;
 
     public FaixaDeOpcoes()
     {
@@ -102,6 +103,18 @@ public sealed partial class FaixaDeOpcoes : UserControl
         }
         finally { montando = false; }
     }
+
+    /// <summary>Um só verde à vista: com um fluxo aberto (Novo relatório, Novo despacho) o verde é o botão do fluxo, e o primário da faixa
+    /// fica no mesmo lugar com o visual comum. Vale também depois de <see cref="Montar"/>.</summary>
+    public void DestacarPrimario(bool sim)
+    {
+        if (primarioEmDestaque == sim) return;
+        primarioEmDestaque = sim;
+        if (primario is not null) EstilizarPrimario(primario);
+    }
+
+    /// <summary>O primário está em verde agora (roteiro).</summary>
+    internal bool PrimarioEmDestaque => primario is not null && primarioEmDestaque && definicao?.DestaquePrimario != false;
 
     /// <summary>Escolhe a aba pelo nome (o roteiro e os ajustes lembrados usam).</summary>
     public void EscolherAba(string nome)
@@ -394,16 +407,10 @@ public sealed partial class FaixaDeOpcoes : UserControl
             b = new Button { Content = conteudo };
             b.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
         }
-        if (destaque)
-        {
-            b.Style = (Style)Application.Current.Resources[b is DropDownButton ? "PmvniFaixaMenuPrimarioStyle" : "PmvniBotaoPrimarioStyle"];
-            Brilho.SetAtivo(b, false);
-        }
-        else
-        {
-            b.Style = (Style)Application.Current.Resources["PmvniComandoFaixa"];
-        }
         b.Tag = c.Id;
+        Brilho.SetAtivo(b, false);
+        if (destaque && ReferenceEquals(c, definicao?.Primario)) EstilizarPrimario(b);
+        else AplicarEstiloDaVaga(b, destaque);
         // Rótulo de 12 px, o mesmo dos AppBarButton com rótulo à direita: todos os comandos da faixa com o mesmo tamanho de texto.
         b.FontSize = (double)Application.Current.Resources["PmvniTamanhoRotuloFaixa"];
         b.MinHeight = b.Height = 32;
@@ -415,6 +422,32 @@ public sealed partial class FaixaDeOpcoes : UserControl
         AutomationProperties.SetName(b, c.Descricao ?? c.Rotulo);
         Dicas.Aplicar(b, TextoDaDica(c.Id));
         return b;
+    }
+
+    /// <summary>Um botão que a página põe na faixa (na <c>VagaExtra</c>) com a forma e o visual comum dos comandos dela: 32 px, recuo 10,
+    /// raio da faixa, texto de 12 px e ícone à esquerda.</summary>
+    internal static void ComoComandoDaFaixa(Button b)
+    {
+        AplicarEstiloDaVaga(b, destaque: false);
+        b.ContentTemplate = (DataTemplate)Application.Current.Resources["PmvniRotuloComIconeFaixa"];
+        b.MinHeight = b.Height = 32;
+        b.Padding = new Thickness(10, 0, 10, 0);
+        b.CornerRadius = (CornerRadius)Application.Current.Resources["PmvniRaioFaixa"];
+        b.VerticalAlignment = VerticalAlignment.Center;
+        b.VerticalContentAlignment = VerticalAlignment.Center;
+    }
+
+    /// <summary>O primário fica verde se o módulo o destaca e nenhum fluxo está aberto; senão, o visual comum da faixa.</summary>
+    void EstilizarPrimario(Button b) => AplicarEstiloDaVaga(b, primarioEmDestaque && definicao?.DestaquePrimario != false);
+
+    /// <summary>Verde (destaque) ou o visual comum dos comandos da faixa. O tamanho, o raio e o recuo são valores locais do botão
+    /// (<see cref="BotaoDaVaga"/>), então trocar o estilo não mexe na forma nem no alinhamento.</summary>
+    static void AplicarEstiloDaVaga(Button b, bool destaque)
+    {
+        var chave = b is DropDownButton
+            ? destaque ? "PmvniFaixaMenuPrimarioStyle" : "PmvniFaixaMenuComumStyle"
+            : destaque ? "PmvniBotaoPrimarioStyle" : "PmvniComandoFaixa";
+        b.Style = (Style)Application.Current.Resources[chave];
     }
 
     /// <summary>O atalho do comando no módulo da faixa (o mapa do leitor na Legislação, auditoria M1).</summary>

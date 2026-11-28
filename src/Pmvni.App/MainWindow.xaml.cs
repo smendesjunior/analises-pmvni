@@ -1036,6 +1036,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var pronto = documento is not null && !ocupado;
         var temRelatorio = pronto && sessao?.Atual is not null;
         var folhas = temRelatorio && !novoRelatorioAberto;     // a página Novo relatório esconde as folhas: os comandos delas ficam desabilitados
+        // Um verde à vista: com o Novo relatório ou o Novo despacho aberto, o verde é o botão do fluxo (Analisar, Gerar e conferir, Gravar).
+        Faixa.DestacarPrimario(!(moduloAtual == Modulo.Relatorios && novoRelatorioAberto) && !(moduloAtual == Modulo.Despachos && PaginaNovoDespachoVisivel));
         Faixa.Habilitar(ComandosApp.ArquivoImportar, pronto);
         Faixa.Habilitar(ComandosApp.SiteVoltar, PaginaDeSites.Atual?.CanGoBack == true);
         Faixa.Habilitar(ComandosApp.SiteAvancar, PaginaDeSites.Atual?.CanGoForward == true);

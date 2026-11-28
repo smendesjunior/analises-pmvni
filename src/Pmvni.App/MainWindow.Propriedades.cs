@@ -712,7 +712,7 @@ public sealed partial class MainWindow
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         conteudo.Children.Add(new FontIcon { Glyph = Glifos.Adicionar, FontSize = 16 });
         conteudo.Children.Add(new TextBlock { Text = "Adicionar ambiente…" });
-        var botao = new Button { Content = conteudo, Style = (Style)res["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+        var botao = new Button { Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Adicionar ambiente");
         Dicas.Aplicar(botao, "Adicionar ambiente…", "Acrescenta um ambiente à tabela de iluminação e ventilação; depois você põe as janelas e as portas dele e a conta se faz sozinha.");
 

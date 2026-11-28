@@ -877,7 +877,7 @@ public sealed partial class MainWindow
         var painel = new StackPanel { Spacing = 8, MaxWidth = 300 };
         painel.Children.Add(new TextBlock { Text = it.Criado ? "Item novo excluído" : $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
         painel.Children.Add(CartoesDePainel.Apoio(DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)"));
-        var restaurar = new Button { Content = "Restaurar item", IsEnabled = Editavel, Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
+        var restaurar = new Button { Content = "Restaurar item", IsEnabled = Editavel };
         IconeDeAcao.SetGlifo(restaurar, Glifos.Restaurar);
         Dicas.Aplicar(restaurar, "Restaurar item", "Traz este item excluído de volta para o relatório.", motivo: Editavel ? null : MotivoRevisaoIndisponivel());
         var flyout = new Flyout { Content = painel };

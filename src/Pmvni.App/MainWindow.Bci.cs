@@ -119,7 +119,7 @@ public sealed partial class MainWindow
         if (arquivo is not null)
         {
             // Sucesso: "Abrir PDF" e "Abrir pasta" (pedido do usuário), mesmo com o PDF já aberto.
-            var abrirPdf = new Button { Content = Rotulo(Glifos.Abrir, "Abrir PDF"), Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
+            var abrirPdf = new Button { Content = Rotulo(Glifos.Abrir, "Abrir PDF") };
             Brilho.SetAtivo(abrirPdf, false);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrirPdf, "Abrir PDF do boletim cadastral");
             Dicas.Aplicar(abrirPdf, "Abrir PDF", "Mostra o boletim cadastral no visualizador.");

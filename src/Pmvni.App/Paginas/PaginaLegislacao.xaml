@@ -84,7 +84,7 @@
             <FontIcon Glyph="{x:Bind local:Glifos.Livro}" FontSize="64" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
             <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda." Style="{StaticResource PmvniSecondaryTextStyle}"/>
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-              <Button HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAnexar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" AutomationProperties.Name="Anexar PDFs…">
+              <Button HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAnexar" x:FieldModifier="internal" AutomationProperties.Name="Anexar PDFs…">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="16"/><TextBlock Text="Anexar PDFs…"/></StackPanel>
               </Button>
               <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Gerenciar}" Grid.Column="1" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"

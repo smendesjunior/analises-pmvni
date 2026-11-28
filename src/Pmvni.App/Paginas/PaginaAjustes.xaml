@@ -54,7 +54,7 @@
             <TextBlock TextAlignment="Left" Text="{x:Bind Selo}" Style="{StaticResource CaptionTextBlockStyle}"/>
           </Border>
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Documento}" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Substituir arquivo…" Click="AoSubstituir" AutomationProperties.Name="Substituir o arquivo desta lei"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Documento}" Content="Substituir arquivo…" Click="AoSubstituir" AutomationProperties.Name="Substituir o arquivo desta lei"
                       local:Dicas.Titulo="Substituir arquivo…" local:Dicas.Descricao="Troca o PDF desta lei por outro arquivo escolhido no computador."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}" Content="Excluir" Click="AoExcluir" AutomationProperties.Name="Excluir esta lei"
                       local:Dicas.Titulo="Excluir" local:Dicas.Descricao="Tira esta lei da biblioteca do app; o PDF original não é apagado."/>
@@ -192,7 +192,7 @@
                     <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Escolha um certificado para assinar os PDFs. As opções de exibição controlam onde a assinatura pessoal fica visível."/>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
+                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
                               local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Escolhe o arquivo do certificado digital (.pfx ou .p12)."/>
                     <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Chave}" x:Name="BotaoCertificadoWindows" x:FieldModifier="internal" Content="Certificado do Windows…" AutomationProperties.Name="Usar um certificado do repositório do Windows"
                               local:Dicas.Titulo="Certificado do Windows…" local:Dicas.Descricao="Usa um certificado instalado no Windows, em token ou em cartão; a senha é pedida pelo próprio dispositivo."/>
@@ -230,7 +230,7 @@
                         <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="É a pasta que os módulos Processos e Despachos leem (uma subpasta por ano, e dentro dela uma pasta por processo). O editor só lê essa pasta: nunca move, renomeia nem apaga nada nela."/>
                       </StackPanel>
                       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoEscolherPasta" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta de processos"
+                        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoEscolherPasta" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta de processos"
                                   local:Dicas.Titulo="Alterar…" local:Dicas.Descricao="Escolhe outra pasta onde ficam os processos da Secretaria."/>
                         <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoAbrirPastaProcessos" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta de processos no Explorador"
                                   local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta de processos no Explorador de Arquivos."/>
@@ -253,7 +253,7 @@
                     <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="A pasta da base municipal (a que tem o Mapa PDM.qgz, as pastas shapes, 2025_10, SHAPE_LOTEAMENTOS e BASE_CADASTRAL_AUXILIAR). O editor só lê esses arquivos: nunca grava, move nem apaga nada nela."/>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.AbrirPasta}" x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
+                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.AbrirPasta}" x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
                               local:Dicas.Titulo="Selecionar pasta…" local:Dicas.Descricao="Escolhe a pasta da base QGIS municipal que o módulo Imóveis consulta."/>
                     <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Conferir}" x:Name="BotaoVerificarQgis" x:FieldModifier="internal" Content="Verificar acesso e arquivos" AutomationProperties.Name="Verificar acesso e arquivos da pasta QGIS"
                               local:Dicas.Titulo="Verificar acesso e arquivos" local:Dicas.Descricao="Confere se a pasta abre e quais camadas e bases foram encontradas."/>
@@ -284,7 +284,7 @@
                         <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="A planilha do Excel no modelo padrão (ACOMPANHAMENTO DE PROCESSOS). O módulo Acompanhamento mostra todas as colunas dela, com as listas e as cores configuradas, e grava nela tudo o que você muda no app. Antes de cada gravação, uma cópia de segurança vai para a pasta de dados do editor."/>
                       </StackPanel>
                       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Documento}" x:Name="BotaoEscolherPlanilha" x:FieldModifier="internal" Content="Selecionar planilha…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a planilha de acompanhamento"
+                        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Documento}" x:Name="BotaoEscolherPlanilha" x:FieldModifier="internal" Content="Selecionar planilha…" AutomationProperties.Name="Selecionar a planilha de acompanhamento"
                                   local:Dicas.Titulo="Selecionar planilha…" local:Dicas.Descricao="Escolhe a planilha .xlsx do acompanhamento de processos."/>
                         <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Conferir}" x:Name="BotaoVerificarPlanilha" x:FieldModifier="internal" Content="Verificar" AutomationProperties.Name="Verificar a planilha de acompanhamento"
                                   local:Dicas.Titulo="Verificar" local:Dicas.Descricao="Lê a planilha e mostra as colunas, listas e processos encontrados."/>
@@ -438,7 +438,7 @@
                     <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Gera o PDF dos despachos (sobre uma cópia do DOCX; o Word nunca é usado). Sem ele, sai só o DOCX."/>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoEscolherSoffice" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Escolher…" AutomationProperties.Name="Escolher o programa do LibreOffice"
+                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoEscolherSoffice" x:FieldModifier="internal" Content="Escolher…" AutomationProperties.Name="Escolher o programa do LibreOffice"
                               local:Dicas.Titulo="Escolher…" local:Dicas.Descricao="Escolhe no computador o programa do LibreOffice (soffice.exe)."/>
                     <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Conferir}" x:Name="BotaoTestarSoffice" x:FieldModifier="internal" Content="Testar" AutomationProperties.Name="Testar o LibreOffice"
                               local:Dicas.Titulo="Testar" local:Dicas.Descricao="Confere se o LibreOffice abre e converte para PDF neste computador."/>
@@ -506,7 +506,7 @@
                             Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button x:Name="BotaoAnexarLegislacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}"
+                  <Button x:Name="BotaoAnexarLegislacao" x:FieldModifier="internal"
                             AutomationProperties.Name="Anexar PDFs das leis"
                             local:Dicas.Titulo="Anexar PDFs…" local:Dicas.Descricao="Acrescenta leis em PDF à biblioteca; o editor guarda uma cópia e não muda o original.">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -730,7 +730,7 @@
                         <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O Editor usa os modelos e textos desta pasta para emitir os despachos de correção e de aprovação."/>
                       </StackPanel>
                       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoEscolherKit" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta do kit PMVNI"
+                        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoEscolherKit" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta do kit PMVNI"
                                   local:Dicas.Titulo="Alterar…" local:Dicas.Descricao="Escolhe outra pasta do kit PMVNI (modelos, plugins e regras)."/>
                         <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoAbrirPastaKit" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta do kit no Explorador"
                                   local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta do kit PMVNI no Explorador de Arquivos."/>
@@ -753,7 +753,7 @@
                   <TextBlock Text="A atualização completa sincroniza as fontes, os modelos de despacho e o plugin. Para atualizar apenas o plugin, use o botão do cartão abaixo." Style="{StaticResource PmvniAjusteAjuda}"/>
                 </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoVerificarComponentes" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Verificar atualizações" AutomationProperties.Name="Verificar atualizações dos plugins e ferramentas"
+                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoVerificarComponentes" x:FieldModifier="internal" Content="Verificar atualizações" AutomationProperties.Name="Verificar atualizações dos plugins e ferramentas"
                                 local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Lê de novo as versões instaladas neste computador e as disponíveis na fonte do kit."/>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Gerenciar}" x:Name="BotaoRepararInstalacao" x:FieldModifier="internal" Content="Reparar instalação" AutomationProperties.Name="Reparar instalação dos plugins e ferramentas" local:Dicas.Titulo="Reparar instalação" local:Dicas.Descricao="Reinstala todos os componentes usando a cópia local do kit PMVNI."/>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoAtualizarTodosComponentes" x:FieldModifier="internal" Content="Atualizar kit completo" AutomationProperties.Name="Atualizar todos os plugins e ferramentas"
@@ -837,7 +837,7 @@
                   <local:LinhaComAcoes Margin="16,12">
                     <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Relatar um problema" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Copie a versão e o sistema para enviar junto do relato, ou abra a pasta de dados com o registro de erros do editor." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Copiar}" x:Name="BotaoCopiarInformacoes" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Copiar informações" HorizontalAlignment="Stretch"
+                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Copiar}" x:Name="BotaoCopiarInformacoes" x:FieldModifier="internal" Content="Copiar informações" HorizontalAlignment="Stretch"
                                 local:Dicas.Titulo="Copiar informações" local:Dicas.Descricao="Copia a versão, o sistema e as pastas do editor para colar no relato."/>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.AbrirPasta}" x:Name="BotaoAbrirPastaDados" x:FieldModifier="internal" Content="Abrir pasta de dados" HorizontalAlignment="Stretch" AutomationProperties.Name="Abrir a pasta de dados no Explorador"
                                 local:Dicas.Titulo="Abrir pasta de dados" local:Dicas.Descricao="Abre no Explorador a pasta de dados do editor (ajustes, leis, recuperação, erros)."/>
@@ -990,7 +990,7 @@
                   <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O relatório pode conter nomes de processos e caminhos locais. Revise antes de compartilhar."/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoAtualizarDiagnostico" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Atualizar diagnóstico"
+                  <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoAtualizarDiagnostico" x:FieldModifier="internal" Content="Atualizar diagnóstico"
                             local:Dicas.Titulo="Atualizar diagnóstico" local:Dicas.Descricao="Lê de novo as versões, as pastas e o uso de memória do editor."/>
                   <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Copiar}" x:Name="BotaoCopiarVersoes" x:FieldModifier="internal" Content="Copiar diagnóstico" AutomationProperties.Name="Copiar o relatório de diagnóstico"
                             local:Dicas.Titulo="Copiar diagnóstico" local:Dicas.Descricao="Copia o relatório de diagnóstico, para mandar ao suporte."/>

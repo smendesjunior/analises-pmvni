@@ -3558,8 +3558,10 @@ internal static class Roteiro
             await j.ExecutarComandoAsync(ComandosApp.RelatoriosNovo);   // pela faixa de Relatórios
             await j.AguardarNovoRelatorioAsync();
             var abriu = j.ModuloAtual == Modulo.Relatorios && j.PaginaNovoRelatorioVisivel && !j.FolhasVisiveis
-                // 2026-11-16: Novo relatório é o botão verde (primário), com Abrir verde ao lado; não se repete na aba Arquivo.
-                && j.FaixaAtual.Definicao!.Primario?.Id == ComandosApp.RelatoriosNovo && j.FaixaAtual.Definicao.Secundario?.Id == ComandosApp.ArquivoAbrir;
+                // 2026-11-16: Novo relatório é o primário, com Abrir ao lado; não se repete na aba Arquivo. 5.1.4: com a página aberta o
+                // primário perde o verde (o verde é "Analisar com o ChatGPT").
+                && j.FaixaAtual.Definicao!.Primario?.Id == ComandosApp.RelatoriosNovo && j.FaixaAtual.Definicao.Secundario?.Id == ComandosApp.ArquivoAbrir
+                && !j.FaixaAtual.PrimarioEmDestaque;
             p["pagina_aberta_pela_faixa"] = abriu;
 
             // Criar processo… (9998/2099 "Fulána de Tál") e, de novo, o mesmo número: nenhuma pasta nova e o aviso exato.

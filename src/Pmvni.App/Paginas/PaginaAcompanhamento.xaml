@@ -73,6 +73,10 @@
         <Grid>
           <ToggleButton x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status"
                       local:Dicas.Titulo="Resumo" local:Dicas.Descricao="Mostra ou esconde o resumo por status.">
+          <!-- 5.1.4: ligado com fundo neutro suave, como os alternadores da faixa; o verde da tela é só o "Novo processo". -->
+          <ToggleButton.Resources>
+            <ResourceDictionary Source="ms-appx:///Recursos/AlternadorNeutro.xaml"/>
+          </ToggleButton.Resources>
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Grafico}" FontSize="16"/><TextBlock Text="Resumo"/></StackPanel>
         </ToggleButton>
         </Grid>
@@ -205,7 +209,7 @@
             <StackPanel x:Name="CamposPainel" x:FieldModifier="internal" Spacing="0" Padding="0,0,8,0"/>
           </ScrollViewer>
           <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="BotaoEditar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" AutomationProperties.Name="Editar processo"
+            <Button x:Name="BotaoEditar" x:FieldModifier="internal" AutomationProperties.Name="Editar processo"
                     local:Dicas.Descricao="Abre os dados do processo selecionado para edição.">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Editar}" FontSize="16"/><TextBlock Text="Editar processo…"/></StackPanel>
             </Button>

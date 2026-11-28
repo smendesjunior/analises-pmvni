@@ -2,8 +2,8 @@
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
-  <!-- Tela vazia de um módulo (auditoria M5): o ícone colorido do módulo (48 px), título, frase, um botão tonal e um secundário e, em
-       Relatórios, os recentes que ainda existem. -->
+  <!-- Tela vazia de um módulo (auditoria M5): o ícone colorido do módulo (48 px), título, frase, dois botões comuns e, em Relatórios, os
+       recentes que ainda existem. Os botões repetem comandos da faixa, cujo primário já é o verde da tela: aqui eles ficam no visual comum. -->
   <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Padding="24">
     <Border x:Name="VagaIcone" Width="48" Height="48" HorizontalAlignment="Center" IsHitTestVisible="False"/>
     <TextBlock x:Name="Titulo" x:FieldModifier="internal" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1" HorizontalAlignment="Center" MaxWidth="460"
@@ -12,7 +12,7 @@
                TextAlignment="Center" TextWrapping="Wrap"/>
     <StackPanel x:Name="Botoes" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,6,0,0">
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button x:Name="BotaoPrimario" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" Visibility="Collapsed"/>
+        <Button x:Name="BotaoPrimario" x:FieldModifier="internal" Visibility="Collapsed" VerticalAlignment="Center"/>
         <Button x:Name="BotaoSecundario" x:FieldModifier="internal" Visibility="Collapsed" VerticalAlignment="Center"/>
       </StackPanel>
     </StackPanel>

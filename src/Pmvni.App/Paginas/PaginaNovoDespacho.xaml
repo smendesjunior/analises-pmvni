@@ -176,7 +176,7 @@
                        TextWrapping="Wrap" PlaceholderText="Descreva o que mudar no despacho. Ex.: junte os itens de cotas."
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
               <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" AutomationProperties.Name="Aplicando a instrução com IA" AutomationProperties.LiveSetting="Polite" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
-              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoEnviarStyle}"
+              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoEnviarComumStyle}"
                       AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
                       local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
                 <FontIcon Glyph="{x:Bind local:Glifos.Avancar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>

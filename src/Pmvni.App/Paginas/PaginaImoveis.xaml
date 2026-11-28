@@ -83,7 +83,7 @@
         <StackPanel x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="16">
           <FontIcon Glyph="{x:Bind local:Glifos.Mapa}" FontSize="64" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
           <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" TextAlignment="Center"/>
-          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
+          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center"
                   AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Pastas e fontes de dados para escolher a pasta dos arquivos QGIS.">
             <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Configurar pasta QGIS"/></StackPanel>
           </Button>
@@ -115,6 +115,10 @@
         <!-- Cotas do lote no mapa (lados, domínio DNIT e eixo → terreno, largura da rua): ligadas por padrão; a escolha vale até fechar o app. -->
         <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
                       local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
+          <!-- 5.1.4: ligado com fundo neutro suave, como os alternadores da faixa; o verde da barra é só o "Salvar PDF…". -->
+          <ToggleButton.Resources>
+            <ResourceDictionary Source="ms-appx:///Recursos/AlternadorNeutro.xaml"/>
+          </ToggleButton.Resources>
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Cotas}" FontSize="16"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
         <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" AutomationProperties.Name="Imprimir o relatório"

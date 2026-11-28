@@ -34,8 +34,8 @@ internal sealed class JanelaPrancha : Window
     readonly string? depoisDe;
 
     readonly Grid vazio = PainelPrancha.Cartao();
-    readonly Button abrirNoCentro = new() { Content = "Escolher arquivo…",
-        Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Center };
+    // Visual comum: o verde da janela é "Inserir no relatório", no rodapé.
+    readonly Button abrirNoCentro = new() { Content = "Escolher arquivo…", HorizontalAlignment = HorizontalAlignment.Center };
     readonly Grid raiz = new();
     readonly ComboBox arquivos = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Escolha o PDF das pranchas" };
     readonly Button escolher = new() { Content = "Escolher arquivo…" };

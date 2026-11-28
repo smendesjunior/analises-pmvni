@@ -270,7 +270,10 @@ public sealed partial class MainWindow
         n.LinkRemontarTeste.Click += async (_, _) => { if (ultimoResultadoNR is { } e) await TentarAsync(async () => await RemontarRelatorioTesteAsync(e)); };
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         // 3.5.1: Retomar e Descartar análise sobem para a faixa de opções, ao lado do "Novo relatório" (pedido do usuário).
-        Faixa.VagaExtra.Content = n.DestacarAcoesRetomada();
+        // Na faixa elas têm o visual comum dos comandos: o verde ali é só o primário (Novo relatório).
+        var acoesRetomada = n.DestacarAcoesRetomada();
+        foreach (var b in new[] { n.BotaoContinuar, n.BotaoDescartarPendencias }) FaixaDeOpcoes.ComoComandoDaFaixa(b);
+        Faixa.VagaExtra.Content = acoesRetomada;
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(() => ResolverEntregaPendenteAsync(n.BotaoImportarPendente.Tag as AcaoEntrega));
         n.DetalhesSelecionados += async (_, _) =>
         {
